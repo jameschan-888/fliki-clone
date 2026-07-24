@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Gallery - 声音库</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,"Segoe UI",sans-serif;background:#0e1320;color:#e6e8ee;padding:20px;max-width:1100px;margin:0 auto}nav{margin-bottom:14px}nav a{color:#8fb0ff;text-decoration:none;font-size:13px}h1{margin-bottom:16px;font-size:22px}.panel{background:#161c2d;border-radius:10px;padding:18px;margin-bottom:16px;border:1px solid #232a40}.btn{background:#4f8cff;color:#fff;border:none;padding:8px 13px;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap}.btn:hover{background:#6da0ff}.btn:disabled{background:#2a3142;color:#6c7593;cursor:not-allowed}.btn-pick{background:#2f9e68}input[type=text],select{background:#0e1320;border:1px solid #2a3142;color:#e6e8ee;padding:9px 10px;border-radius:6px;width:100%;font-size:13px;font-family:inherit}.filters{display:grid;grid-template-columns:1fr 180px 2fr;gap:10px}.voice{display:grid;grid-template-columns:minmax(260px,1fr) 100px 80px auto;gap:12px;align-items:center;background:#0e1320;border:1px solid #232a40;border-radius:8px;padding:12px;margin-bottom:8px}.voice.selected{border-color:#4f8cff;box-shadow:0 0 0 2px rgba(79,140,255,.14)}.voice-name{font-size:14px;font-weight:600}.voice-id{color:#6c7593;font-size:11px;margin-top:4px}.tag{display:inline-block;background:#232a40;color:#93a0c0;padding:3px 7px;border-radius:4px;font-size:11px}.tag.Female{background:#3e2945;color:#e6a4f2}.tag.Male{background:#263b52;color:#96c9ff}.muted{color:#6c7593;font-size:12px}.summary{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.empty{text-align:center;padding:36px;color:#6c7593}.buttons{display:flex;gap:7px}.pickerNote{display:none;margin:-6px 0 16px;padding:10px 12px;border-radius:8px;background:#1d2945;color:#a9bcf5;font-size:13px}.pickerNote.show{display:block}@media(max-width:760px){.filters{grid-template-columns:1fr}.voice{grid-template-columns:1fr auto}.voice .locale,.voice .gender{grid-row:2}.buttons{grid-column:span 2}}
+</style>
+</head>
+<body>
+<nav><a href="/">← 功能首页</a></nav>
+<h1>🎙️ Voice Gallery <span class="muted" id="apiStatus">· API: --</span></h1>
+<div class="pickerNote" id="pickerNote">选择声音后会自动回填并保存到当前场景。</div>
+<div class="panel"><div class="filters"><select id="locale"><option value="">全部语言</option></select><select id="gender"><option value="">全部性别</option><option value="Female">Female</option><option value="Male">Male</option></select><input id="search" type="text" placeholder="搜索声音名称、语言或声音 ID"></div></div>
+<details class="panel" id="clonesPanel"><summary>🎙 我的克隆声音（GPT-SoVITS）<span id="cloneStatus" class="muted"></span></summary><div class="filters"><input id="cloneSearch" type="text" placeholder="按名称筛选"></div><div id="clones" class="voices"></div></details>
+<div class="panel"><div class="summary"><span id="summary" class="muted">正在加载声音…</span><span id="playing" class="muted"></span></div><div id="voices"></div></div>
+<audio id="player"></audio>
+<script>
+var API="http://127.0.0.1:8001";
+var parametersFromPage=new URLSearchParams(window.location.search);
+var target=parametersFromPage.get("target")||"";
+var current=parametersFromPage.get("current")||"";
+var requestedLocale=parametersFromPage.get("locale")||"";
+var locale=document.getElementById("locale");
+var gender=document.getElementById("gender");
+var search=document.getElementById("search");
+var voicesBox=document.getElementById("voices");
+var player=document.getElementById("player");
+var debounceTimer=null;
+if(target)document.getElementById("pickerNote").classList.add("show");
+
+async function getJson(path,options){var response=await fetch(API+path,options);if(!response.ok)throw new Error(await response.text());return response.json()}
+function escapeHtml(value){return String(value||"").replace(/[&<>"']/g,function(char){if(char==="&")return "&amp;";if(char==="<")return "&lt;";if(char===">")return "&gt;";if(char==="\"")return "&quot;";return "&#039;"})}
+async function loadLocales(){var rows=await getJson("/voices/locales");locale.innerHTML='<option value="">全部语言（'+rows.length+'）</option>'+rows.map(function(row){return '<option value="'+escapeHtml(row.locale)+'">'+escapeHtml(row.locale)+'（'+row.count+'）</option>'}).join("");if(requestedLocale)locale.value=requestedLocale}
+async function loadClones(){
+  var box=document.getElementById("clones");var statusEl=document.getElementById("cloneStatus");
+  try{
+    var clones=await getJson("/voice-clones");
+    statusEl.textContent=" · "+clones.length+" 个克隆（启用前不会出现在配音）";
+    box.innerHTML=clones.length?clones.map(function(c){
+      var pickButton=target?'<button class="btn btn-pick" data-pick-clone="'+escapeHtml(c.uuid)+'">✓ 选择</button>':"";
+      var previewButton="<button class="btn" data-preview-clone=""+escapeHtml(c.uuid)+"">▶ 试听（调 GPT-SoVITS）</button>";
+      var selected=("clone:"+(c.uuid))===current?" selected":"";
+      return '<div class="voice clone-voice'+selected+'"><div><div class="voice-name">'+escapeHtml(c.cloned_name)+'</div><div class="voice-id">clone:'+escapeHtml(c.uuid)+'</div></div><div class="locale"><span class="tag">'+escapeHtml(c.language||"zh")+'</span></div><div class="gender"><span class="tag">GPT</span></div><div class="buttons">'+previewButton+pickButton+"</div></div>";
+    }).join(""):'<div class="empty">还没有克隆声音。先在 provider 配 GPT-SoVITS 服务，再在此处上传参考音频。</div>';
+    box.querySelectorAll("button[data-preview-clone]").forEach(function(b){b.onclick=function(){previewClone(b.dataset.previewClone)}});
+    box.querySelectorAll("button[data-pick-clone]").forEach(function(b){b.onclick=function(){pickVoice("clone:"+b.dataset.pickClone)}});
+  }catch(e){statusEl.textContent=" · 加载失败";box.innerHTML='<div class="empty">'+escapeHtml(e.message)+"</div>"}
+}
+async function previewClone(uuid){
+  try{
+    var r=await fetch("/voice-clones/"+encodeURIComponent(uuid)+"/preview",{method:"POST"});
+    var body=await r.json();
+    if(!r.ok){alert("克隆试听失败："+(body.detail||r.status));return}
+    var audio=new Audio(body.preview_url);audio.play().catch(function(){});
+  }catch(e){alert("克隆试听出错："+e.message)}
+}
+async function loadVoices(){var query=new URLSearchParams();if(locale.value)query.set("locale",locale.value);if(gender.value)query.set("gender",gender.value);if(search.value.trim())query.set("search",search.value.trim());document.getElementById("summary").textContent="正在加载声音…";try{var voices=await getJson("/voices?"+query.toString());document.getElementById("summary").textContent="共 "+voices.length+" 个声音";voicesBox.innerHTML=voices.length?voices.map(function(voice){var selected=voice.ShortName===current?" selected":"";var pickButton=target?'<button class="btn btn-pick" data-pick="'+escapeHtml(voice.ShortName)+'">✓ 选择</button>':"";return '<div class="voice'+selected+'"><div><div class="voice-name">'+escapeHtml(voice.FriendlyName||voice.ShortName)+'</div><div class="voice-id">'+escapeHtml(voice.ShortName)+'</div></div><div class="locale"><span class="tag">'+escapeHtml(voice.Locale)+'</span></div><div class="gender"><span class="tag '+escapeHtml(voice.Gender)+'">'+escapeHtml(voice.Gender)+'</span></div><div class="buttons"><button class="btn" data-preview="'+escapeHtml(voice.ShortName)+'">▶ 试听</button>'+pickButton+'</div></div>'}).join(""):'<div class="empty">没有匹配的声音</div>';voicesBox.querySelectorAll("button[data-preview]").forEach(function(button){button.onclick=function(){preview(button)}});voicesBox.querySelectorAll("button[data-pick]").forEach(function(button){button.onclick=function(){pickVoice(button.dataset.pick)}})}catch(error){document.getElementById("summary").textContent="加载失败";voicesBox.innerHTML='<div class="empty">'+escapeHtml(error.message)+"</div>"}}
+async function preview(button){var name=button.dataset.preview;voicesBox.querySelectorAll("button[data-preview]").forEach(function(item){item.disabled=true});button.textContent="生成中…";try{var result=await getJson("/voices/"+encodeURIComponent(name)+"/preview?text="+encodeURIComponent("你好世界，这是声音试听。"));player.src=API+result.audio_url+"?v="+Date.now();await player.play();document.getElementById("playing").textContent="正在播放："+name;button.textContent="⏸ 播放中"}catch(error){alert("试听失败："+error.message);button.textContent="▶ 试听"}finally{voicesBox.querySelectorAll("button[data-preview]").forEach(function(item){item.disabled=false})}}
+function pickVoice(voice){if(!target||!window.opener){alert("当前不是场景选择模式");return}window.opener.postMessage({type:"voice_picked",target:target,voice:voice},window.location.origin);window.close()}
+player.onended=function(){document.getElementById("playing").textContent="";loadVoices()};locale.onchange=loadVoices;gender.onchange=loadVoices;search.oninput=function(){clearTimeout(debounceTimer);debounceTimer=setTimeout(loadVoices,250)};
+Promise.all([getJson("/health"),loadLocales()]).then(function(results){document.getElementById("apiStatus").textContent="· API: "+results[0].status;loadVoices()}).catch(function(error){document.getElementById("apiStatus").textContent="· API: offline";document.getElementById("summary").textContent=error.message});
+</script>
+</body>
+</html>

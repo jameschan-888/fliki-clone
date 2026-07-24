@@ -1,0 +1,122 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>选择 Avatar - Fliki Clone</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#0e1320;color:#e6e8ee;padding:20px;max-width:1100px;margin:0 auto}
+h1{margin-bottom:8px;font-size:22px}
+.lead{color:#9aa3b8;margin-bottom:18px;font-size:14px;line-height:1.6}
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:18px;padding:10px 14px;background:#161c2d;border-radius:8px;border:1px solid #232a40;font-size:13px}
+.bar strong{color:#fff}
+.bar .api{color:#93a0c0}
+.bar .target{color:#7fdbb6}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.card{background:#161c2d;border:1px solid #232a40;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:.2s transform,.2s border-color}
+.card:hover{transform:translateY(-3px);border-color:#718cff}
+.card.selected{border-color:#48d58b;box-shadow:0 0 0 3px rgba(72,213,139,.15)}
+.card .thumb{width:100%;height:200px;background:#0c1020;display:flex;align-items:center;justify-content:center;color:#5d6886;font-size:36px;overflow:hidden}
+.card .thumb img{width:100%;height:100%;object-fit:cover}
+.card .body{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.card .name{font-size:15px;font-weight:600}
+.card .uuid{font-size:11px;color:#7e88a3;font-family:monospace}
+.card .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.card .meta .tag{padding:3px 8px;border-radius:999px;background:#252f4e;color:#9db2ff;font-size:11px;font-weight:700}
+.card .meta .tag.disabled{background:#3b2933;color:#ff9aa2}
+.card .actions{margin-top:auto;padding:12px 14px;border-top:1px solid #232a40;display:flex;gap:8px}
+.btn{flex:1;padding:8px 10px;border:1px solid #2d3756;border-radius:6px;background:#1e2742;color:#e6e8ee;cursor:pointer;font-size:13px;transition:.15s}
+.btn:hover{background:#2a3354;border-color:#718cff}
+.btn.primary{background:#1f3d2c;border-color:#48d58b;color:#9ff0c4}
+.btn.primary:hover{background:#26543a}
+.btn.danger{background:#3a2222;border-color:#ff7a7a;color:#ffb3b3}
+.btn.danger:hover{background:#4a2a2a}
+.empty{padding:32px;text-align:center;color:#7e88a3;background:#161c2d;border:1px dashed #2d3756;border-radius:12px}
+.help{margin-top:24px;padding:14px 16px;background:#161c2d;border-left:3px solid #718cff;border-radius:6px;color:#9aa3b8;font-size:13px;line-height:1.7}
+.help code{background:#0c1020;padding:1px 6px;border-radius:4px;color:#9ff0c4}
+</style>
+</head>
+<body>
+<h1>选择数字人 Avatar</h1>
+<p class="lead">每个 Avatar 是一段上传的人脸参考图 + 默认音频，匹配 <code>avatar:&lt;uuid&gt;</code> 写入场景。确认草稿后，pipeline 会调用 Wav2Lip-ONNX（缺模型/依赖时自动回退到静态 MP4）。</p>
+<div class="bar">
+  <span>API：<span class="api" id="apiStatus">检测中…</span></span>
+  <span>当前场景：<span class="target" id="targetView">未指定</span></span>
+  <span>当前 Avatar：<span class="target" id="currentView">未选</span></span>
+</div>
+<div id="grid" class="grid"></div>
+<div id="empty" class="empty" style="display:none">还没有 Avatar 克隆。请先在 <code>/avatar-clones</code> 上传人脸参考图。</div>
+<div class="help">没有看到合适的 Avatar？先用 <code>POST /avatar-clones</code>（multipart：ref_face 必填，ref_audio 可选）创建一个。带 ONNX 模型时选择 Wav2Lip 本地推理；没模型时系统仍会生成静态头像 MP4，不会阻塞渲染。</div>
+
+<script>
+var API="http://127.0.0.1:8001";
+var qs=new URLSearchParams(location.search);
+var target=qs.get("target")||"";
+var current=qs.get("current")||"";
+var grid=document.getElementById("grid");
+var emptyEl=document.getElementById("empty");
+document.getElementById("targetView").textContent=target||"\u2014";
+document.getElementById("currentView").textContent=current||"\u2014";
+
+function escapeHtml(value){return String(value==null?"":value).replace(/[&<>"']/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]})}
+function shortToken(token){if(!token)return"";if(token.indexOf("avatar:")===0)return token.slice(7,15);return token.slice(0,12)}
+
+async function getJson(path,init){
+  var r=await fetch(API+path,init||{});
+  var body=await r.json().catch(function(){return{}});
+  if(!r.ok)throw new Error(body.detail||("HTTP "+r.status));
+  return body;
+}
+
+function renderCard(c){
+  var token="avatar:"+c.uuid;
+  var isSelected=token===current;
+  var thumb=c.ref_face_path?'<img src="'+API+'/avatar-clones/'+encodeURIComponent(c.uuid)+'/ref-face" alt="'+escapeHtml(c.avatar_name)+'" onerror="this.parentNode.textContent=\'\ud83d\udc64\'">':'\ud83d\udc64';
+  var disabledTag=c.enabled?'<span class="tag">启用</span>':'<span class="tag disabled">禁用</span>';
+  var pickBtn=isSelected
+    ? '<button class="btn primary" disabled>\u2713 当前已选</button>'
+    : '<button class="btn primary" data-pick="'+escapeHtml(token)+'">\u2713 选择此 Avatar</button>';
+  var clearBtn=current?'<button class="btn danger" data-clear>清除选择</button>':'';
+  return '<article class="card'+ (isSelected?" selected":"")+'">'
+    +'<div class="thumb">'+thumb+'</div>'
+    +'<div class="body"><div class="name">'+escapeHtml(c.avatar_name)+'</div><div class="uuid">'+shortToken(token)+'</div><div class="meta">'+disabledTag+'</div></div>'
+    +'<div class="actions">'+pickBtn+clearBtn+'</div>'
+    +'</article>';
+}
+
+function pickAvatar(token){
+  if(!target||!window.opener){alert("当前不是场景选择模式（缺少 opener 或 target）");return}
+  window.opener.postMessage({type:"avatar_picked",target:target,avatar:token,action:"set"},window.location.origin);
+  window.close();
+}
+function clearAvatar(){
+  if(!target||!window.opener){alert("当前不是场景选择模式");return}
+  window.opener.postMessage({type:"avatar_picked",target:target,action:"clear"},window.location.origin);
+  window.close();
+}
+
+async function load(){
+  document.getElementById("apiStatus").textContent="加载中…";
+  try{
+    var list=await getJson("/avatar-clones");
+    document.getElementById("apiStatus").textContent="\u2713 "+list.length+" 个";
+    if(!list.length){grid.innerHTML="";emptyEl.style.display="block";return}
+    emptyEl.style.display="none";
+    grid.innerHTML=list.map(renderCard).join("");
+    grid.querySelectorAll("button[data-pick]").forEach(function(btn){btn.onclick=function(){pickAvatar(btn.dataset.pick)}});
+    var clearBtn=grid.querySelector("button[data-clear]");
+    if(clearBtn)clearBtn.onclick=clearAvatar;
+  }catch(err){
+    document.getElementById("apiStatus").textContent="\u2717 失败";
+    grid.innerHTML='<div class="empty">加载失败：'+escapeHtml(err.message)+'</div>';
+  }
+}
+
+Promise.all([getJson("/health"),load()]).then(function(results){
+  document.getElementById("apiStatus").textContent="\u2713 "+results[0].status+" · ";
+  load();
+}).catch(function(err){
+  document.getElementById("apiStatus").textContent="\u2717 离线";
+  grid.innerHTML='<div class="empty">'+escapeHtml(err.message)+'</div>';
+});
+</script>
+</body>
+</html>

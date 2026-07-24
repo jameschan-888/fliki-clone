@@ -1,0 +1,129 @@
+{
+  "_note": "All localStorage keys + sizes from app.fliki.ai editor session (Leo Chan, free plan), captured 2026-07-23 via chrome_devtools.",
+  "capturedAt": "2026-07-23T05:52:00Z",
+  "user": {
+    "_id": "6a60be008678de04cf209b95",
+    "name": "Leo Chan",
+    "email": "chanleo1210@gmail.com",
+    "role": "user"
+  },
+  "plan": {
+    "key": "free",
+    "name": "Free",
+    "limits": {
+      "units": 180,
+      "voices": 300,
+      "ultraRealistic": 0,
+      "exportLength": 5,
+      "sceneSize": 50
+    },
+    "cycle": "monthly"
+  },
+  "keys": [
+    {
+      "k": "stock-character-picker",
+      "sizeBytes": 211086,
+      "purpose": "67+ stock avatars list cached for picker"
+    },
+    {
+      "k": "fonts",
+      "sizeBytes": 2,
+      "purpose": "Custom user fonts (empty)"
+    },
+    {
+      "k": "subscriptionActive",
+      "sizeBytes": 451,
+      "purpose": "Current subscription object (plan/limits/features)"
+    },
+    {
+      "k": "userAuth",
+      "sizeBytes": 514,
+      "purpose": "JWT token + user session"
+    },
+    {
+      "k": "ph_phc_Dd4acwKULnL4pGHLtqKMJBmukvr5rB55EdsVurXHqMa3_posthog",
+      "sizeBytes": 1000,
+      "purpose": "PostHog analytics session"
+    },
+    {
+      "k": "_gcl_ls",
+      "sizeBytes": 277,
+      "purpose": "Google click identifier"
+    },
+    {
+      "k": "editorLayoutIntroSeen",
+      "sizeBytes": 4,
+      "purpose": "Onboarding flag"
+    },
+    {
+      "k": "playbackFocus",
+      "sizeBytes": 267,
+      "purpose": "Editor focus state: selected scene/layer/textArea/focusSurface"
+    },
+    {
+      "k": "branding",
+      "sizeBytes": 2,
+      "purpose": "Brand kit config (empty)"
+    },
+    {
+      "k": "lastExternalReferrerTime",
+      "sizeBytes": 13,
+      "purpose": "Attribution timestamp"
+    },
+    {
+      "k": "recipeList",
+      "sizeBytes": 2515,
+      "purpose": "5 workflow templates (Stop-Motion/RawClips/ProductImage/Translate/MarketingVideo)"
+    },
+    {
+      "k": "driveList",
+      "sizeBytes": 97,
+      "purpose": "User home drive folder + breadcrumbs"
+    },
+    {
+      "k": "styles",
+      "sizeBytes": 74482,
+      "purpose": "Visual style library (Pixar/3D/Cinematic etc) with prompt prefix/suffix"
+    },
+    {
+      "k": "mediaMyListSamples.image",
+      "sizeBytes": 70222,
+      "purpose": "Playground image sample prompts cache"
+    },
+    {
+      "k": "composition-character-picker",
+      "sizeBytes": 27,
+      "purpose": "Editor character picker cache (empty for free)"
+    },
+    {
+      "k": "lastExternalReferrer",
+      "sizeBytes": 5,
+      "purpose": "Attribution referrer"
+    },
+    {
+      "k": "fileCreateSettings",
+      "sizeBytes": 697,
+      "purpose": "Defaults for new file: language/dialect/aspectRatio/features"
+    },
+    {
+      "k": "usageSummary",
+      "sizeBytes": 10696,
+      "purpose": "Daily credit records 30 days, 16 credit categories"
+    },
+    {
+      "k": "driveDetail",
+      "sizeBytes": 948,
+      "purpose": "Drive metadata per file (workflowType/name/mediaRecents)"
+    },
+    {
+      "k": "apiAccess",
+      "sizeBytes": 2,
+      "purpose": "User API access tokens (empty)"
+    },
+    {
+      "k": "releaseLastSeen",
+      "sizeBytes": 24,
+      "purpose": "Last seen app release timestamp"
+    }
+  ]
+}

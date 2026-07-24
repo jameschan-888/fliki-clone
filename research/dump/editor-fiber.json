@@ -1,0 +1,209 @@
+{
+  "_note": "React Fiber components extracted from app.fliki.ai editor session (Leo Chan), captured 2026-07-23",
+  "capturedAt": "2026-07-23T05:52:00Z",
+  "fiberRootKey": "__reactFiber$4du4oclieqc",
+  "uiLibrary": "Radix UI (Dialog, Tooltip, Popover, DropdownMenu, ScrollArea, AlertDialog, Menu, Popper)",
+  "videoEngine": "Remotion (LoadableComponent + withInteractivitySchema HOC)",
+  "videoConfig": {
+    "compositionWidth": 1920,
+    "compositionHeight": 1080,
+    "fps": 30,
+    "defaultAspectRatio": "16:9"
+  },
+  "keyComponents": [
+    {
+      "name": "LoadableComponent",
+      "role": "Remotion video preview player",
+      "propKeys": [
+        "playerRef",
+        "frameRange",
+        "showFeedback"
+      ],
+      "propsDetail": {
+        "playerRef": "Object{current}",
+        "frameRange": "Object{in, out}",
+        "showFeedback": true
+      }
+    },
+    {
+      "name": "withInteractivitySchema(Component)",
+      "role": "Remotion HOC for interactive composition",
+      "propKeys": [
+        "durationInFrames",
+        "premountFor"
+      ],
+      "propsDetail": {
+        "durationInFrames": 120,
+        "premountFor": 60,
+        "note": "durationInFrames=120 @ 30fps = 4s scene"
+      }
+    },
+    {
+      "name": "gO",
+      "role": "SceneBlock / single scene card on timeline",
+      "propKeys": [
+        "layer",
+        "scene",
+        "sceneIndex",
+        "isSelected",
+        "onClick",
+        "voiceoverSpeed",
+        "sceneEndsDuration"
+      ]
+    },
+    {
+      "name": "gq",
+      "role": "AudioBlock / TTS voice playback block",
+      "propKeys": [
+        "src",
+        "volume",
+        "trimBefore",
+        "trimAfter",
+        "loop",
+        "playbackRate",
+        "pauseWhenBuffering",
+        "toneFrequency"
+      ],
+      "propsDetail": {
+        "src": "https://cdn.fliki.ai/media.v2/generated/<userId>/<audioId>.mp3",
+        "loop": false,
+        "playbackRate": 1
+      }
+    },
+    {
+      "name": "g6",
+      "role": "SubtitleBlock / caption renderer",
+      "propKeys": [
+        "layer",
+        "customFonts",
+        "sceneIndex",
+        "isActive",
+        "isSelected",
+        "onClick",
+        "settings",
+        "globalTranscription"
+      ],
+      "propsDetail": {
+        "settings": {
+          "aspectRatio": "16:9",
+          "sceneGap": 0,
+          "colorBackground": "#000000",
+          "subtitlePreset": "builtin-legacy-basic"
+        }
+      }
+    },
+    {
+      "name": "D",
+      "role": "LayersDialog / open layer editor for scene",
+      "propKeys": [
+        "onSelectLayers",
+        "scopeLayerIds",
+        "selectedLayerIds",
+        "disabled"
+      ]
+    },
+    {
+      "name": "Q",
+      "role": "SharePreviewDialog / share link modal",
+      "propKeys": [
+        "show",
+        "onClose",
+        "playback",
+        "onPlayback"
+      ]
+    },
+    {
+      "name": "rb",
+      "role": "SlidePanel / sliding side panel wrapper",
+      "propKeys": [
+        "open",
+        "width",
+        "reverse",
+        "suspendTransition"
+      ]
+    },
+    {
+      "name": "DialogProvider / DialogContent / DialogTitle",
+      "role": "Radix UI Dialog primitives"
+    },
+    {
+      "name": "TooltipProvider / Tooltip / TooltipContent / TooltipTrigger / TooltipPortal",
+      "role": "Radix UI Tooltip (delay=250-300ms)"
+    },
+    {
+      "name": "ScrollArea",
+      "role": "Radix UI ScrollArea (type=hover, scrollHideDelay=600)"
+    },
+    {
+      "name": "DropdownMenuProvider / DropdownMenuContent / DropdownMenuTrigger",
+      "role": "Radix UI DropdownMenu (modal=true, align=center, sideOffset=8)"
+    },
+    {
+      "name": "PopoverProvider / PopoverContent / PopoverTrigger",
+      "role": "Radix UI Popover (align=end, sideOffset=8, modal=false)"
+    },
+    {
+      "name": "Button",
+      "role": "Primary button primitive",
+      "propsDetail": {
+        "variant": "primary",
+        "size": "sm"
+      }
+    },
+    {
+      "name": "IconButton",
+      "role": "Icon-only button primitive",
+      "propsDetail": {
+        "variant": "ghost"
+      }
+    },
+    {
+      "name": "Primitive.button / Primitive.div",
+      "role": "Radix UI Slot primitives (asChild support)"
+    }
+  ],
+  "toolsInEditor": [
+    "Copilot",
+    "Media",
+    "Character",
+    "Subtitles",
+    "Audio",
+    "Elements",
+    "Record",
+    "Templates",
+    "Layers",
+    "Settings"
+  ],
+  "editorLayoutZones": {
+    "topBar": [
+      "HomeLink",
+      "ProjectNameInput",
+      "UpgradeBtn",
+      "UndoRedo (disabled)",
+      "SharePreviewBtn",
+      "FileActionsMenu",
+      "DownloadBtn"
+    ],
+    "leftToolNav": [
+      "Copilot",
+      "Media",
+      "Character",
+      "Subtitles",
+      "Audio",
+      "Elements (more)",
+      "Record (more)",
+      "Templates (more)",
+      "Layers (more)",
+      "Settings"
+    ],
+    "centerStage": [
+      "RemotionPlayer",
+      "TimelineControls (zoom/play/reset)",
+      "TimelineView tab (Basic/Timeline)"
+    ],
+    "rightPanel": [
+      "SceneList",
+      "ScriptPanel (collapsible)"
+    ]
+  }
+}

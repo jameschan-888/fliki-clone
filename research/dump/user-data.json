@@ -1,0 +1,289 @@
+{
+  "_note": "Captured from app.fliki.ai localStorage on 2026-07-23 (Leo Chan, free plan)",
+  "userAuth": {
+    "status": true,
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhNjBiZTAwODY3OGRlMDRjZjIwOWI5NSIsImlzTW9iaWxlIjpmYWxzZSwiaWF0IjoxNzg0NzgxMTU2fQ.P7oN4tAVFBBiWONn0rXPoAvkovIUh8LNiqRks1BOpek",
+    "userSessionId": "6a619964ea47919c81dc970a",
+    "user": {
+      "_id": "6a60be008678de04cf209b95",
+      "name": "Leo Chan",
+      "email": "chanleo1210@gmail.com",
+      "role": "user",
+      "hasPendingSurvey": false,
+      "hasPaymentProfile": false,
+      "onboarding": {
+        "firstVideo": {
+          "seen": false
+        },
+        "editorTour": {
+          "seen": false
+        },
+        "postFirstVideo": {
+          "seen": false
+        }
+      },
+      "isNew": false
+    }
+  },
+  "subscriptionActive": {
+    "_id": "6a60be008678de04cf209b97",
+    "plan": {
+      "key": "free",
+      "name": "Free",
+      "color": "grey",
+      "isSubscription": false,
+      "isInheritable": true,
+      "seats": 1,
+      "limits": {
+        "units": 180,
+        "voices": 300,
+        "ultraRealistic": 0,
+        "exportLength": 5,
+        "sceneSize": 50
+      }
+    },
+    "cycle": "monthly",
+    "features": null,
+    "isFree": true,
+    "isPaid": false,
+    "isCustom": false,
+    "isBasic": false,
+    "isStandard": false,
+    "isPremium": false,
+    "isLTDAudio": false,
+    "isLTDVideo": false,
+    "isGlobalUser": false,
+    "isPaused": false,
+    "isLoaded": true
+  },
+  "fileCreateSettings": {
+    "languageId": "61b8b2f44268666c126babbf",
+    "dialectId": "61b8b3114268666c126bac9b",
+    "voice": null,
+    "aspectRatio": "16:9",
+    "enableReview": false,
+    "highlightSubtitles": true,
+    "generateSfx": true,
+    "youtubeLicensedMusic": false,
+    "avatar": null,
+    "features": {
+      "enableStock": true,
+      "enableArt": false,
+      "enableLibrary": false,
+      "artStyle": "cinematic",
+      "aiModel": "runware-z-image-turbo",
+      "aiVideoClipPercentage": 20,
+      "template": null,
+      "templateAvatarCapable": false,
+      "subtitlePresetId": "builtin-legacy-basic",
+      "enableAvatar": false,
+      "avatar": null,
+      "brand": null,
+      "highlightSubtitles": true,
+      "generateSfx": true,
+      "youtubeLicensedMusic": false,
+      "addPauses": false,
+      "enableReview": false,
+      "sceneBreakdown": "auto",
+      "aspectRatio": "16:9",
+      "enableSummarize": false
+    }
+  },
+  "driveDetail": {
+    "6a619e527b6a4072b66692d4": {
+      "drive": {
+        "_id": "6a619e527b6a4072b66692d4",
+        "userId": "6a60be008678de04cf209b95",
+        "playbackId": "6a619e527b6a4072b66692cd",
+        "workflowId": "6a619e4c7b6a4072b666915d",
+        "workflowType": "script",
+        "name": "Introducing Our Smart AI Assistant for Email and Scheduling",
+        "slug": "introducing-our-smart-ai-assistant-for-email-and-scheduling",
+        "start": "script",
+        "mode": "template",
+        "isFolder": false,
+        "isTemplate": false,
+        "isCollaborate": false,
+        "isTrashed": false,
+        "isSample": false,
+        "isDeleted": false,
+        "createdAt": "2026-07-23T04:53:38.114Z",
+        "updatedAt": "2026-07-23T04:54:00.770Z",
+        "__v": 0,
+        "format": "video",
+        "mediaRecents": {
+          "69bb4ee9063e2244dcc066ca": "stock",
+          "64de4633115b4a14ee635916": "stock",
+          "6913617c2ed82af4a4b1ac3a": "stock",
+          "69961bd510af29a9970fbbd4": "stock"
+        }
+      },
+      "breadcrumbs": [
+        {
+          "title": "Files",
+          "driveId": null,
+          "isFolder": true
+        },
+        {
+          "title": "Introducing Our Smart AI Assistant for Email and Scheduling",
+          "driveId": "6a619e527b6a4072b66692d4",
+          "isFolder": false
+        }
+      ]
+    }
+  },
+  "driveList_home_item_schema": {
+    "_id": "6a619e527b6a4072b66692d4",
+    "userId": {
+      "_id": "6a60be008678de04cf209b95",
+      "name": "Leo Chan"
+    },
+    "playbackId": {
+      "_id": "6a619e527b6a4072b66692cd",
+      "format": "video",
+      "settings": {
+        "aspectRatio": "16:9"
+      },
+      "mediaGeneratedId": {
+        "thumbnail": "stock/storyblocks/69bfa40c33d3301e7ddb0430_thumb.jpg"
+      },
+      "isSuccessFullExport": false
+    },
+    "workflowId": "6a619e4c7b6a4072b666915d",
+    "workflowType": "script",
+    "name": "Introducing Our Smart AI Assistant for Email and Scheduling",
+    "slug": "introducing-our-smart-ai-assistant-for-email-and-scheduling",
+    "isFolder": false,
+    "isTemplate": false,
+    "isCollaborate": false,
+    "createdAt": "2026-07-23T04:53:38.114Z",
+    "updatedAt": "2026-07-23T05:52:29.566Z",
+    "format": "video",
+    "workflowIsExecuted": true,
+    "bulkWorkflowJob": null,
+    "landscapeCompatible": true,
+    "templateId": {}
+  },
+  "playbackFocus_schema": {
+    "playbackId": "6a619e527b6a4072b66692cd",
+    "playerFocus": false,
+    "onTextEdit": false,
+    "textAreaActive": null,
+    "selectedSceneId": "6a619e60dc3a8dbaa67f0f80",
+    "selectedLayerId": null,
+    "selectedLayerGroup": null,
+    "selectedLayerIdAdditional": [],
+    "sceneTimeMarks": {},
+    "focusSurface": null
+  },
+  "usageSummary_usage_records_creditCategories": [
+    "generateAvatar",
+    "generateAudio",
+    "generateImage",
+    "generateVideo",
+    "generateScript",
+    "generateVoiceover",
+    "generateVoiceCustom",
+    "removeBackground",
+    "render",
+    "publish",
+    "translate",
+    "workflow",
+    "summarizeMedia",
+    "stockDownload",
+    "copilot",
+    "creditAdditional",
+    "creditDeduct"
+  ],
+  "usageSummary_summary": {
+    "used": 33,
+    "total": 180,
+    "remaining": 147,
+    "percentage": 18
+  },
+  "usageSummary_dates": {
+    "startDate": "2026-07-22T00:00:00.000Z",
+    "resetDate": "2026-08-21T23:59:59.999Z",
+    "isYearly": false,
+    "discountWeekend": false
+  },
+  "recipeList_recipes": [
+    {
+      "_id": "6a048a3a580bc517fce39570",
+      "name": "Stop-Motion Story Video Generator",
+      "slug": "stop-motion-story-video-generator",
+      "minAllowedPlan": "premium",
+      "output": "playback",
+      "icon": "IconVideoCamFill",
+      "color": "purple",
+      "cost": "400-620 credits",
+      "description": "Stop-motion animation with handcrafted needle-felted wool puppets"
+    },
+    {
+      "_id": "69f829d30d157472d2c9b7b2",
+      "name": "Raw Clips to Final Video",
+      "slug": "raw-clips-to-final-video",
+      "minAllowedPlan": "free",
+      "output": "playback",
+      "icon": "IconVideocam",
+      "color": "purple",
+      "description": "Upload raw clips; transcribes, removes pauses, trims silence, arranges scenes, adds B-roll and subtitles"
+    },
+    {
+      "_id": "69eb0daf34c0740b1921617c",
+      "name": "Product Image to Ad Creative",
+      "slug": "product-image-to-ad-creative",
+      "minAllowedPlan": "free",
+      "output": "playback",
+      "icon": "IconIdea",
+      "color": "purple",
+      "description": "Generate three ad creative images from product images with custom prompts and style templates"
+    },
+    {
+      "_id": "69eb0db834c0740b1921672d",
+      "name": "Translate Audio/Video",
+      "slug": "translate-audio-video",
+      "minAllowedPlan": "basic",
+      "output": "playback",
+      "icon": "IconTranslate",
+      "color": "blue",
+      "description": "Translate and dub audio or video into target language with natural AI voices, synced timing, optional subtitles"
+    },
+    {
+      "_id": "69eb0dd034c0740b19217576",
+      "name": "Product Image to Marketing Video",
+      "slug": "product-image-to-marketing-video",
+      "minAllowedPlan": "standard",
+      "output": "playback",
+      "icon": "IconVideoCamFill",
+      "color": "purple",
+      "cost": "67.5 credits",
+      "description": "Turn product images into scroll-stopping marketing videos"
+    }
+  ],
+  "stockCharacterPicker_first_character": {
+    "_id": "6a4e5d2a252a93f7982fd0d3",
+    "isStock": true,
+    "isEnabled": true,
+    "tags": [
+      "woman",
+      "20s",
+      "white",
+      "home",
+      "casual",
+      "friendly",
+      "youthful",
+      "lifestyle"
+    ],
+    "name": "Chloe",
+    "description": "A white woman in her early twenties in a bright home, in a green cardigan. Warm, cheerful and genuine, with an approachable, relatable style.",
+    "thumbnail": "image/character-stock/62da411e52e9977aeff20243/6a4e5cfb252a93f7982fd0aa.jpg",
+    "imageVersions": [
+      {
+        "label": "Front",
+        "...": "more versions"
+      }
+    ],
+    "looksCount": 4
+  }
+}

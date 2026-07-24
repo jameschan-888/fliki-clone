@@ -1,0 +1,11 @@
+{
+  "cpu_cores": "8",
+  "ram_gb": "0",
+  "disk_free_gb": "48.7859497070313",
+  "gpu": "Intel(R) Iris(R) Xe Graphics",
+  "cuda": "N/A",
+  "python": "Python 3.12.7",
+  "node": "v24.16.0",
+  "ffmpeg": "ffmpeg version 8.1.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the F",
+  "pytorch_cuda": "False 2.13.0+cpu"
+}

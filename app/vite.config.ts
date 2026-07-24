@@ -1,0 +1,20 @@
+﻿import { resolve } from "node:path";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [react()],
+  server: { port: 5180, host: "127.0.0.1" },
+  build: {
+    rollupOptions: {
+      input: {
+        home: resolve(__dirname, "index.html"),
+        drafts: resolve(__dirname, "drafts.html"),
+        autoedit: resolve(__dirname, "autoedit.html"),
+        voices: resolve(__dirname, "voices.html"),
+        avatars: resolve(__dirname, "avatars.html"),
+        envCheck: resolve(__dirname, "env-check.html"),
+      },
+    },
+  },
+});

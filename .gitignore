@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Node
+app/node_modules/
+app/dist/
+backend/workers/remotion-project/node_modules/
+backend/workers/remotion-project/out/
+backend/workers/remotion-project/.cache/
+backend/workers/remotion-project/bundle/
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# Runtime data (user uploads, generated assets, DB)
+app/data/
+backend/data/
+backend/data/avatar_clone_faces/
+backend/data/avatar_clone_audios/
+backend/data/avatar_outputs/
+
+# Backend logs / backup files
+backend/_uvi.*
+backend/_uvicorn.*
+backend/server.log
+backend/voice-gallery-server.*
+backend/_backup_*.py
+backend/_p5c_write.py
+
+# Test logs (spawnSync output)
+.run/
+
+# Root-level transient scripts
+last_*.txt
+run_state.txt
+check_full.txt
+build_handoff_docx.py
+check_*.py
+check_msg*.py
+reset*.py
+rewrite_props*.py
+count_p5a.py
+finalize.py
+write_*.py
+write_static.py
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

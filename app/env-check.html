@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>环境诊断 - Fliki Clone</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Segoe UI", sans-serif; background: #0e1320; color: #e6e8ee; padding: 20px; max-width: 1100px; margin: 0 auto; }
+h1 { margin-bottom: 16px; font-size: 22px; }
+.panel { background: #161c2d; border-radius: 10px; padding: 18px; margin-bottom: 16px; border: 1px solid #232a40; }
+.panel h2 { font-size: 14px; color: #93a0c0; margin-bottom: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.item { background: #0e1320; padding: 10px; border-radius: 6px; border: 1px solid #232a40; }
+.item .k { font-size: 11px; color: #93a0c0; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
+.item .v { font-size: 14px; color: #e6e8ee; word-break: break-all; }
+.item .v.good { color: #6dd6a0; }
+.item .v.bad { color: #f08787; }
+.cap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.cap { padding: 10px 12px; border-radius: 6px; background: #0e1320; border-left: 3px solid #f08787; font-size: 13px; }
+.cap.ok { border-left-color: #6dd6a0; }
+.cap .name { font-weight: 500; }
+.cap .reason { font-size: 11px; color: #93a0c0; margin-top: 4px; }
+.warn { background: #2a1f1f; border-left: 3px solid #f08787; padding: 10px 12px; border-radius: 4px; margin-bottom: 6px; font-size: 13px; }
+.warn.info { background: #1f2a3f; border-left-color: #6da0ff; }
+.warn.warning { background: #2f2a1f; border-left-color: #f0c987; }
+.pkg { display: inline-block; background: #232a40; color: #cfd5e8; padding: 3px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+button { background: #4f8cff; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+button:hover { background: #6da0ff; }
+pre { background: #0a0f1c; padding: 12px; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 11px; color: #93a0c0; max-height: 300px; overflow: auto; }
+.muted { color: #6c7593; font-size: 12px; }
+</style></head>
+<body>
+<h1>🔍 环境诊断 <span class="muted" id="apiStatus">· 检测中...</span></h1>
+<div class="panel"><h2>本机能力</h2><div class="cap-grid" id="caps"></div></div>
+<div class="panel"><h2>Wav2Lip-ONNX (数字人)</h2><div id="wav2lip"></div></div>
+<div class="panel"><h2>硬件</h2><div class="grid" id="hardware"></div></div>
+<div class="panel"><h2>环境与依赖</h2><div class="grid" id="env"></div></div>
+<div class="panel"><h2>Python 包</h2><div id="pkgs"></div></div>
+<div class="panel"><h2>警告与提示</h2><div id="warnings"></div></div>
+<div class="panel"><h2>完整诊断 JSON</h2><button onclick="showRaw()">展开 / 收起</button><pre id="raw" style="display:none"></pre></div>
+<script>
+const API = "http://127.0.0.1:8001";
+const capNames = {edge_tts:"Edge TTS 80+ 语言",faster_whisper:"Faster-Whisper 转写 (CPU)",wav2lip_onnx:"Wav2Lip-ONNX 数字人 (CPU)",remotion_render:"Remotion 渲染 (Chrome)",autoedit_pipeline:"Auto-edit 剪辑 (ffmpeg)",sadtalker:"SadTalker 数字人 (需 NVIDIA)",musetalk:"MuseTalk 数字人 (需 NVIDIA)",gpt_sovits_cpu:"GPT-SoVITS 声音克隆 (CPU 慢)",gpt_sovits_gpu:"GPT-SoVITS 声音克隆 (GPU 快)",heygen_api:"HeyGen 云端 API (付费)"};
+const capReasons = {edge_tts:"永远可用",faster_whisper:"CPU 可用, 30s 音频约 10s",wav2lip_onnx:"CPU 可用, 100MB 模型",remotion_render:"需 Node + Chrome",autoedit_pipeline:"需 ffmpeg",sadtalker:"需 NVIDIA GPU + CUDA",musetalk:"需 NVIDIA GPU 4GB+ VRAM",gpt_sovits_cpu:"CPU 模式 10s 音频约 30-60s",gpt_sovits_gpu:"需 NVIDIA GPU + CUDA",heygen_api:"需 HEYGEN_API_KEY"};
+
+function statusChip(ok) { return ok ? '<span style="color:#6dd6a0;font-weight:700">✓</span>' : '<span style="color:#f08787;font-weight:700">✗</span>'; }
+function el(t, c, h) { const e = document.createElement(t); if (c) e.className = c; if (h !== undefined) e.innerHTML = h; return e; }
+function item(k, v, kls) { return el("div", "item", '<div class="k">' + k + '</div><div class="v ' + (kls||"") + '">' + v + '</div>'); }
+async function load() {
+  try {
+    const r = await fetch(API + "/env-check");
+    const d = await r.json();
+    document.getElementById("apiStatus").textContent = "· " + (r.ok ? "OK" : "FAIL");
+    document.getElementById("raw").textContent = JSON.stringify(d, null, 2);
+    const cb = document.getElementById("caps");
+    Object.entries(d.capabilities).forEach(function(e) {
+      const k = e[0], v = e[1];
+      const c = el("div", "cap" + (v ? " ok" : ""));
+      c.innerHTML = '<div class="name">' + (v?"✅":"❌") + ' ' + (capNames[k]||k) + '</div><div class="reason">' + (capReasons[k]||"") + '</div>';
+      cb.appendChild(c);
+    });
+    const w2 = document.getElementById("wav2lip");
+    const w = d.wav2lip_onnx || {};
+    const wGrid = el("div", "grid");
+    wGrid.appendChild(item("Model 路径", w.configured_path || "N/A"));
+    wGrid.appendChild(item("实际文件", w.model_present ? "已找到" : "未找到", w.model_present ? "good" : "bad"));
+    wGrid.appendChild(item("ONNX 依赖", w.dependencies_ok ? "✓ 完整" : "✗ 缺失 " + (w.dependency_warnings||[]).join("; "), w.dependencies_ok ? "good" : "bad"));
+    wGrid.appendChild(item("ffmpeg", w.ffmpeg_available ? "✓ 可用" : "✗ 不可用", w.ffmpeg_available ? "good" : "bad"));
+    wGrid.appendChild(item("可用?", w.ok ? "✓ 是" : "✗ 否（会回退 static_avatar）", w.ok ? "good" : "bad"));
+    wGrid.appendChild(item("检测耗时", (w.latency_ms||0) + " ms"));
+    w2.appendChild(wGrid);
+    if (!w.ok) {
+      const hint = el("div", "warn info", "<b>[提示]</b> 缺模型/依赖时系统仍会调用 Wav2Lip 接口；缺项时自动回退到 <code>static_avatar</code> 模式生成静态人脸 MP4，不会阻塞任务。模型路径：" + (w.resolved_path || w.configured_path || "N/A"));
+      w2.appendChild(hint);
+    }
+    const hw = document.getElementById("hardware");
+    hw.appendChild(item("CPU", d.cpu.cores_logical + " 核 (" + d.cpu.machine + ")"));
+    hw.appendChild(item("内存", d.memory.total_gb ? d.memory.total_gb + " GB" : "N/A"));
+    hw.appendChild(item("GPU", d.gpu.available ? (d.gpu.vendor||"Unknown") + " " + (d.gpu.model||"") : "未检测到"));
+    hw.appendChild(item("VRAM", d.gpu.vram_gb ? d.gpu.vram_gb + " GB" : "N/A"));
+    hw.appendChild(item("CUDA", d.gpu.cuda_available ? "✅" : "❌", d.gpu.cuda_available ? "good" : "bad"));
+    hw.appendChild(item("D 盘", d.disk.free_gb + " / " + d.disk.total_gb + " GB 剩余 (" + d.disk.used_pct + "% 已用)"));
+    const env = document.getElementById("env");
+    env.appendChild(item("Python", d.python.version));
+    env.appendChild(item("Node", d.node.version||"N/A"));
+    env.appendChild(item("ffmpeg", d.ffmpeg.available ? "✅ " + (d.ffmpeg.raw||"").slice(0,30) : "❌ 未安装", d.ffmpeg.available ? "good" : "bad"));
+    env.appendChild(item("ffprobe", d.ffprobe.available ? "✅" : "❌", d.ffprobe.available ? "good" : "bad"));
+    env.appendChild(item("PyTorch", d.pytorch.installed ? d.pytorch.version + (d.pytorch.cuda_available ? " (CUDA)" : " (CPU)") : "未安装"));
+    const pkgs = document.getElementById("pkgs");
+    Object.entries(d.python_packages).forEach(function(e) { pkgs.appendChild(el("span", "pkg", e[0] + " " + e[1])); });
+    const ws = document.getElementById("warnings");
+    if (d.warnings.length === 0) ws.appendChild(el("div", "muted", "✅ 无警告"));
+    d.warnings.forEach(function(w) { ws.appendChild(el("div", "warn " + w.level, "<b>[" + w.level + "]</b> " + w.msg)); });
+  } catch (e) {
+    document.getElementById("apiStatus").textContent = "· 后端无响应";
+  }
+}
+function showRaw() {
+  const r = document.getElementById("raw");
+  r.style.display = r.style.display === "none" ? "block" : "none";
+}
+load();
+</script>
+</body>
+</html>

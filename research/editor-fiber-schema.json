@@ -1,0 +1,340 @@
+{
+  "url": "https://app.fliki.ai/editor/6a619e527b6a4072b66692d4",
+  "captured_at": "2026-07-23T05:04:54Z",
+  "project_id": "6a619e527b6a4072b66692cd",
+  "scene_id": "6a619e527b6a4072b66692ce",
+  "layer_id_text": "6a619e60dc3a8dbaa67f0f81",
+  "layer_id_media": "media-6a619e60dc3a8dbaa67f0f82",
+  "user_id": "6a60be008678de04cf209b95",
+  "stock_video_url": "https://cdn.fliki.ai/media.v2/stock/storyblocks/69bfa40c33d3301e7ddb0430_preview.mp4",
+  "tts_audio_url": "https://cdn.fliki.ai/media.v2/generated/6a60be008678de04cf209b95/6a619e62dc3a8dbaa67f103c.mp3",
+  "script_rich_text": "<p dir=\"auto\">Introducing our latest product, a <strong>smart AI assistant</strong>.</p>",
+  "scene_durations": [
+    "4s",
+    "2.75s",
+    "2.75s",
+    "1.75s"
+  ],
+  "components": [
+    {
+      "name": "rw",
+      "role": "file navigation",
+      "propKeys": [
+        "breadcrumbs",
+        "onFileRename"
+      ]
+    },
+    {
+      "name": "oH",
+      "role": "drive nav",
+      "propKeys": [
+        "drive",
+        "refresh",
+        "breadcrumbs",
+        "className",
+        "onFileRename"
+      ]
+    },
+    {
+      "name": "rb",
+      "role": "right drawer",
+      "propKeys": [
+        "open",
+        "width",
+        "reverse",
+        "suspendTransition"
+      ],
+      "propVals": {
+        "open": true,
+        "width": 370
+      }
+    },
+    {
+      "name": "ac",
+      "role": "media picker container",
+      "propKeys": [
+        "onPick",
+        "playbackId",
+        "showApplyAll",
+        "footerContainer",
+        "autoHeight"
+      ],
+      "propVals": {
+        "playbackId": "6a619e527b6a4072b66692cd"
+      }
+    },
+    {
+      "name": "oU",
+      "role": "Remotion Player",
+      "propKeys": [
+        "compositionWidth",
+        "compositionHeight",
+        "durationInFrames",
+        "fps",
+        "numberOfSharedAudioTags",
+        "logLevel",
+        "inputProps"
+      ],
+      "propVals": {
+        "compositionWidth": 1920,
+        "compositionHeight": 1080,
+        "durationInFrames": 360,
+        "fps": 30,
+        "logLevel": "info"
+      }
+    },
+    {
+      "name": "yP",
+      "role": "Canvas",
+      "propKeys": [
+        "playback",
+        "customFonts",
+        "playerFocus",
+        "isPreview",
+        "onTextEdit",
+        "externalSelectedLayerGroup",
+        "selectedLayer",
+        "selectedLayers",
+        "onLayerUpdate",
+        "onLayersUpdate",
+        "onSelectCanvasElement"
+      ]
+    },
+    {
+      "name": "lI",
+      "role": "Layer Group",
+      "propKeys": [
+        "selectedLayer",
+        "selectedLayerGroup",
+        "selectedLayers",
+        "onLayerUpdate",
+        "onLayersUpdate",
+        "locked"
+      ]
+    },
+    {
+      "name": "aU",
+      "role": "Image layer (Remotion)",
+      "propKeys": [
+        "src",
+        "width",
+        "height",
+        "pauseWhenLoading",
+        "maxRetries",
+        "delayRenderRetries"
+      ],
+      "propVals": {
+        "src": "https://storage.googleapis.com/fliki/public/image/logo-white.svg"
+      }
+    },
+    {
+      "name": "aj",
+      "role": "Image layer wrapper",
+      "propKeys": [
+        "ref",
+        "hidden",
+        "name",
+        "stack",
+        "showInTimeline",
+        "src",
+        "from",
+        "trimBefore",
+        "durationInFrames",
+        "freeze",
+        "controls",
+        "width"
+      ]
+    },
+    {
+      "name": "Component",
+      "role": "Remotion OffthreadVideo (logo)",
+      "propKeys": [
+        "src",
+        "controls",
+        "ref"
+      ]
+    },
+    {
+      "name": "yT",
+      "role": "Scene Canvas renderer",
+      "propKeys": [
+        "customFonts",
+        "language",
+        "scene",
+        "settings",
+        "sceneIndex",
+        "format",
+        "onTextEdit",
+        "selectedLayer",
+        "selectedLayerGroup",
+        "onLayerUpdate",
+        "onSelectCanvasElement",
+        "sceneEndsDuration"
+      ]
+    },
+    {
+      "name": "tI",
+      "role": "Frame indicator",
+      "propKeys": [
+        "frame",
+        "active"
+      ]
+    },
+    {
+      "name": "gO",
+      "role": "Scene container",
+      "propKeys": [
+        "layer",
+        "scene",
+        "sceneIndex",
+        "isSelected",
+        "onClick",
+        "voiceoverSpeed",
+        "sceneEndsDuration"
+      ],
+      "propVals": {
+        "voiceoverSpeed": 100
+      }
+    },
+    {
+      "name": "gM",
+      "role": "Image layer attrs",
+      "propKeys": [
+        "attributes",
+        "imageIndex"
+      ]
+    },
+    {
+      "name": "nm",
+      "role": "Video player (Remotion)",
+      "propKeys": [
+        "pauseWhenBuffering",
+        "acceptableTimeShiftInSeconds",
+        "allowAmplificationDuringRender",
+        "audioStreamIndex",
+        "crossOrigin",
+        "loopVolumeCurveBehavior",
+        "muted",
+        "onAutoPlayError",
+        "onError",
+        "onVideoFrame",
+        "playbackRate",
+        "preservePitch",
+        "toneFrequency"
+      ]
+    },
+    {
+      "name": "nf",
+      "role": "Media video layer",
+      "propKeys": [
+        "id",
+        "src",
+        "trimBefore",
+        "trimAfter",
+        "playbackRate",
+        "volume",
+        "muted",
+        "transparent",
+        "pauseWhenBuffering"
+      ],
+      "propVals": {
+        "id": "media-6a619e60dc3a8dbaa67f0f82",
+        "src": "https://cdn.fliki.ai/media.v2/stock/storyblocks/69bfa40c33d3301e7ddb0430_preview.mp4",
+        "trimBefore": 0
+      }
+    },
+    {
+      "name": "gV",
+      "role": "Video layer",
+      "propKeys": [
+        "id",
+        "src",
+        "layerType",
+        "trimBefore",
+        "trimAfter",
+        "playbackRate",
+        "volume",
+        "muted",
+        "transparent",
+        "toneFrequency"
+      ],
+      "propVals": {
+        "layerType": "media"
+      }
+    },
+    {
+      "name": "gq",
+      "role": "Audio layer (TTS)",
+      "propKeys": [
+        "src",
+        "volume",
+        "trimBefore",
+        "trimAfter",
+        "loop",
+        "playbackRate",
+        "pauseWhenBuffering",
+        "toneFrequency"
+      ],
+      "propVals": {
+        "src": "https://cdn.fliki.ai/media.v2/generated/6a60be008678de04cf209b95/6a619e62dc3a8dbaa67f103c.mp3",
+        "loop": false
+      }
+    },
+    {
+      "name": "ak",
+      "role": "dnd-kit sortable strategy",
+      "propKeys": [
+        "items",
+        "strategy"
+      ]
+    },
+    {
+      "name": "ea",
+      "role": "dnd-kit announce",
+      "propKeys": [
+        "hiddenTextDescribedById"
+      ]
+    },
+    {
+      "name": "e$",
+      "role": "Rich text editor",
+      "propKeys": [
+        "onChange",
+        "onUndo",
+        "onRedo",
+        "onSelectLayer",
+        "data",
+        "onPasted",
+        "onCreateBRoll",
+        "onAddSoundEffect",
+        "playbackId",
+        "layerId",
+        "sceneId",
+        "voiceId",
+        "mediaGeneratedId",
+        "voiceStyleId",
+        "wordSet"
+      ],
+      "propVals": {
+        "playbackId": "6a619e527b6a4072b66692cd",
+        "layerId": "6a619e60dc3a8dbaa67f0f81"
+      }
+    },
+    {
+      "name": "ei",
+      "role": "Add scene dropdown",
+      "propKeys": [
+        "cacheKey",
+        "onAddScene",
+        "onAddSceneWithTemplate",
+        "onPasteScene",
+        "isAdding",
+        "format"
+      ],
+      "propVals": {
+        "cacheKey": "copiedScene",
+        "format": "video"
+      }
+    }
+  ]
+}

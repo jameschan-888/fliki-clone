@@ -1,0 +1,192 @@
+{
+  "_note": "Full playback/scene/layer schema extracted from React Fiber props + driveList + localStorage in editor session",
+  "playback": {
+    "_id": "24-char hex (playbackId)",
+    "userId": "24-char hex",
+    "languageId": "24-char hex",
+    "dialectId": "24-char hex",
+    "version": "int, increments on save",
+    "revision": "int, increments on conflict",
+    "mediaRevision": "int, increments when media regenerated",
+    "isPlayed": "bool",
+    "isDeleted": "bool",
+    "duration": "number (seconds, computed from scenes)",
+    "format": "video | audio | design",
+    "type": "video | audio | design",
+    "scenes": "Scene[] (see below)",
+    "settings": {
+      "aspectRatio": "16:9 | 9:16 | 1:1",
+      "sceneGap": "number (seconds between scenes)",
+      "colorBackground": "hex color",
+      "isLocked": "bool",
+      "subtitlePreset": "string (preset id)"
+    },
+    "isAutomation": "bool",
+    "createdAt": "ISO date",
+    "updatedAt": "ISO date",
+    "__v": "Mongoose version key",
+    "masterLayers": "Layer[] (top-level layers, often empty when scenes hold their own)",
+    "isPaid": "bool",
+    "isTemplate": "bool"
+  },
+  "scene": {
+    "_id": "24-char hex",
+    "layers": "Layer[]",
+    "isHidden": "bool",
+    "isMinimize": "bool",
+    "duration": {
+      "from": "number (seconds)",
+      "to": "number (seconds)",
+      "total": "number (seconds)",
+      "ahead": "number (seconds, lookahead gap)"
+    },
+    "transition": {
+      "type": "fade | slide | none",
+      "duration": "number (seconds)"
+    }
+  },
+  "layer": {
+    "key": "string (often empty, layer key for React)",
+    "type": "audio | media | character | subtitle | visualization | text | shape | element",
+    "isHidden": "bool",
+    "isMinimizeActive": "bool",
+    "media": {
+      "mediaStockId": "string | null (Stock media id from storyblocks etc)",
+      "mediaMyId": "string | null (user upload id)",
+      "keywords": "string[] (search keywords used to find this media)",
+      "charactersInFrame": "string[] (character ids appearing)",
+      "stockIdHistory": "string[] (regeneration history)",
+      "height": "number (percent 0-100)",
+      "width": "number (percent 0-100)",
+      "top": "number (percent 0-100)",
+      "left": "number (percent 0-100)",
+      "rotate": "number (degrees)",
+      "objectFit": "cover | contain | fill",
+      "objectPosition": "center | top | bottom | left | right",
+      "crop": {
+        "height": 100,
+        "width": 100,
+        "top": 0,
+        "left": 0
+      },
+      "opacity": "number 0-100",
+      "blur": "number (px)",
+      "volume": "number 0-100",
+      "speed": "number 0-200 (percent)",
+      "borderRadius": "number (px)",
+      "borderWidth": "number (px)",
+      "blurBackground": "bool",
+      "colorBorder": "hex",
+      "colorBackground": "hex",
+      "colorFill": "hex",
+      "mixBlendMode": "normal | multiply | screen | overlay | ... (CSS blend modes)",
+      "size": "small | medium | large",
+      "closeUp": "bool",
+      "transparent": "bool",
+      "animationAudio": {
+        "toggle": "bool",
+        "in": "fade | none",
+        "out": "fade | none",
+        "duration": "short | medium | long"
+      },
+      "animationVisual": {
+        "toggle": "bool",
+        "list": "Animation[] (entrance/exit)"
+      },
+      "startFrom": "number (seconds, trim start)",
+      "loop": "bool",
+      "hideOn": "string[] (scenes to hide on, by index)",
+      "cut": "TimeRange[] (segments to remove)"
+    },
+    "subtitle": {
+      "useGlobalTranscription": "bool",
+      "transcription": "string | null (manual or auto transcript)",
+      "toggle": "bool",
+      "height": 10,
+      "width": 70,
+      "top": 75,
+      "left": 15,
+      "rotate": 0,
+      "textAlign": "left | center | right",
+      "textAlignVertical": "top | middle | bottom | end",
+      "fontFamily": "notoSansSC | inter | poppins | ...",
+      "fontSize": "number (px in 1080p reference)",
+      "fontWeight": "100..900",
+      "letterSpacing": "number",
+      "lineHeight": "number",
+      "strokeWidth": "number",
+      "padding": "number",
+      "colorForeground": "hex",
+      "colorBackground": "rgba/hex",
+      "colorStroke": "hex",
+      "colorHighlight": "hex (keyword highlight color)",
+      "colorHighlightBackground": "hex",
+      "colorHighlightKeyword": "rgba",
+      "colorUnderline": "hex",
+      "borderRadius": "number (px)",
+      "textDisplay": "word | phrase | sentence | char",
+      "captionAnimation": "none | pop | typewriter | karaoke | fade",
+      "textTransform": "none | uppercase | lowercase",
+      "backgroundFit": "box | text",
+      "textEffect": {
+        "fill": "bool",
+        "stroke": "bool",
+        "shadow": "bool"
+      },
+      "animationVisual": {
+        "toggle": false,
+        "list": []
+      }
+    },
+    "visualization": {
+      "toggle": "bool",
+      "height": 13,
+      "width": 80,
+      "top": 43,
+      "left": 10,
+      "rotate": 0,
+      "alignItems": "left | center | right",
+      "size": "small | medium | large",
+      "colorForeground": "hex",
+      "animationVisual": {
+        "toggle": false,
+        "list": []
+      }
+    },
+    "timing": {
+      "toggle": "bool",
+      "sceneTime": {
+        "in": 0
+      },
+      "trim": {
+        "in": 0
+      },
+      "noSnap": "bool"
+    },
+    "_id": "24-char hex (layerId, sometimes with type prefix like media-xxx)",
+    "createdAt": "ISO",
+    "updatedAt": "ISO"
+  },
+  "drive": {
+    "_id": "driveId (24-char hex)",
+    "userId": "userId",
+    "playbackId": "playbackId (nullable for folder)",
+    "workflowId": "workflow template id",
+    "workflowType": "script | blog | ppt | autoEdit | record | empty",
+    "name": "string",
+    "slug": "string (url-safe)",
+    "start": "script | blog | ppt | autoEdit | record | empty",
+    "mode": "template | scratch | sample",
+    "isFolder": false,
+    "isTemplate": false,
+    "isCollaborate": false,
+    "isTrashed": false,
+    "isSample": false,
+    "isDeleted": false,
+    "format": "video | audio | design",
+    "mediaRecents": "Record<mediaId, source>",
+    "createdAt": "ISO",
+    "updatedAt": "ISO",
+    "__v": 0
+  }
+}

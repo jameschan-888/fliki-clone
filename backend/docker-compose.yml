@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  api:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - api-data:/app/data
+    command: bash -c "pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8001"
+    ports:
+      - "127.0.0.1:8001:8001"
+    environment:
+      - FLIKI_HOST=0.0.0.0
+      - FLIKI_PORT=8001
+    depends_on:
+      - renderer
+
+  renderer:
+    image: node:20-bookworm
+    working_dir: /app
+    volumes:
+      - ./backend/workers/remotion-project:/app
+      - api-data:/app/output
+    command: bash -c "npm ci && while true; do sleep 3600; done"
+    environment:
+      - PUPPETEER_SKIP_DOWNLOAD=true
+      - REMOTION_CHROMIUM_PATH=/usr/bin/chromium
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+volumes:
+  api-data:
