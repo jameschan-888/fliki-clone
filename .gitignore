@@ -56,3 +56,10 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Vite / TypeScript logs
+app/vite.log
+app/vite.err
+app/voice-gallery-vite.log
+app/voice-gallery-vite.err
+app/tsconfig.app.tsbuildinfo
