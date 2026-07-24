@@ -1,6 +1,6 @@
 # Fliki 视频制作还原：移交文档
 
-更新时间：2026-07-25
+更新时间：2026-07-25 (rev2: Git 首次基线)
 
 > 给下一个对话或接手开发者使用。不要看截图，不要重新抓站；现有 `research/` 已覆盖当前需要的公开页面、登录态结构和接口行为。
 
@@ -45,7 +45,7 @@
 | Wav2Lip-ONNX | 适配器完成 | 默认关闭；没有模型或依赖时回退静态 Avatar MP4 |
 | 前端 Avatar 选择 | 已完成 | drafts 场景卡片加 Avatar 行；avatars.html 选择页 + postMessage avatar_picked；支持清除；新增 GET /avatar-clones/{uuid}/ref-face 预览接口 |
 | Docker / 安装清单 | 未完成 | compose 文件已有，尚未完成本机 Docker 验证和一键安装文档 |
-| Git 基线 | 未完成 | 当前仓库没有首次提交 |
+| Git 基线 | 已完成 (2026-07-25) | commit `4a35904`, 160 文件 / 19549 行, master 分支; .gitignore 已盖 node_modules / data / .env / 测试日志 / 临时脚本 |
 
 ## 3. 已验证事实
 
@@ -288,7 +288,7 @@ Docker compose 文件已存在，但当前尚未完成本机 Docker 真验证；
 
 - 建立项目专用 `.venv` 和安装清单。
 - 真实验证 Docker compose；补充 Windows 本地启动脚本。
-- 做首次 Git 基线提交，但提交前先确认要不要把历史辅助脚本和旧 docx 纳入版本库。
+- ~~做首次 Git 基线提交~~ ✅ 已完成 (commit 4a35904): `HANDOFF.md` + `HANDOFF_P5D7_short.md` + `PROJECT_STATUS_AND_PLAN.md` + `README.md` + `Fliki项目交接文档.docx` + `voice-gallery.png` + `backend/` + `app/` + `scripts/` + `research/` + `.gitignore`。历史辅助脚本 (build_handoff_docx.py / check_*.py / write_*.py / reset*.py / rewrite_props*.py / finalize.py / count_p5a.py) 已排除，根级仅保留交付文档 + 项目源码。
 
 ### D：按硬件限制补本地 AI
 
