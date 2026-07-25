@@ -153,18 +153,27 @@ def check_wav2lip_onnx():
     """
     out = {"provider": "wav2lip_onnx", "ok": False, "ffmpeg_available": False,
            "model_present": False, "dependencies_ok": False,
-           "dependency_warnings": [], "latency_ms": None, "error": None}
+           "dependency_warnings": [], "latency_ms": None, "error": None,
+           "alias_used": None}
     started = time.time()
-    env_path = os.getenv("FLIKI_WAV2LIP_MODEL", "data/models/wav2lip_onnx/wav2lip.onnx")
+    env_path = os.getenv("FLIKI_WAV2LIP_MODEL", "data/models/wav2lip/wav2lip.onnx")
     out["configured_path"] = env_path
-    try:
-        candidate = Path(env_path)
-        if not candidate.is_absolute():
-            candidate = Path(__file__).resolve().parent / candidate
-        out["resolved_path"] = str(candidate)
-        out["model_present"] = candidate.is_file()
-    except Exception as exc:
-        out["dependency_warnings"].append(f"model_path: {exc}")
+    candidate = Path(env_path)
+    if not candidate.is_absolute():
+        candidate = Path(__file__).resolve().parent / candidate
+    out["resolved_path"] = str(candidate)
+    if candidate.is_file():
+        out["model_present"] = True
+    if not out["model_present"]:
+        for alt in (
+            Path(__file__).resolve().parent / "data" / "models" / "wav2lip_onnx" / "wav2lip.onnx",
+            Path(__file__).resolve().parent / "data" / "wav2lip" / "wav2lip.onnx",
+        ):
+            if alt.is_file():
+                out["model_present"] = True
+                out["resolved_path"] = str(alt)
+                out["alias_used"] = str(alt.parent.name + "/wav2lip.onnx")
+                break
     for mod_name in ("cv2", "librosa", "onnxruntime", "numpy"):
         try:
             __import__(mod_name)
@@ -177,8 +186,8 @@ def check_wav2lip_onnx():
     except Exception:
         pass
     out["latency_ms"] = int((time.time() - started) * 1000)
-    out["ok"] = (out["ffmpeg_available"] and out["dependencies_ok"]) or out["model_present"]
-    out["error"] = None if out["ok"] else "Missing dependencies or model; will fall back to static_avatar MP4"
+    out["ok"] = out["ffmpeg_available"] and out["dependencies_ok"] and out["model_present"]
+    out["error"] = None if out["ok"] else "Missing dependencies, ffmpeg, or model; will fall back to static_avatar MP4"
     return out
 
 

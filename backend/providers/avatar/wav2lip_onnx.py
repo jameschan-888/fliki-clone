@@ -14,7 +14,7 @@ from wav2lip_prototype import Wav2LipProvider
 
 
 AVATAR_CLONE_PREFIX = "avatar:"
-DEFAULT_MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "models" / "wav2lip_onnx"
+DEFAULT_MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "models" / "wav2lip"
 
 
 class Wav2LipONNXAvatarProvider:

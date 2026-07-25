@@ -82,6 +82,22 @@ class Wav2LipONNXProviderTest(unittest.TestCase):
         self.assertEqual(result["mode"], "static_avatar")
         self.assertEqual(result["provider"], "wav2lip_onnx")
 
+    def test_synthesize_onnx_result_is_not_reported_as_fallback(self):
+        provider = Wav2LipONNXAvatarProvider(model_path=str(Path(self.tmp.name) / "wav2lip.onnx"))
+        fake = {
+            "status": "success",
+            "mode": "wav2lip_onnx",
+            "output_path": str(self.dest),
+            "model_present": True,
+            "fallback_used": False,
+            "elapsed_seconds": 73.116,
+        }
+        with patch.object(provider._impl, "synthesize", return_value=fake):
+            result = provider.synthesize(self.face, self.audio, self.dest)
+        self.assertEqual(result["mode"], "wav2lip_onnx")
+        self.assertFalse(result["fallback_used"])
+        self.assertTrue(result["model_present"])
+
     def test_healthcheck_returns_structured_dict(self):
         provider = Wav2LipONNXAvatarProvider(model_path=str(Path(self.tmp.name) / "missing.onnx"))
         info = provider.healthcheck()
@@ -93,4 +109,28 @@ class Wav2LipONNXProviderTest(unittest.TestCase):
         self.assertEqual(info["provider"], "wav2lip_onnx")
 
     def test_default_model_dir_set(self):
-        self.assertTrue(str(DEFAULT_MODEL_DIR).endswith("wav2lip_onnx"))
+        self.assertTrue(str(DEFAULT_MODEL_DIR).endswith("wav2lip"))
+
+    def test_unicode_face_path_uses_imdecode(self):
+        provider = Wav2LipONNXAvatarProvider(model_path=str(Path(self.tmp.name) / "missing.onnx"))
+        unicode_face = Path(self.tmp.name) / "中文头像.png"
+        unicode_face.write_bytes(self.face.read_bytes())
+        fake_numpy = MagicMock()
+        fake_numpy.uint8 = "uint8"
+        fake_cv2 = MagicMock()
+        fake_cv2.IMREAD_COLOR = 1
+        fake_cv2.imdecode.return_value = None
+        fake_librosa = MagicMock()
+        fake_ort = MagicMock()
+        fake_ort.SessionOptions.return_value = MagicMock()
+        fake_ort.GraphOptimizationLevel.ORT_ENABLE_ALL = 99
+        fake_ort.InferenceSession.return_value = MagicMock()
+        with patch.object(
+            provider._impl,
+            "_load_inference_dependencies",
+            return_value=(fake_numpy, fake_cv2, fake_librosa, fake_ort),
+        ), patch.object(fake_numpy, "fromfile", return_value=b"image-bytes") as fromfile:
+            with self.assertRaisesRegex(ValueError, "cannot read face image"):
+                provider._impl._synthesize_onnx(unicode_face, self.audio, self.dest)
+        fromfile.assert_called_once_with(str(unicode_face.resolve()), dtype="uint8")
+        fake_cv2.imdecode.assert_called_once_with(b"image-bytes", 1)

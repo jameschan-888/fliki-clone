@@ -59,7 +59,7 @@ class Wav2LipProvider:
         download_timeout_seconds: int = 120,
     ) -> None:
         backend_dir = Path(__file__).resolve().parent
-        self.model_path = Path(model_path or backend_dir / "data" / "wav2lip" / "wav2lip.onnx")
+        self.model_path = Path(model_path or backend_dir / "data" / "models" / "wav2lip" / "wav2lip.onnx")
         env_download = os.getenv("FLIKI_WAV2LIP_AUTO_DOWNLOAD", "").strip().lower()
         self.auto_download = auto_download if auto_download is not None else env_download in {"1", "true", "yes"}
         self.ffmpeg_binary = ffmpeg_binary
@@ -191,7 +191,7 @@ class Wav2LipProvider:
             providers=["CPUExecutionProvider"],
         )
 
-        source_frame = cv2.imread(str(face_path), cv2.IMREAD_COLOR)
+        source_frame = cv2.imdecode(np.fromfile(str(face_path), dtype=np.uint8), cv2.IMREAD_COLOR)
         if source_frame is None:
             raise ValueError(f"OpenCV cannot read face image: {face_path}")
         face_box = self._detect_face(cv2, source_frame)

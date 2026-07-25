@@ -223,3 +223,11 @@ cd backend; docker-compose up
 8001 (避开 proj_055 的 8000)
 
 
+
+## Wav2Lip-ONNX 本地模型
+
+1. 默认路径 `backend/data/models/wav2lip/wav2lip.onnx` (与 Env-Check `FLIKI_WAV2LIP_MODEL` 默认值一致).
+2. 安装 CPU 推理依赖: `python -m pip install -r backend/requirements-wav2lip.txt`.
+3. 自动下载: 在 `backend/.env` 设置 `FLIKI_WAV2LIP_AUTO_DOWNLOAD=1`, 系统会在合成时尝试从 Hugging Face / GitHub / ModelScope 任一可达源拉取.
+4. 手动安装 (Windows): `scripts\install_wav2lip.cmd`. 失败时把本地 wav2lip.onnx 拷到 `backend\data\models\wav2lip\wav2lip.onnx` 即可.
+5. Env-Check: 启动后访问 `app/env-check.html` → Wav2Lip-ONNX 面板查看 `ok / model_present / dependency_warnings`; 模型、Python 依赖和 FFmpeg 全部存在时 `ok=True`, 否则自动回退 `static_avatar`.
