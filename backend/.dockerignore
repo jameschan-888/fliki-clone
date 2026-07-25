@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+**/node_modules/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data (mounted as volume, do not bake into image)
+data/
+data/*/
+
+# Backend transient logs / backup
+_uvi.*
+_uvicorn.*
+server.log
+voice-gallery-server.*
+_backup_*.py
+_p5c_write.py
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

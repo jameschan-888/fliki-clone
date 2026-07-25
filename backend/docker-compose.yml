@@ -1,31 +1,49 @@
-version: "3.9"
+﻿# P5E Docker 本机验证 (2026-07-25)
+# 单服务 api: Python 主进程 spawn remotion_runner.py (subprocess), 内部调 npx remotion render
+# renderer service 死代码已删除 (实际 render 走 api 容器内 subprocess)
+#
+# 端口: 8765 (Hyper-V 排除区避开 8001; 规矩文档第 4 条)
+#
+# 用法:
+#   docker compose build
+#   docker compose --env-file .env up -d
+#   curl http://127.0.0.1:8765/health
+#   docker compose down
 
 services:
   api:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fliki-api:local
+    container_name: fliki-api
     working_dir: /app
-    volumes:
-      - ./backend:/app
-      - api-data:/app/data
-    command: bash -c "pip install -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8001"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8765", "--workers", "1"]
     ports:
-      - "127.0.0.1:8001:8001"
+      - "127.0.0.1:8765:8765"
+    volumes:
+      # 运行时数据持久化 (sqlite, uploads, outputs)
+      - api-data:/app/data
+      # 源码和 Linux node_modules 均来自镜像；修改代码后重新 docker compose build。
+      # 不挂载宿主源码，否则 Windows node_modules 会覆盖镜像依赖，Remotion 无法运行。
     environment:
       - FLIKI_HOST=0.0.0.0
-      - FLIKI_PORT=8001
-    depends_on:
-      - renderer
-
-  renderer:
-    image: node:20-bookworm
-    working_dir: /app
-    volumes:
-      - ./backend/workers/remotion-project:/app
-      - api-data:/app/output
-    command: bash -c "npm ci && while true; do sleep 3600; done"
-    environment:
-      - PUPPETEER_SKIP_DOWNLOAD=true
-      - REMOTION_CHROMIUM_PATH=/usr/bin/chromium
+      - FLIKI_PORT=8765
+      - REMOTION_BROWSER_EXECUTABLE=/usr/local/bin/fliki-chromium
+      - FFMPEG_EXECUTABLE=/usr/bin/ffmpeg
+      - PYTHONIOENCODING=utf-8
+      - PYTHONUTF8=1
+      # PEXELS_API_KEY / PIXABAY_API_KEY / FREESOUND_API_KEY / FLIKI_GPT_SOVITS_URL / FLIKI_WAV2LIP_MODEL 等
+      # 通过 host .env 注入 (env_file 段), 不要写到镜像
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8765/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -33,3 +51,4 @@ services:
 
 volumes:
   api-data:
+    name: fliki-api-data

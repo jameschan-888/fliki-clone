@@ -1,6 +1,6 @@
-# Fliki 视频制作还原：移交文档
+﻿# Fliki 视频制作还原：移交文档
 
-更新时间：2026-07-25 (rev2: Git 首次基线)
+更新时间：2026-07-25 (rev3: Docker + Remotion 本机端到端验证)
 
 > 给下一个对话或接手开发者使用。不要看截图，不要重新抓站；现有 `research/` 已覆盖当前需要的公开页面、登录态结构和接口行为。
 
@@ -44,7 +44,7 @@
 | GPT-SoVITS | 适配器完成 | 仅 HTTP 适配器；需要用户自行运行外部服务 |
 | Wav2Lip-ONNX | 适配器完成 | 默认关闭；没有模型或依赖时回退静态 Avatar MP4 |
 | 前端 Avatar 选择 | 已完成 | drafts 场景卡片加 Avatar 行；avatars.html 选择页 + postMessage avatar_picked；支持清除；新增 GET /avatar-clones/{uuid}/ref-face 预览接口 |
-| Docker / 安装清单 | 未完成 | compose 文件已有，尚未完成本机 Docker 验证和一键安装文档 |
+| Docker / 安装清单 | 已完成 (2026-07-25) | image fliki-api:local 3.81GB (Playwright base + Python + Node 22 + Chromium + FFmpeg), 端口 8765, volume fliki-api-data 持久化 /app/data, env_file 注入 .env；关键接口均 200，Remotion 真渲染与缩略图生成通过 |
 | Git 基线 | 已完成 (2026-07-25) | commit `4a35904`, 160 文件 / 19549 行, master 分支; .gitignore 已盖 node_modules / data / .env / 测试日志 / 临时脚本 |
 
 ## 3. 已验证事实
@@ -247,16 +247,30 @@ cd D:\workspace\Fliki视频制作还原\app
 npm.cmd run build
 ```
 
-当前已验证结果：单测 `78/78`、compileall 通过、前端 build 通过（含 `dist/avatars.html`）、Remotion `tsc --noEmit` 通过。
+当前已验证结果：后端单测 `145/145`、compileall 通过、前端 build 通过（含 `dist/avatars.html`）、Remotion `tsc --noEmit` 通过。
 
 ### Docker
 
 ```powershell
 cd D:\workspace\Fliki视频制作还原\backend
-docker compose up
+docker compose build
+docker compose up -d
 ```
 
-Docker compose 文件已存在，但当前尚未完成本机 Docker 真验证；不要把它写成已交付部署方案。
+镜像: fliki-api:local (3.81GB); base: mcr.microsoft.com/playwright:v1.49.0-jammy
+端口: 127.0.0.1:8765 (避开 8001 Hyper-V); volume: fliki-api-data -> /app/data
+.env 注入: env_file: - .env
+已验证 200 endpoints: /health, /docs, /startup-status (state=ready), /env-check, /avatar-clones
+已验证 Remotion 真渲染: H.264 + AAC, 1280x720, 1.046 秒, 59,530 bytes；同时生成 full/preview 两张 JPEG 缩略图
+已验证持久化: 重启并重建容器后，探针文件与渲染视频仍存在
+已验证镜像内测试: `docker run --rm ... python3 -m unittest discover -s tests -q`，`145/145` 全绿
+
+Compose 不挂载宿主源码；Windows node_modules 会覆盖镜像内 Linux 原生依赖并导致 esbuild 平台错误。修改代码后必须重新 `docker compose build`。
+Chromium 通过 `/usr/local/bin/fliki-chromium` 稳定软链接注入，避免 Playwright 版本目录变化。
+
+构建耗时: 首次 1-2 小时; 增量 1-3 分钟
+本机 Docker Desktop + WSL2 backend 需设 registry-mirrors (如 docker.m.daocloud.io)
+Dockerfile 内 pip 用 mirrors.aliyun.com + default-timeout=120, npm 用 registry.npmmirror.com
 
 ## 10. 下一阶段实施顺序
 

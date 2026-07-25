@@ -50,9 +50,12 @@ class RemotionRunnerTest(unittest.TestCase):
                     create=True,
                 ):
                     with patch.object(remotion_runner.platform, "system", return_value="Windows"):
-                        command = remotion_runner.build_render_command(
-                            Path("props.json"), Path("output.mp4")
-                        )
+                        with patch.object(
+                            remotion_runner.shutil, "which", return_value="npx.cmd"
+                        ):
+                            command = remotion_runner.build_render_command(
+                                Path("props.json"), Path("output.mp4")
+                            )
 
         self.assertIn("--browser-executable", command)
         option_index = command.index("--browser-executable")
