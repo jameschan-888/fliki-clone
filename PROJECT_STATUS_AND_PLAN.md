@@ -35,7 +35,7 @@
 | Env-Check | 100% | 启动自检、Wav2Lip 明细和 Provider 发布能力矩阵已展示 | 后续仅维护 Provider 状态 |
 | Voice Gallery | 90% | 321 声音/142 locale，试听链路已完成 | 与草稿选音交互再统一 |
 | GPT-SoVITS | 75% | HTTP 适配器和 Mock 测试完成 | 外部服务联调，不嵌入主服务 |
-| Wav2Lip-ONNX | 70% | 适配器、fallback、Env-Check 完成 | CPU 低分辨率真机验证 |
+| Wav2Lip-ONNX | 90% | 适配器、fallback、Env-Check、中文路径与 CPU 低分辨率真机验证完成 | 后续仅做性能优化或 CUDA 机器验证 |
 | 前端工作台 | 85% | drafts/autoedit/voices/avatar/env-check 页面可用 | 后续打磨 Provider 配置与发布提示 |
 | 部署与版本管理 | 85% | Docker、Remotion 真渲染、数据卷、secrets 卷和 Git 基线已验证 | 补项目专用 `.venv` 与统一安装清单 |
 
@@ -43,7 +43,7 @@
 
 ### P0：影响产品闭环
 
-1. **真实数字人模型尚未装入**：Avatar 已进入草稿编辑器，当前电脑缺模型时会稳定回退静态头像视频。
+1. **GPT-SoVITS 仍缺真实外部联调**：本机默认端口未启动服务，也没有可用于验收的真人参考音频；现阶段只有 HTTP 适配器和 Mock 测试。
 2. **README 与当前阶段有漂移**：README 仍有“待开发/下一步 P5B”等旧描述，应在产品化阶段统一。
 
 ### P1：影响交付
@@ -53,8 +53,8 @@
 
 ### P2：可选增强
 
-1. Wav2Lip-ONNX 模型与依赖安装及低分辨率 CPU 验证。
-2. GPT-SoVITS 外部 HTTP 服务联调。
+1. GPT-SoVITS 外部 HTTP 服务联调。
+2. Wav2Lip-ONNX 性能优化或 CUDA 机器验证。
 3. 有 NVIDIA/CUDA 机器后再评估 SadTalker/MuseTalk。
 4. 模板、历史版本、项目列表、完整 Composer 和更多媒体 Provider。
 
@@ -107,13 +107,13 @@
 
 实施顺序：
 
-1. Wav2Lip-ONNX：模型文件 → `librosa` 等依赖 → 低分辨率短视频 CPU 测试。
+1. Wav2Lip-ONNX：已完成模型文件、可选依赖、中文路径兼容和低分辨率短视频 CPU 真机测试；约 2 秒音频在当前 CPU 用时 73.116 秒，且 `fallback_used=false`。
 2. GPT-SoVITS：继续作为 HTTP 客户端；服务可在本机或局域网另一台机器运行。
 3. SadTalker/MuseTalk：仅在有 NVIDIA/CUDA 机器或兼容远程 API 时进入候选。
 
 ## 推荐执行顺序
 
-1. P5D-8：Wav2Lip CPU 真机验证和 GPT-SoVITS 外部联调。
+1. P5D-8：GPT-SoVITS 外部联调（Wav2Lip CPU 真机验证已完成）。
 2. 真实 Pexels/Pixabay/Freesound 网络、额度与失败回退验收。
 3. 统一 README、安装清单和项目专用 `.venv`。
 4. 最后再做模板、Composer 和更多 AI Provider。

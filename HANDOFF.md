@@ -1,6 +1,6 @@
 ﻿# Fliki 视频制作还原：移交文档
 
-更新时间：2026-07-25 (rev4: P5E Provider 密钥持久化收口)
+更新时间：2026-07-25 (rev5: P5D-8 Wav2Lip CPU 真推理)
 
 > 给下一个对话或接手开发者使用。不要看截图，不要重新抓站；现有 `research/` 已覆盖当前需要的公开页面、登录态结构和接口行为。
 
@@ -42,7 +42,7 @@
 | Env-Check | 已完成 | 启动自检、Wav2Lip 明细和 Provider 发布能力矩阵已展示 |
 | Voice Gallery | 已完成 | Edge TTS 321 个声音、142 个 locale，可试听 |
 | GPT-SoVITS | 适配器完成 | 仅 HTTP 适配器；需要用户自行运行外部服务 |
-| Wav2Lip-ONNX | 适配器完成 | 默认关闭；没有模型或依赖时回退静态 Avatar MP4 |
+| Wav2Lip-ONNX | 已完成真机验证 (2026-07-25) | 模型 145MB 已就位；可选依赖已安装；中文路径兼容；CPU 真推理输出 `mode=wav2lip_onnx`、`fallback_used=false`，未冒充静态回退 |
 | 前端 Avatar 选择 | 已完成 | 草稿编辑器可选择、创建、清除 Avatar；直接显示 ref-face，并提示缺模型时静态回退 |
 | Docker / 安装清单 | 已完成 (2026-07-25) | image fliki-api:local 3.81GB (Playwright base + Python + Node 22 + Chromium + FFmpeg), 端口 8765, volume fliki-api-data 持久化 /app/data, env_file 注入 .env；关键接口均 200，Remotion 真渲染与缩略图生成通过 |
 | P5E Provider 密钥持久化 | 已完成 | `persist=true/false`、掩码返回、DELETE 清除、启动 hydrate、Docker secrets 卷与 0600 权限均已验证 |
@@ -50,9 +50,9 @@
 
 ## 3. 已验证事实
 
-验证时间：2026-07-25（P5E 完成）。
+验证时间：2026-07-25（P5D-8 Wav2Lip CPU 真推理完成）。
 
-- Python 单元测试：`152/152` 通过（含 7 个 P5E Provider 密钥持久化测试；全 Mock，不连接付费 API）。
+- Python 单元测试：`154/154` 通过（含 Wav2Lip 中文路径与模式契约测试；GPT-SoVITS 仍为 Mock，不连接外部服务）。
 - Python 编译：`python -m compileall -q .` 通过。
 - 前端构建：`npm.cmd run build` 通过。
 - 运行环境：Python 3.12.7、Node 24.16.0、FFmpeg 8.1.2、8 逻辑核、约 15.8 GB 内存、Intel Iris Xe、无 CUDA。
@@ -61,6 +61,7 @@
 - 30 秒 Auto-edit 真实验证已生成约 30.03 秒 MP4，包含 H.264 视频和 AAC 音频。
 - P5B 真实验证已完成 3 场景 Stock + Edge TTS + Freesound + Remotion MP4。
 - 测试全部使用 Mock HTTP/ONNX，不连接付费 API，不把测试结果误写成真实外部服务验证。
+- Wav2Lip CPU 真推理：输入真人正脸与约 2 秒音频，73.116 秒生成 MP4；结果为 `mode=wav2lip_onnx`、`fallback_used=false`、`model_present=true`。
 
 ## 4. 硬件与本地能力边界
 
