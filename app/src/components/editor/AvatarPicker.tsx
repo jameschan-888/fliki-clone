@@ -75,7 +75,7 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
           <button type="button" onClick={onClose}>✕</button>
         </div>
         <p className="hint">未安装数字人模型时会自动生成静态头像视频，不会阻塞整条任务。</p>
-        {error && <p className="error">{error}</p>
+        {error && <p className="error">{error}</p>}
         {loading ? <p>加载中…</p> : (
           <>
             <div className="cloneGrid">
