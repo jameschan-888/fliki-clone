@@ -12,7 +12,7 @@ const PID = path.join(RUN, 'backend.pid');
 
 const out = fs.openSync(LOG, 'a');
 const err = fs.openSync(ERR, 'a');
-const child = spawn('python', ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8765'], {
+const child = spawn('python', ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '5181'], {
   cwd: BACKEND, detached: true, stdio: ['ignore', out, err], windowsHide: true,
 });
 fs.writeFileSync(PID, String(child.pid));
