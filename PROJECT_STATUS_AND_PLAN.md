@@ -5,8 +5,8 @@
 
 ## 结论
 
-- 技术底座约 **84%**：后端、数据库、草稿状态机、Provider 编排、渲染、Auto-edit、环境自检和本地适配器已基本成形。
-- 用户可跑通主链路约 **75%**：Script-to-video 与 Auto-edit 均已从输入走到真实 MP4，但前端 Avatar 选择、部署基线和真实外部 Provider 验证仍缺。
+- 技术底座约 **91%**：后端、数据库、草稿状态机、Provider 编排、渲染、Auto-edit、环境自检和本地适配器已基本成形。
+- 用户可跑通主链路约 **80%**：Script-to-video 与 Auto-edit 均已从输入走到真实 MP4，但前端 Avatar 选择、部署基线和真实外部 Provider 验证仍缺。
 - 当前阶段适合继续做产品化收口，不适合重新抓站或大规模重写架构。
 
 ## 证据
@@ -32,18 +32,18 @@
 | P5A 场景草稿 | 100% | 草稿编辑、版本、排序、确认锁定和 UI 已完成 | 补 Avatar 字段/选择 |
 | P5B 确认后流水线 | 95% | Stock → TTS → Music → Render 已真实跑通 | 修 Provider 密钥持久化 |
 | P5C Auto-edit | 95% | 上传、ffprobe、Whisper、静音、草稿、确认、剪辑和重试已完成 | 增强异常提示和产品打磨 |
-| Env-Check | 90% | 启动自检和 `env-check.json` 已落地 | 前端补 Wav2Lip 明细显示 |
+| Env-Check | 100% | 启动自检、Wav2Lip 明细和 Provider 发布能力矩阵已展示 | 后续仅维护 Provider 状态 |
 | Voice Gallery | 90% | 321 声音/142 locale，试听链路已完成 | 与草稿选音交互再统一 |
 | GPT-SoVITS | 75% | HTTP 适配器和 Mock 测试完成 | 外部服务联调，不嵌入主服务 |
 | Wav2Lip-ONNX | 70% | 适配器、fallback、Env-Check 完成 | CPU 低分辨率真机验证 |
-| 前端工作台 | 70% | drafts/autoedit/voices/env-check 页面可用 | Avatar 选择、Provider 配置 UI |
+| 前端工作台 | 85% | drafts/autoedit/voices/avatar/env-check 页面可用 | 后续打磨 Provider 配置与发布提示 |
 | 部署与版本管理 | 35% | compose 和 requirements 已有，尚未真验证；Git 无首次提交 | 安装清单、Docker、自检脚本、Git 基线 |
 
 ## 当前缺口排序
 
 ### P0：影响产品闭环
 
-1. **Avatar 选择没有进入草稿编辑器**：后端有 `avatar:<uuid>` 约定和 Wav2Lip 路由，但前端还不能方便选择、试听/预览并写入草稿。
+1. **真实数字人模型尚未装入**：Avatar 已进入草稿编辑器，当前电脑缺模型时会稳定回退静态头像视频。
 2. **Provider API Key 的持久化边界不清晰**：接口更新当前注入进程环境；长期配置仍应写 `backend/.env`，重启后要补回归验证。
 3. **README 与当前阶段有漂移**：README 仍有“待开发/下一步 P5B”等旧描述，应在产品化阶段统一。
 

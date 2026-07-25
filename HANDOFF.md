@@ -39,19 +39,19 @@
 | P5A 场景草稿 | 已完成 | 拆场景、编辑、增删、排序、版本、确认锁定和前端页面 |
 | P5B 确认后流水线 | 已完成 | Stock → TTS → Music → Render 已闭环 |
 | P5C Auto-edit | 已完成 | 上传、ffprobe、Whisper、静音检测、草稿编辑、确认、剪辑渲染已闭环 |
-| Env-Check | 已完成 | 启动自检写入 `backend/data/env-check.json`；前端 env-check.html 新增 Wav2Lip-ONNX 明细面板（model / deps / fallback） |
+| Env-Check | 已完成 | 启动自检、Wav2Lip 明细和 Provider 发布能力矩阵已展示 |
 | Voice Gallery | 已完成 | Edge TTS 321 个声音、142 个 locale，可试听 |
 | GPT-SoVITS | 适配器完成 | 仅 HTTP 适配器；需要用户自行运行外部服务 |
 | Wav2Lip-ONNX | 适配器完成 | 默认关闭；没有模型或依赖时回退静态 Avatar MP4 |
-| 前端 Avatar 选择 | 已完成 | drafts 场景卡片加 Avatar 行；avatars.html 选择页 + postMessage avatar_picked；支持清除；新增 GET /avatar-clones/{uuid}/ref-face 预览接口 |
+| 前端 Avatar 选择 | 已完成 | 草稿编辑器可选择、创建、清除 Avatar；直接显示 ref-face，并提示缺模型时静态回退 |
 | Docker / 安装清单 | 已完成 (2026-07-25) | image fliki-api:local 3.81GB (Playwright base + Python + Node 22 + Chromium + FFmpeg), 端口 8765, volume fliki-api-data 持久化 /app/data, env_file 注入 .env；关键接口均 200，Remotion 真渲染与缩略图生成通过 |
 | Git 基线 | 已完成 (2026-07-25) | commit `4a35904`, 160 文件 / 19549 行, master 分支; .gitignore 已盖 node_modules / data / .env / 测试日志 / 临时脚本 |
 
 ## 3. 已验证事实
 
-验证时间：2026-07-24。
+验证时间：2026-07-25。
 
-- Python 单元测试：`116/116` 通过（2026-07-25 全量回归, 18 个文件; 原 73 + P5D-5 avatar round-trip / 默认 null 2 个 + P5D-6 avatar 节点 + props 入口 3 个 + P5D-7 avatar_layout 顶层 / 缺字段 / 非 dict / 坏 JSON 4 个 + P5D-7b avatar_layout 嵌套在 extra / 缺 extra 2 个 + P5D-7c scene-level 合并 / patch / 校验 13 个 + P5D-8 preview kwarg / 4.919s 4 个 + P5D-8 async 后台化 4 个 + P5D 余项 _validate_image_magic 假 PNG 防御 10 个）。
+- Python 单元测试：`145/145` 通过（2026-07-25 全量回归；全 Mock，不连接付费 API）。
 - Python 编译：`python -m compileall -q .` 通过。
 - 前端构建：`npm.cmd run build` 通过。
 - 运行环境：Python 3.12.7、Node 24.16.0、FFmpeg 8.1.2、8 逻辑核、约 15.8 GB 内存、Intel Iris Xe、无 CUDA。
