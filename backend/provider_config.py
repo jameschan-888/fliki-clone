@@ -48,7 +48,7 @@ def provider_payload(row):
         "enabled": bool(row["enabled"]), "is_default": bool(row["is_default"]),
         "priority": row["priority"], "base_url": config.get("base_url"),
         "model": config.get("model"), "extra": config.get("extra", {}),
-        "has_api_key": bool(secret), "api_key_masked": mask_secret(secret),
+        "has_api_key": bool(secret), "api_key_masked": mask_secret(secret), "is_mock": bool(config.get("is_mock", False)),
     }
 
 
@@ -61,6 +61,11 @@ def seed_runtime_providers(connection):
         ("provider_avatar_wav2lip", "avatar", "wav2lip_onnx", 0, 1, 0, {"model_path":"data/models/wav2lip_onnx","ffmpeg_binary":"ffmpeg","auto_download":False,"fps":25.0,"max_dimension":320}),
         ("provider_music_freesound", "music", "freesound", 1, 1, 0, {"api_key_env":"FREESOUND_API_KEY","base_url":"https://freesound.org/apiv2"}),
         ("provider_music_silence", "music", "silence", 1, 0, 100, {}),
+        ("provider_text_mock", "text", "mock", 1, 1, 100, {"is_mock": True}),
+        ("provider_stock_mock", "stock", "mock", 1, 0, 100, {"is_mock": True}),
+        ("provider_tts_mock", "tts", "mock", 1, 0, 100, {"is_mock": True}),
+        ("provider_music_mock", "music", "mock", 1, 0, 100, {"is_mock": True}),
+        ("provider_avatar_mock", "avatar", "mock", 1, 0, 100, {"is_mock": True}),
     ]
     for row in providers:
         connection.execute("INSERT OR IGNORE INTO provider_configs (id, category, name, enabled, is_default, priority, config_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (*row[:-1], json.dumps(row[-1]), now_epoch()))

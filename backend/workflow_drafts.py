@@ -239,6 +239,36 @@ def create_router(get_db):
             if incompatible:
                 labels = ", ".join(f"场景 {scene['position'] + 1}: {scene['voice']}" for scene in incompatible)
                 raise HTTPException(status_code=422, detail=f"配音语言与草稿语言 {payload['language']} 不一致：{labels}")
+            # Mock provider gate: confirm 闸门检查每类 default provider 是否 is_mock。
+            try:
+                from errors import LingjianError, MOCK_PROVIDER_BLOCKS_RELEASE  # noqa: PLC0415
+            except Exception:
+                LingjianError = None  # type: ignore[assignment]
+                MOCK_PROVIDER_BLOCKS_RELEASE = None  # type: ignore[assignment]
+            if LingjianError is not None:
+                mock_providers: list[dict] = []
+                for category in ("tts", "stock", "music", "avatar"):
+                    row = connection.execute(
+                        "SELECT name, config_json FROM provider_configs WHERE category=? AND is_default=1 ORDER BY priority LIMIT 1",
+                        (category,),
+                    ).fetchone()
+                    if row is None:
+                        continue
+                    try:
+                        cfg = json.loads(row["config_json"] or "{}")
+                    except (TypeError, ValueError):
+                        cfg = {}
+                    if cfg.get("is_mock"):
+                        mock_providers.append({"category": category, "name": row["name"]})
+                if mock_providers:
+                    labels = ", ".join(f"{item['category']}={item['name']}" for item in mock_providers)
+                    raise LingjianError(
+                        MOCK_PROVIDER_BLOCKS_RELEASE,
+                        "Mock provider 不能进入 release 流程。",
+                        "在 /provider-configs 中关闭 mock 或把 default 切到真实 provider；如需本地预览请用 preview 渲染。",
+                        {"mock_providers": mock_providers},
+                        status_code=409,
+                    )
             confirmed_at = utc_now()
             connection.execute("UPDATE workflow_drafts SET status='confirmed', confirmed_snapshot_json=?, confirmed_at=?, updated_at=? WHERE id=? AND status='draft'", (json.dumps(payload, ensure_ascii=False), confirmed_at, confirmed_at, draft_id))
             connection.commit()

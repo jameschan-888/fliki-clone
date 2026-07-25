@@ -75,7 +75,7 @@ class AvatarClonesTest(unittest.TestCase):
             files=[("ref_face", ("face.gif", io.BytesIO(b"GIF89a" + b"\x00" * 64), "image/gif"))],
         )
         self.assertEqual(r.status_code, 422)
-        self.assertIn("extension", r.json()["detail"])
+        self.assertIn("extension", r.json()["message"])
 
     def test_create_clone_rejects_tiny_face(self):
         from fastapi.testclient import TestClient
@@ -86,7 +86,7 @@ class AvatarClonesTest(unittest.TestCase):
             files=[("ref_face", ("face.png", io.BytesIO(b"tiny"), "image/png"))],
         )
         self.assertEqual(r.status_code, 422)
-        self.assertIn("small", r.json()["detail"])
+        self.assertIn("small", r.json()["message"])
 
     def test_get_clone_404(self):
         from fastapi.testclient import TestClient
@@ -123,7 +123,7 @@ class AvatarClonesTest(unittest.TestCase):
             builder.return_value = instance
             r = client.post(f"/avatar-clones/{created['uuid']}/synthesize")
         self.assertEqual(r.status_code, 502, r.text)
-        self.assertIn("boom", r.json()["detail"])
+        self.assertIn("boom", r.json()["message"])
 
     def test_synthesize_endpoint_succeeds_with_mock_output(self):
         created = self._post_face(audio_payload=b"RIFF" + b"\x10\x00" * 512).json()

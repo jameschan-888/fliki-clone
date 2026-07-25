@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from providers.music import FreesoundProvider
 from providers.stock import fetch_with_fallback
 from providers.tts import DEFAULT_VOICE, EdgeTTSProvider
+from services.cadence import detect_voice_segments as cadence_detect, cadence_summary as cadence_summary_svc
 from providers.avatar import build_wav2lip_provider, AVATAR_CLONE_PREFIX
 from providers.base import ProviderError
 
@@ -184,6 +185,29 @@ def upsert_asset(connection,run_id,scene_id,asset_type,result):
     connection.execute("INSERT OR REPLACE INTO scene_assets (id,workflow_run_id,scene_draft_id,asset_type,provider,source_url,local_path,duration_seconds,attribution_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",(uuid.uuid4().hex,run_id,scene_id,asset_type,result["provider"],result.get("source_url"),result["local_path"],result.get("duration_seconds"),json.dumps({key:result.get(key) for key in ("page_url","creator","license")},ensure_ascii=False),now()));connection.commit()
 
 
+def enrich_voice_with_cadence(tts_result):
+    """给 TTS 结果附加 cadence 段信息；失败则填零计数。
+
+    借鉴灵剪 capabilities/cadence 思路。段起点列表不写入数据库 JSON，
+    只保留前 64 段，足够前端展示与对齐判断。
+    """
+    if not isinstance(tts_result, dict):
+        return tts_result
+    audio_path = tts_result.get("local_path")
+    if not audio_path:
+        tts_result.setdefault("cadence_segments", [])
+        tts_result["cadence_summary"] = {"count": 0, "avg_silence": 0.0, "max_silence": 0.0}
+        return tts_result
+    try:
+        segments = cadence_detect(audio_path)
+        tts_result["cadence_segments"] = segments[:64]
+        tts_result["cadence_summary"] = cadence_summary_svc(segments)
+    except Exception:
+        tts_result.setdefault("cadence_segments", [])
+        tts_result["cadence_summary"] = {"count": 0, "avg_silence": 0.0, "max_silence": 0.0}
+    return tts_result
+
+
 def execute_pipeline(run_id,get_db,render_create,render_body_class,background_tasks,preview=False):
     connection=get_db();run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
     try:
@@ -198,6 +222,8 @@ def execute_pipeline(run_id,get_db,render_create,render_body_class,background_ta
             selected_voice=scene["voice"] or DEFAULT_VOICE
             tts_node=ensure_node(connection,run_id,scene["id"],"tts",{"text":scene["narration"],"voice":selected_voice})
             tts=run_node(connection,tts_node,lambda:("edge_tts",synthesize_scene_voice(scene,scene_dir/"voice.mp3")));tts["duration_seconds"]=media_duration(tts["local_path"]);upsert_asset(connection,run_id,scene["id"],"voice",tts)
+            enrich_voice_with_cadence(tts)
+            upsert_asset(connection,run_id,scene["id"],"voice",tts)
             audio_src=stage_asset(tts["local_path"],public_dir,f"scene-{index}-voice")
             avatar_src=None;avatar_meta=None
             if scene["avatar"] and not preview:

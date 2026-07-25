@@ -82,7 +82,7 @@ class VoiceClonesTest(unittest.TestCase):
             files={"ref_audio": ("ref.exe", io.BytesIO(b"binary"), "application/octet-stream")},
         )
         self.assertEqual(r.status_code, 422)
-        self.assertIn("extension", r.json()["detail"])
+        self.assertIn("extension", r.json()["message"])
 
     def test_create_clone_rejects_too_small_audio(self):
         from fastapi.testclient import TestClient
@@ -93,7 +93,7 @@ class VoiceClonesTest(unittest.TestCase):
             files={"ref_audio": ("ref.wav", io.BytesIO(b"abc"), "audio/wav")},
         )
         self.assertEqual(r.status_code, 422)
-        self.assertIn("small", r.json()["detail"])
+        self.assertIn("small", r.json()["message"])
 
     def test_get_clone_404(self):
         from fastapi.testclient import TestClient
@@ -121,7 +121,7 @@ class VoiceClonesTest(unittest.TestCase):
         os.environ["FLIKI_GPT_SOVITS_URL"] = "http://127.0.0.1:1"  # nothing listens here
         r = client.post(f"/voice-clones/{created['uuid']}/preview")
         self.assertEqual(r.status_code, 502, r.text)
-        self.assertIn("preview failed", r.json()["detail"])
+        self.assertIn("preview failed", r.json()["message"])
 
     def test_preview_clone_succeeds_with_mocked_httpx(self):
         created = self._post().json()

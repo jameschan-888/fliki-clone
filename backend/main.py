@@ -76,6 +76,9 @@ app = FastAPI(title="Fliki Clone API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
+# 借鉴灵剪 packages/core/errors.py：统一 LingjianError + HTTPException 响应体。
+from errors import register_error_handlers  # noqa: E402
+register_error_handlers(app)
 
 @app.on_event("startup")
 def startup():
