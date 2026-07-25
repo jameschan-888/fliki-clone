@@ -50,7 +50,10 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
       fd.append("language", "zh");
       fd.append("ref_face", file);
       const r = await fetch(apiAssetUrl("/avatar-clones"), { method: "POST", body: fd });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "创建失败");
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.message || body.detail || "创建失败");
+      }
       const rows = await listAvatarClones();
       setClones(rows as AvatarClone[]);
       setShowCreate(false);
@@ -71,7 +74,8 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
           <h3>选择 Avatar</h3>
           <button type="button" onClick={onClose}>✕</button>
         </div>
-        {error && <p className="error">{error}</p>}
+        <p className="hint">未安装数字人模型时会自动生成静态头像视频，不会阻塞整条任务。</p>
+        {error && <p className="error">{error}</p>
         {loading ? <p>加载中…</p> : (
           <>
             <div className="cloneGrid">

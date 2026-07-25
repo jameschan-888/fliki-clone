@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API } from "../../api/drafts";
 
 type Quick = {
   ok: boolean;
@@ -33,7 +34,7 @@ export function EnvCheckBadge({ refreshSeconds = 60 }: Props) {
     let stop = false;
     async function tick() {
       try {
-        const r = await fetch("http://127.0.0.1:8765/env-check/quick");
+        const r = await fetch(API + "/env-check/quick");
         if (!r.ok) throw new Error("env-check failed");
         const data = (await r.json()) as Quick;
         if (!stop) setQuick(data);
@@ -50,7 +51,7 @@ export function EnvCheckBadge({ refreshSeconds = 60 }: Props) {
     setOpen(true);
     setLoadingFull(true);
     try {
-      const r = await fetch("http://127.0.0.1:8765/env-check");
+      const r = await fetch(API + "/env-check");
       if (r.ok) setFull((await r.json()) as Full);
     } catch {
       // 保留 quick 数据即可

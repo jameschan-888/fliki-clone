@@ -1,6 +1,6 @@
 import type { RenderLatest, SceneDraft, WorkflowDraft, WorkflowRun } from "../types/draft";
 
-const API = "http://127.0.0.1:8765";
+export const API = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8001").replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(API + path, {
@@ -8,8 +8,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ detail: "请求失败" }));
-    throw new Error(body.detail || "请求失败");
+    const body = await response.json().catch(() => ({ message: "请求失败" }));
+    throw new Error(body.message || body.detail || "请求失败");
   }
   return response.json();
 }
@@ -85,7 +85,7 @@ export const previewCloneVoice = (uuid: string) =>
 export const listAvatarClones = () =>
   request<Array<{ uuid: string; avatar_name: string; ref_face_path: string; enabled: boolean }>>("/avatar-clones");
 
-export const previewAvatarUrl = (uuid: string) => API + "/avatar-clones/" + encodeURIComponent(uuid) + "/output";
+export const previewAvatarUrl = (uuid: string) => API + "/avatar-clones/" + encodeURIComponent(uuid) + "/ref-face";
 
 export const previewAudioUrl = (path: string) => API + path;
 

@@ -13,7 +13,7 @@
 
 | 验证项 | 结果 |
 |---|---|
-| Python 单元测试 | `73/73` 通过 |
+| Python 单元测试 | `145/145` 通过 |
 | Python 编译 | `python -m compileall -q .` 通过 |
 | 前端生产构建 | `npm.cmd run build` 通过 |
 | Script-to-video | 草稿 → 编辑 → 确认 → Stock/TTS/Music → Remotion MP4 已闭环 |

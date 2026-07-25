@@ -18,6 +18,12 @@ h1 { margin-bottom: 16px; font-size: 22px; }
 .cap.ok { border-left-color: #6dd6a0; }
 .cap .name { font-weight: 500; }
 .cap .reason { font-size: 11px; color: #93a0c0; margin-top: 4px; }
+.provider-group { background: #0e1320; border: 1px solid #232a40; border-radius: 8px; padding: 12px; }
+.provider-group .group-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.provider-group .provider { border-top: 1px solid #232a40; padding-top: 8px; margin-top: 8px; font-size: 12px; }
+.provider-group .provider-meta { color: #93a0c0; margin-top: 3px; }
+.tag { display: inline-block; padding: 2px 6px; border-radius: 999px; background: #232a40; margin-left: 4px; font-size: 10px; }
+.tag.good { color: #6dd6a0; }.tag.bad { color: #f08787; }.tag.warning { color: #f0c987; }
 .warn { background: #2a1f1f; border-left: 3px solid #f08787; padding: 10px 12px; border-radius: 4px; margin-bottom: 6px; font-size: 13px; }
 .warn.info { background: #1f2a3f; border-left-color: #6da0ff; }
 .warn.warning { background: #2f2a1f; border-left-color: #f0c987; }
@@ -31,6 +37,7 @@ pre { background: #0a0f1c; padding: 12px; border-radius: 6px; font-family: ui-mo
 <h1>🔍 环境诊断 <span class="muted" id="apiStatus">· 检测中...</span></h1>
 <div class="panel"><h2>本机能力</h2><div class="cap-grid" id="caps"></div></div>
 <div class="panel"><h2>Wav2Lip-ONNX (数字人)</h2><div id="wav2lip"></div></div>
+<div class="panel"><h2>Provider 发布能力矩阵</h2><div class="muted" id="publishSummary"></div><div class="cap-grid" id="providerGroups" style="margin-top:10px"></div></div>
 <div class="panel"><h2>硬件</h2><div class="grid" id="hardware"></div></div>
 <div class="panel"><h2>环境与依赖</h2><div class="grid" id="env"></div></div>
 <div class="panel"><h2>Python 包</h2><div id="pkgs"></div></div>
@@ -71,6 +78,26 @@ async function load() {
       const hint = el("div", "warn info", "<b>[提示]</b> 缺模型/依赖时系统仍会调用 Wav2Lip 接口；缺项时自动回退到 <code>static_avatar</code> 模式生成静态人脸 MP4，不会阻塞任务。模型路径：" + (w.resolved_path || w.configured_path || "N/A"));
       w2.appendChild(hint);
     }
+    const matrix = d.capability_groups || {publish_grade:false, groups:[]};
+    const summary = document.getElementById("publishSummary");
+    summary.innerHTML = matrix.publish_grade
+      ? '<span style="color:#6dd6a0">✓ 默认 Provider 均可用于正式发布</span>'
+      : '<span style="color:#f0c987">⚠ 至少一个默认 Provider 仅适合预览或尚未配置</span>';
+    const groups = document.getElementById("providerGroups");
+    (matrix.groups || []).forEach(function(group) {
+      const card = el("div", "provider-group");
+      card.innerHTML = '<div class="group-head"><strong>' + group.kind + '</strong><span class="tag ' + (group.publish_grade ? "good" : "warning") + '">' + (group.publish_grade ? "可发布" : "待配置") + '</span></div>' +
+        '<div class="muted">默认：' + (group.default || "未设置") + '</div>';
+      (group.providers || []).forEach(function(provider) {
+        const row = el("div", "provider");
+        row.innerHTML = statusChip(provider.available) + ' <strong>' + provider.name + '</strong>' +
+          (provider.is_default ? '<span class="tag">默认</span>' : '') +
+          (provider.is_mock ? '<span class="tag warning">Mock</span>' : '') +
+          '<div class="provider-meta">' + (provider.hint || "") + (provider.latency_ms == null ? "" : " · " + provider.latency_ms + " ms") + '</div>';
+        card.appendChild(row);
+      });
+      groups.appendChild(card);
+    });
     const hw = document.getElementById("hardware");
     hw.appendChild(item("CPU", d.cpu.cores_logical + " 核 (" + d.cpu.machine + ")"));
     hw.appendChild(item("内存", d.memory.total_gb ? d.memory.total_gb + " GB" : "N/A"));

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API } from "../../api/drafts";
 
 type ProviderRow = {
   id: string;
@@ -43,7 +44,7 @@ export function ProviderKeyManager({ open, onClose, category }: Props) {
     setError("");
     try {
       const qs = category ? `?category=${encodeURIComponent(category)}` : "";
-      const r = await fetch("http://127.0.0.1:8765/provider-configs" + qs);
+      const r = await fetch(API + "/provider-configs" + qs);
       if (!r.ok) throw new Error("加载失败");
       setRows((await r.json()) as ProviderRow[]);
     } catch (e) {
@@ -77,7 +78,7 @@ export function ProviderKeyManager({ open, onClose, category }: Props) {
       try { body.extra = extra.trim() ? JSON.parse(extra) : {}; }
       catch { throw new Error("extra 不是合法 JSON"); }
       const r = await fetch(
-        `http://127.0.0.1:8765/provider-configs/${row.category}/${row.name}`,
+        `${API}/provider-configs/${row.category}/${row.name}`,
         { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
       );
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "保存失败");
