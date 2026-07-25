@@ -25,9 +25,15 @@ class GPTSoVITSError(ProviderError):
 class GPTSoVITSProvider(TTSProvider):
     name = "gpt_sovits"
 
-    def __init__(self, base_url: str = DEFAULT_BASE_URL, timeout: float = DEFAULT_TIMEOUT):
+    def __init__(
+        self,
+        base_url: str = DEFAULT_BASE_URL,
+        timeout: float = DEFAULT_TIMEOUT,
+        endpoint: str = "/tts",
+    ):
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
         self.timeout = float(timeout or DEFAULT_TIMEOUT)
+        self.endpoint = "/" + endpoint.strip("/")
 
     # ------------------------------------------------------------------
     # Public API
@@ -60,17 +66,18 @@ class GPTSoVITSProvider(TTSProvider):
         destination.parent.mkdir(parents=True, exist_ok=True)
 
         payload = {
-            "refer_wav_path": str(ref_audio_path),
+            "ref_audio_path": str(ref_audio_path),
             "prompt_text": ref_text or "",
-            "prompt_lang": ref_language or self._lang_to_gpt(ref_audio_path),
+            "prompt_lang": self._lang_to_gpt(ref_language or language),
             "text": text,
             "text_lang": self._lang_to_gpt(language),
+            "media_type": "wav",
             "streaming_mode": False,
         }
 
         try:
             response = httpx.post(
-                f"{self.base_url}/",
+                f"{self.base_url}{self.endpoint}",
                 json=payload,
                 timeout=self.timeout,
             )
@@ -104,7 +111,6 @@ class GPTSoVITSProvider(TTSProvider):
                 f"GPT-SoVITS audio too large: {len(audio_bytes)} bytes > cap {MAX_AUDIO_BYTES}"
             )
 
-        destination.write_bytes(audio_bytes)
         destination.write_bytes(audio_bytes)
         return {
             "provider": self.name,

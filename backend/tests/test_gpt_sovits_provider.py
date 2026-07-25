@@ -59,10 +59,14 @@ class GPTSoVITSProviderTest(unittest.TestCase):
         self.assertTrue(self.dest.exists())
         self.assertEqual(self.dest.read_bytes(), wav_bytes)
         fake_post.assert_called_once()
-        kwargs = fake_post.call_args.kwargs
+        request = fake_post.call_args
+        self.assertEqual(request.args[0], "http://test:9880/tts")
+        kwargs = request.kwargs
         self.assertEqual(kwargs["json"]["text"], "你好世界")
         self.assertEqual(kwargs["json"]["text_lang"], "zh")
-        self.assertEqual(kwargs["json"]["refer_wav_path"], str(self.ref_audio))
+        self.assertEqual(kwargs["json"]["ref_audio_path"], str(self.ref_audio))
+        self.assertNotIn("refer_wav_path", kwargs["json"])
+        self.assertEqual(kwargs["json"]["media_type"], "wav")
 
     def test_synthesize_with_refs_handles_base64_json_payload(self):
         provider = GPTSoVITSProvider()
