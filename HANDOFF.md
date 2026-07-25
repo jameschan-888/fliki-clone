@@ -1,6 +1,6 @@
 ﻿# Fliki 视频制作还原：移交文档
 
-更新时间：2026-07-25 (rev3: Docker + Remotion 本机端到端验证)
+更新时间：2026-07-25 (rev4: P5E Provider 密钥持久化收口)
 
 > 给下一个对话或接手开发者使用。不要看截图，不要重新抓站；现有 `research/` 已覆盖当前需要的公开页面、登录态结构和接口行为。
 
@@ -45,13 +45,14 @@
 | Wav2Lip-ONNX | 适配器完成 | 默认关闭；没有模型或依赖时回退静态 Avatar MP4 |
 | 前端 Avatar 选择 | 已完成 | 草稿编辑器可选择、创建、清除 Avatar；直接显示 ref-face，并提示缺模型时静态回退 |
 | Docker / 安装清单 | 已完成 (2026-07-25) | image fliki-api:local 3.81GB (Playwright base + Python + Node 22 + Chromium + FFmpeg), 端口 8765, volume fliki-api-data 持久化 /app/data, env_file 注入 .env；关键接口均 200，Remotion 真渲染与缩略图生成通过 |
+| P5E Provider 密钥持久化 | 已完成 | `persist=true/false`、掩码返回、DELETE 清除、启动 hydrate、Docker secrets 卷与 0600 权限均已验证 |
 | Git 基线 | 已完成 (2026-07-25) | commit `4a35904`, 160 文件 / 19549 行, master 分支; .gitignore 已盖 node_modules / data / .env / 测试日志 / 临时脚本 |
 
 ## 3. 已验证事实
 
-验证时间：2026-07-25。
+验证时间：2026-07-25（P5E 完成）。
 
-- Python 单元测试：`145/145` 通过（2026-07-25 全量回归；全 Mock，不连接付费 API）。
+- Python 单元测试：`152/152` 通过（含 7 个 P5E Provider 密钥持久化测试；全 Mock，不连接付费 API）。
 - Python 编译：`python -m compileall -q .` 通过。
 - 前端构建：`npm.cmd run build` 通过。
 - 运行环境：Python 3.12.7、Node 24.16.0、FFmpeg 8.1.2、8 逻辑核、约 15.8 GB 内存、Intel Iris Xe、无 CUDA。
@@ -247,7 +248,7 @@ cd D:\workspace\Fliki视频制作还原\app
 npm.cmd run build
 ```
 
-当前已验证结果：后端单测 `145/145`、compileall 通过、前端 build 通过（含 `dist/avatars.html`）、Remotion `tsc --noEmit` 通过。
+当前已验证结果：后端单测 `152/152`（含 P5E 7 个 persist/DELETE/restart 用例；宿主与镜像内均 152/152）、compileall 通过、前端 build 通过、Remotion `tsc --noEmit` 通过。
 
 ### Docker
 
@@ -263,7 +264,8 @@ docker compose up -d
 已验证 200 endpoints: /health, /docs, /startup-status (state=ready), /env-check, /avatar-clones
 已验证 Remotion 真渲染: H.264 + AAC, 1280x720, 1.046 秒, 59,530 bytes；同时生成 full/preview 两张 JPEG 缩略图
 已验证持久化: 重启并重建容器后，探针文件与渲染视频仍存在
-已验证镜像内测试: `docker run --rm ... python3 -m unittest discover -s tests -q`，`145/145` 全绿
+已验证镜像内测试: `docker run --rm ... python3 -m unittest discover -s tests -q`，`152/152` 全绿
+已验证 P5E 端到端: PUT/GET/DELETE/restart hydrate 全绿，.fliki_provider_secrets.json 在重启后保留
 
 Compose 不挂载宿主源码；Windows node_modules 会覆盖镜像内 Linux 原生依赖并导致 esbuild 平台错误。修改代码后必须重新 `docker compose build`。
 Chromium 通过 `/usr/local/bin/fliki-chromium` 稳定软链接注入，避免 Playwright 版本目录变化。
@@ -292,11 +294,14 @@ Dockerfile 内 pip 用 mirrors.aliyun.com + default-timeout=120, npm 用 registr
 - 受影响文件: `backend/workers/remotion-project/src/Main.tsx`, `backend/avatar_clone_router.py`, `backend/tests/test_avatar_image_magic.py`, `scripts/patch_p5d7c_shape_radius.py`, `scripts/patch_p5d7c_shape_radius_followup.py`, `scripts/patch_avatar_magic_check.py`, `scripts/run_tests.js` (rev3).
 
 
-### B：修正 Provider 密钥持久化
+### B：修正 Provider 密钥持久化 (P5E 已完成 2026-07-25)
 
-- 明确区分“接口临时注入”与“本地持久配置”。
-- 优先支持 `.env` 或本地加密配置文件，不把明文 API Key 回传给前端。
-- 增加重启后配置仍然可用的测试。
+- `PUT /provider-configs/{cat}/{name}` body 加 `persist: bool`（默认 None=向后兼容落盘；True 强制落盘；False 仅注入当前进程）；`api_key` 写入时也同步 `os.environ[env_name]`。
+- 持久化路径：默认 `backend/.env`，容器内 `FLIKI_SECRETS_PATH=/app/secrets/.fliki_provider_secrets.json`（卷 `fliki-api-secrets`，UID 1000 可写）；文件走 0o600。
+- `provider_payload` 返回 `source: env/managed/missing`、`persist: bool`、`api_key_env`、`key_source`（向后兼容）；`api_key_masked` 永远不回传明文。
+- `DELETE /provider-configs/{cat}/{name}/secret` 同步清空 `.env` 与 `os.environ`。
+- `hydrate_env_from_disk` 启动时调用：既保留 `FLIKI_PROVIDER_<NAME>` 前缀形式供排查，也设置裸 env 形式供 Provider 直接读取（修复原先持久化键不被 Provider 读取的 bug）。
+- `tests/test_provider_env_persist.py` 覆盖 7 用例：persist=true/false、DELETE 清空、restart hydrate、masked 不泄漏。
 
 ### C：完成可交付部署基线
 
@@ -323,7 +328,7 @@ Dockerfile 内 pip 用 mirrors.aliyun.com + default-timeout=120, npm 用 registr
 
 下一个对话直接执行：
 
-> 读取 `D:\workspace\规矩文档.txt`、`D:\workspace\踩坑日志.txt`、`D:\workspace\Fliki视频制作还原\HANDOFF.md`，进入 `D:\workspace\Fliki视频制作还原`。不要看截图，不要重新抓站。先运行 `python -m unittest discover -s tests -q`，然后从 P5D-5 前端 Avatar 选择和 Provider 密钥持久化开始。
+> 读取 `D:\workspace\规矩文档.txt`、`D:\workspace\踩坑日志.txt`、`D:\workspace\Fliki视频制作还原\HANDOFF.md`，进入 `D:\workspace\Fliki视频制作还原`。不要看截图，不要重新抓站。先运行 `python -m unittest discover -s tests -q`，然后从 P5D-8 本地 AI 真机能力验证与真实 Provider 联调开始。
 
 
 ### A + C（P5D-7：avatar 浮层参数化 + 真实端到端 2026-07-24 收尾）

@@ -57,12 +57,16 @@ ENV REMOTION_BROWSER_EXECUTABLE=/usr/local/bin/fliki-chromium \
     FLIKI_PORT=8765 \
     FLIKI_DISK_PATH=/app/data
 
+# P5E: .env 持久化密钥写到 /app/secrets (UID 1000 可写), 不污染 /app.
+ENV FLIKI_SECRETS_PATH=/app/secrets/.fliki_provider_secrets.json
+
 EXPOSE 8765
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8765/health || exit 1
 
-RUN chown -R 1000:1000 /app/data 2>/dev/null || mkdir -p /app/data && chown -R 1000:1000 /app/data
+# P5E: /app/data 与 /app/secrets 提供 UID 1000 可写的运行目录.
+RUN mkdir -p /app/data /app/secrets && chown -R 1000:1000 /app/data /app/secrets
 USER 1000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8765", "--workers", "1"]

@@ -24,6 +24,8 @@ services:
     volumes:
       # 运行时数据持久化 (sqlite, uploads, outputs)
       - api-data:/app/data
+      # P5E: 持久化 provider 密钥 (FLIKI_SECRETS_PATH=/app/secrets/.fliki_provider_secrets.json)
+      - api-secrets:/app/secrets
       # 源码和 Linux node_modules 均来自镜像；修改代码后重新 docker compose build。
       # 不挂载宿主源码，否则 Windows node_modules 会覆盖镜像依赖，Remotion 无法运行。
     environment:
@@ -52,3 +54,5 @@ services:
 volumes:
   api-data:
     name: fliki-api-data
+  api-secrets:
+    name: fliki-api-secrets

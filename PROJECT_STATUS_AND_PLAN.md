@@ -1,6 +1,6 @@
 # Fliki 项目完成度与后续实施计划
 
-更新时间：2026-07-24
+更新时间：2026-07-25
 项目根目录：`D:\workspace\Fliki视频制作还原`
 
 ## 结论
@@ -13,7 +13,7 @@
 
 | 验证项 | 结果 |
 |---|---|
-| Python 单元测试 | `145/145` 通过 |
+| Python 单元测试 | 宿主与 Docker 镜像内均 `152/152` 通过 |
 | Python 编译 | `python -m compileall -q .` 通过 |
 | 前端生产构建 | `npm.cmd run build` 通过 |
 | Script-to-video | 草稿 → 编辑 → 确认 → Stock/TTS/Music → Remotion MP4 已闭环 |
@@ -37,22 +37,19 @@
 | GPT-SoVITS | 75% | HTTP 适配器和 Mock 测试完成 | 外部服务联调，不嵌入主服务 |
 | Wav2Lip-ONNX | 70% | 适配器、fallback、Env-Check 完成 | CPU 低分辨率真机验证 |
 | 前端工作台 | 85% | drafts/autoedit/voices/avatar/env-check 页面可用 | 后续打磨 Provider 配置与发布提示 |
-| 部署与版本管理 | 35% | compose 和 requirements 已有，尚未真验证；Git 无首次提交 | 安装清单、Docker、自检脚本、Git 基线 |
+| 部署与版本管理 | 85% | Docker、Remotion 真渲染、数据卷、secrets 卷和 Git 基线已验证 | 补项目专用 `.venv` 与统一安装清单 |
 
 ## 当前缺口排序
 
 ### P0：影响产品闭环
 
 1. **真实数字人模型尚未装入**：Avatar 已进入草稿编辑器，当前电脑缺模型时会稳定回退静态头像视频。
-2. **Provider API Key 的持久化边界不清晰**：接口更新当前注入进程环境；长期配置仍应写 `backend/.env`，重启后要补回归验证。
-3. **README 与当前阶段有漂移**：README 仍有“待开发/下一步 P5B”等旧描述，应在产品化阶段统一。
+2. **README 与当前阶段有漂移**：README 仍有“待开发/下一步 P5B”等旧描述，应在产品化阶段统一。
 
 ### P1：影响交付
 
-1. Docker compose 还没有本机真验证。
-2. 没有项目专用 `.venv` 和一键安装/启动清单。
-3. Git 仓库还没有首次基线提交。
-4. 外部 Pexels/Pixabay/Freesound 还需做一次网络、额度、授权和失败回退验收。
+1. 没有项目专用 `.venv` 和一键安装/启动清单。
+2. 外部 Pexels/Pixabay/Freesound 还需做一次网络、额度、授权和失败回退验收。
 
 ### P2：可选增强
 
@@ -81,16 +78,16 @@
 - 确认后可看到 Avatar 节点状态。
 - 缺模型时任务不崩溃，明确显示 fallback。
 
-### P5D-6：Provider 配置持久化
+### P5E：Provider 密钥持久化（已完成）
 
 **目标**：用户可以在本机配置 Provider，重启后仍然有效，且前端永远看不到明文密钥。
 
-实施项：
+已完成：
 
-- 保留 `/provider-configs` CRUD 和掩码返回。
-- 明确 `.env` 持久化或本地加密文件方案；不要把密钥直接写 SQLite 明文。
-- 增加重启后 `has_api_key`、默认 Provider、启用状态的测试。
-- 增加 Provider 配置页面，允许手动启用/禁用和选择默认项。
+- `persist=true/false` 明确区分本地持久化与当前进程临时注入。
+- 密钥写入独立 managed 段，不进入 SQLite，响应只返回掩码。
+- 启动 hydrate、DELETE 清除、Docker secrets 卷与 0600 权限已验证。
+- 宿主与 Docker 镜像内全量测试均为 `152/152`。
 
 ### P5D-7：部署与交接基线
 
@@ -116,11 +113,10 @@
 
 ## 推荐执行顺序
 
-1. P5D-5：前端 Avatar 选择和 Env-Check 展示。
-2. P5D-6：Provider 密钥持久化与配置 UI。
-3. P5D-7：安装清单、Docker 验证、Git 基线。
-4. P5D-8：Wav2Lip CPU 真机验证和 GPT-SoVITS 外部联调。
-5. 最后再做模板、Composer 和更多 AI Provider。
+1. P5D-8：Wav2Lip CPU 真机验证和 GPT-SoVITS 外部联调。
+2. 真实 Pexels/Pixabay/Freesound 网络、额度与失败回退验收。
+3. 统一 README、安装清单和项目专用 `.venv`。
+4. 最后再做模板、Composer 和更多 AI Provider。
 
 ## 不要做的事
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from config import config, DEFAULT_PROVIDERS
 from workflow_drafts import create_router as create_workflow_drafts_router
-from provider_config import create_router as create_provider_config_router, seed_runtime_providers
+from provider_config import create_router as create_provider_config_router, seed_runtime_providers, hydrate_env_from_disk
 from workflow_pipeline import create_router as create_workflow_pipeline_router
 from autoedit import create_router as create_autoedit_router
 from autoedit_pipeline import create_router as create_autoedit_pipeline_router
@@ -24,6 +24,9 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+hydrate_env_from_disk()
+
 
 def init_db():
     schema = Path(__file__).parent / "db" / "schema.sql"
