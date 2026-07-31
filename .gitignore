@@ -40,7 +40,7 @@ last_*.txt
 run_state.txt
 check_full.txt
 build_handoff_docx.py
-check_*.py
+/check_*.py
 check_msg*.py
 reset*.py
 rewrite_props*.py
