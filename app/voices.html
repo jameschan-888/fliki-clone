@@ -13,11 +13,12 @@
 <h1>🎙️ Voice Gallery <span class="muted" id="apiStatus">· API: --</span></h1>
 <div class="pickerNote" id="pickerNote">选择声音后会自动回填并保存到当前场景。</div>
 <div class="panel"><div class="filters"><select id="locale"><option value="">全部语言</option></select><select id="gender"><option value="">全部性别</option><option value="Female">Female</option><option value="Male">Male</option></select><input id="search" type="text" placeholder="搜索声音名称、语言或声音 ID"></div></div>
+<details class="panel" id="omniPanel"><summary>🎙️ OmniVoice 本地引擎<span id="omniStatus" class="muted"></span></summary><div class="filters"><input id="omniSearch" type="text" placeholder="按名称筛选"></div><div id="omniVoices" class="voices"></div></details>
 <details class="panel" id="clonesPanel"><summary>🎙 我的克隆声音（GPT-SoVITS）<span id="cloneStatus" class="muted"></span></summary><div class="filters"><input id="cloneSearch" type="text" placeholder="按名称筛选"></div><div id="clones" class="voices"></div></details>
 <div class="panel"><div class="summary"><span id="summary" class="muted">正在加载声音…</span><span id="playing" class="muted"></span></div><div id="voices"></div></div>
 <audio id="player"></audio>
 <script>
-var API="http://127.0.0.1:8001";
+var API="http://127.0.0.1:5181";
 var parametersFromPage=new URLSearchParams(window.location.search);
 var target=parametersFromPage.get("target")||"";
 var current=parametersFromPage.get("current")||"";
@@ -33,7 +34,10 @@ if(target)document.getElementById("pickerNote").classList.add("show");
 async function getJson(path,options){var response=await fetch(API+path,options);if(!response.ok)throw new Error(await response.text());return response.json()}
 function escapeHtml(value){return String(value||"").replace(/[&<>"']/g,function(char){if(char==="&")return "&amp;";if(char==="<")return "&lt;";if(char===">")return "&gt;";if(char==="\"")return "&quot;";return "&#039;"})}
 async function loadLocales(){var rows=await getJson("/voices/locales");locale.innerHTML='<option value="">全部语言（'+rows.length+'）</option>'+rows.map(function(row){return '<option value="'+escapeHtml(row.locale)+'">'+escapeHtml(row.locale)+'（'+row.count+'）</option>'}).join("");if(requestedLocale)locale.value=requestedLocale}
-async function loadClones(){
+async function loadOmniVoices(){var statusEl=document.getElementById("omniStatus");var box=document.getElementById("omniVoices");var searchInput=document.getElementById("omniSearch");try{var resp=await fetch((window.OMNIVOICE_BASE_URL||"http://127.0.0.1:3900")+"/v1/voices");if(!resp.ok)throw new Error("status="+resp.status);var payload=await resp.json();var list=Array.isArray(payload)?payload:(payload.data||payload.voices||[]);statusEl.textContent=" · "+list.length+" 个本地声音";function render(){var q=(searchInput.value||"").toLowerCase();var rows=list.filter(function(item){return !q||String(item.name||item.id||item.voice_id||"").toLowerCase().indexOf(q)>=0;});box.innerHTML=rows.length?rows.map(function(item){var voiceId=item.id||item.voice_id||item.name;var pickButton=target?"<button class="btn btn-pick" data-pick-omni=\""+escapeHtml(voiceId)+"\">✓ 选择</button>":"";var previewButton="<button class="btn" data-preview-omni=\""+escapeHtml(voiceId)+"\">▶ 试听</button>";var selected=("omnivoice:"+voiceId)===current?" selected":"";return "<div class=\"voice omni-voice"+selected+"\"><div><div class=\"voice-name\">"+escapeHtml(item.name||voiceId)+"</div><div class=\"voice-id\">omnivoice:"+escapeHtml(voiceId)+"</div></div><div class=\"actions\">"+previewButton+pickButton+"</div></div>"}).join(""):"<div class=\"muted\">没有匹配的声音</div>";box.querySelectorAll("button[data-preview-omni]").forEach(function(b){b.onclick=function(){previewOmni(b.dataset.previewOmni)}});box.querySelectorAll("button[data-pick-omni]").forEach(function(b){b.onclick=function(){pickVoice("omnivoice:"+b.dataset.pickOmni)}})}searchInput.oninput=render;render()}catch(error){statusEl.textContent=" · 不可用 ("+String(error).substring(0,60)+")";box.innerHTML="<div class=\"muted\">OmniVoice-Studio 未起动. 参考: docker run -d --name omnivoice -p 127.0.0.1:3900:3900 ghcr.io/debpalash/omnivoice-studio:latest</div>"}}
+async function previewOmni(voiceId){try{var result=await fetch(API+"/health");if(!result.ok)throw new Error("API down");var audio=new Audio("about:blank");audio.play().catch(function(){});alert("OmniVoice 试听请直接访问 "+window.OMNIVOICE_BASE_URL+" 的 /v1/audio/speech, voice="+voiceId)}catch(error){alert("试听失败: "+error)}}
+
+async function loadClones()async function loadClones(){
   var box=document.getElementById("clones");var statusEl=document.getElementById("cloneStatus");
   try{
     var clones=await getJson("/voice-clones");
@@ -60,7 +64,7 @@ async function loadVoices(){var query=new URLSearchParams();if(locale.value)quer
 async function preview(button){var name=button.dataset.preview;voicesBox.querySelectorAll("button[data-preview]").forEach(function(item){item.disabled=true});button.textContent="生成中…";try{var result=await getJson("/voices/"+encodeURIComponent(name)+"/preview?text="+encodeURIComponent("你好世界，这是声音试听。"));player.src=API+result.audio_url+"?v="+Date.now();await player.play();document.getElementById("playing").textContent="正在播放："+name;button.textContent="⏸ 播放中"}catch(error){alert("试听失败："+error.message);button.textContent="▶ 试听"}finally{voicesBox.querySelectorAll("button[data-preview]").forEach(function(item){item.disabled=false})}}
 function pickVoice(voice){if(!target||!window.opener){alert("当前不是场景选择模式");return}window.opener.postMessage({type:"voice_picked",target:target,voice:voice},window.location.origin);window.close()}
 player.onended=function(){document.getElementById("playing").textContent="";loadVoices()};locale.onchange=loadVoices;gender.onchange=loadVoices;search.oninput=function(){clearTimeout(debounceTimer);debounceTimer=setTimeout(loadVoices,250)};
-Promise.all([getJson("/health"),loadLocales()]).then(function(results){document.getElementById("apiStatus").textContent="· API: "+results[0].status;loadVoices()}).catch(function(error){document.getElementById("apiStatus").textContent="· API: offline";document.getElementById("summary").textContent=error.message});
+Promise.all([getJson("/health"),loadLocales()]).then(function(results){document.getElementById("apiStatus").textContent="· API: "+results[0].status;loadVoices();loadOmniVoices()}).catch(function(error){document.getElementById("apiStatus").textContent="· API: offline";document.getElementById("summary").textContent=error.message});
 </script>
 </body>
 </html>

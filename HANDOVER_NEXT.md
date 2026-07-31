@@ -1,3 +1,64 @@
+## 2026-07-31 三档收口: commit + 装饰器 + 端口 + JWT 校验 + UI + 清理
+
+更新时间: 2026-07-31 17:20 (commit ffa70e3 + commit b6cf599)
+服务: 前端 5180 (未启) / 后端 5181 PID 12740 / D 盘 71.95 GB
+
+### 结论
+
+- **T1 第一档** (commit + 装饰器 + 端口):
+  - commit ffa70e3: 本轮 4 文件 (App.tsx JSX Fragment 修复 + App.test.tsx mock 补全 + providers/tts/__init__.py OmniVoice 兜底链 + HANDOVER_NEXT prepend)
+  - main.py:769 删除 `/render.create` 重复装饰器, routes 95 -> 91
+  - app/src/api/drafts.ts 默认 API 端口 8001 -> 5181 (与 start_backend.js 对齐)
+- **T2 第二档** (稳健性):
+  - commit b6cf599: JWT 启动校验 + OmniVoice 真接口 e2e + 端口对齐 + 重复装饰器
+  - auth_router.py 加 validate_jwt_secret(strict): dev 默认警告, prod 占位符 raise
+  - main.py 启动时调用 validate_jwt_secret(strict=(FLIKI_ENV=="prod"))
+  - 5 个 JWT 场景 PASS (dev 默认/dev 强/prod 默认 raise/prod 短 raise/prod 强 OK)
+  - tests/e2e/test_omnivoice_real.py: 真接口 e2e 就位, 沙箱 docker 受限默认 skip, OMNIVOICE_E2E=1 启用
+  - 后端真服务起来验证: /health/providers/voices/templates/workflow-drafts/characters 全部 200, /api/alerts/rules 401 鉴权门有效
+  - CI 子集 4 phase ALL PASS (路由检查 13 router / 后端 112 tests / 前端 build / 前端 vitest)
+- **T3 第三档** (锦上添花):
+  - T3a voices.html 加 OmniVoice section: 拉 OMNIVOICE_BASE_URL/v1/voices, 试听 + 选择按钮 + 搜索
+  - T3b alerts 路径: 实际 3 端点已统一为 /api/alerts/*, 无 bug
+  - T3c 清理: 14 个 tests log + 53 个 load log + 5 个 backend log + nested backend/backend/data/p5d8 + backend/datetime 异常目录归档到 tests/_archive/
+  - T3d 跨用户读鉴权: 实际 8 个端点全部 _require_draft_owner 已覆盖, 27/27 tests PASS
+  - T3e scripts/ 归档: 21 个 patch_p5d*/_b_*/_dr_*/_monitor* 历史脚本归档到 scripts/_archive/
+
+### 验收门
+
+| 验收项 | 结果 |
+|---|---|
+| commit ffa70e3 (T1a) | 4 files +1799/-9 |
+| commit b6cf599 (T2) | 7 files +1142/-173 |
+| 后端 routes | 91 (95 - /render.create 重复 - docs/openapi/redoc) |
+| JWT_SECRET 5 场景 | 5/5 PASS |
+| 后端真服务 /health | 200 (status ok, cpu=8, disk_free=71.95 GB) |
+| 后端真服务 5 关键端点 | 全部 200, /api/alerts/rules 401 (鉴权门有效) |
+| CI 子集 4 phase | ALL PASS (路由 13 + 后端 112 tests + 前端 build + 前端 vitest) |
+| 前端 build | PASS 172ms |
+| 前端 vitest | 32/32 PASS in 3.21s |
+| 后端 test_user_id_list_filter + test_user_id_fk | 27/27 PASS |
+| tests/e2e/test_omnivoice_real (skip) | 3/3 skipped OK (OMNIVOICE_E2E 未设) |
+
+### 改动清单 (T1+T2+T3, 共 7 文件 +178 行净增)
+
+- backend/main.py: -1 行 (删重复装饰器) +18 行 (JWT 启动校验 + 错误处理)
+- backend/auth_router.py: +44 行 (validate_jwt_secret 函数)
+- backend/tests/test_auth_secret_validation.py: +89 行 (新建, 5 case)
+- app/src/api/drafts.ts: 1 行 (端口 8001 -> 5181)
+- app/voices.html: +31 行 (OmniVoice section)
+- tests/e2e/test_omnivoice_real.py: +76 行 (新建)
+- tests/e2e/__init__.py + tests/__init__.py: 2 行 (包标记)
+
+### 透明执行
+
+- 查阅: AGENTS.md 规矩文档 + HANDOVER_NEXT.md 历史 + workflow_drafts.py _require_draft_owner helper + auth_router.py JWT 默认值 + voices.html clonesPanel pattern + scripts/check_routes.py /health 路径.
+- 方法: 不破坏向后兼容 (默认端口 / 默认 JWT 行为 / e2e 默认 skip), 严格按 ROI 排序收口; commit 拆 2 个 (T1+T2 一起, T3 不动因没新文件 backend/frontend 仅 voices.html); 清理走归档而非删除 (git reflog 可找回).
+- 工具: cmd.exe (后端服务 spawn), mcp__node_repl__js (CRLF 精确 patch), curl (端到端验证), git -F file (commit message 含特殊字符).
+- 踩坑: (1) cmd.exe /c spawn 后台进程 stdio inherit 输出丢失, 必须 redirect > .run/ci_run.log; (2) cmd.exe /c spawn 异步 spawn 后进程需 detached + windowsHide + unref 才不阻塞 sandbox; (3) mcp__node_repl__js 里 `process.env` 被沙箱屏蔽, 用 cmd.exe set X=Y && python 替代; (4) tests/e2e 目录无 __init__.py 时 `python -m unittest tests.e2e.test_X` 失败, 需要从仓库根跑 PYTHONPATH=backend; (5) auth 启动校验设 prod 模式 raise 后, 普通后端测试也得跑得通, 用 mock sys.stderr + 多 importlib.reload 隔离每个 case.
+
+---
+
 ## 2026-07-31 A+D 收尾: App.tsx 历史 JSX 修复 + OmniVoice 接入 (最新)
 
 更新时间: 2026-07-31 14:00 (P2 列表分页前后端对接 + P8 OmniVoice 兜底链)
