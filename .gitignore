@@ -20,7 +20,31 @@ backend/workers/remotion-project/bundle/
 # Archived secrets snapshot (历史 API key 快照, 已迁出到 D:/workspace/secrets-archive/, 目录留 .gitkeep 占位)
 docs/secrets.archive/*
 !docs/secrets.archive/.gitkeep
-# Runtime data (user uploads, generated assets, DB)
+
+# Archived debug scripts and test logs (历史调试脚本归档, 不入仓, 留本地查询)
+scripts/_archive/*
+!scripts/_archive/.gitkeep
+tests/_archive/*
+!tests/_archive/.gitkeep
+
+# Test / load test runtime logs (运行时产物, 不入仓)
+tests/_archive/**/*.log
+tests/_archive/**/*.err
+tests/_archive/**/*.json
+tests/_archive/**/*.pid
+tests/_archive/**/*.bak
+tests/e2e/last_run.log
+tests/load/*.log
+tests/load/*.err
+tests/load/*.json
+tests/load/*.pid
+tests/load/*.bak
+
+# Runtime logs (后端启动 + 前端 dev server 临时日志)
+logs/
+*.dev.log
+app/frontend-dev.log
+app/autoedit.html.vanilla.bak# Runtime data (user uploads, generated assets, DB)
 app/data/
 backend/data/
 backend/data/avatar_clone_faces/

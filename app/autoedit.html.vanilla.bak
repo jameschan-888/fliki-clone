@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Auto-edit - 视频剪辑</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Segoe UI", sans-serif; background: #0e1320; color: #e6e8ee; padding: 20px; max-width: 1100px; margin: 0 auto; }
+h1 { margin-bottom: 16px; font-size: 22px; }
+.panel { background: #161c2d; border-radius: 10px; padding: 18px; margin-bottom: 16px; border: 1px solid #232a40; }
+.panel h2 { font-size: 14px; color: #93a0c0; margin-bottom: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+.btn { background: #4f8cff; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn:hover { background: #6da0ff; }
+.btn:disabled { background: #2a3142; color: #6c7593; cursor: not-allowed; }
+.btn-secondary { background: #232a40; color: #cfd5e8; }
+.btn-danger { background: #ff5b5b; }
+input[type=text], input[type=number], textarea, select { background: #0e1320; border: 1px solid #2a3142; color: #e6e8ee; padding: 6px 10px; border-radius: 4px; width: 100%; font-size: 13px; font-family: inherit; }
+textarea { resize: vertical; min-height: 32px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 6px; }
+.segment { background: #0e1320; border: 1px solid #232a40; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+.segment.drop { opacity: .5; border-style: dashed; }
+.segment .meta { font-size: 11px; color: #6c7593; margin-bottom: 6px; }
+.tag { display: inline-block; background: #232a40; color: #93a0c0; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-right: 4px; }
+.tag.keep { background: #1f4030; color: #6dd6a0; }
+.tag.trim { background: #4a3b1f; color: #f0c987; }
+.tag.drop { background: #4a1f1f; color: #f08787; }
+.status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.status.draft { background: #232a40; color: #93a0c0; }
+.status.confirmed { background: #1f4030; color: #6dd6a0; }
+.status.queued, .status.generating_assets, .status.rendering { background: #4a3b1f; color: #f0c987; }
+.status.success { background: #1f4030; color: #6dd6a0; }
+.status.failed { background: #4a1f1f; color: #f08787; }
+.log { font-family: ui-monospace, monospace; font-size: 11px; color: #93a0c0; background: #0a0f1c; padding: 10px; border-radius: 6px; max-height: 220px; overflow-y: auto; }
+.node { background: #0e1320; padding: 6px 10px; border-radius: 4px; margin-bottom: 4px; font-size: 12px; }
+.node.success { border-left: 3px solid #6dd6a0; }
+.node.failed { border-left: 3px solid #f08787; }
+.node.processing { border-left: 3px solid #f0c987; }
+progress { width: 100%; height: 6px; }
+video { max-width: 100%; border-radius: 6px; }
+.muted { color: #6c7593; font-size: 12px; }
+.label { font-size: 11px; color: #93a0c0; margin-bottom: 4px; }
+.toast { position: fixed; right: 20px; top: 20px; background: #161c2d; color: #e6e8ee; border: 1px solid #4f8cff; border-radius: 8px; padding: 12px 16px; font-size: 13px; max-width: 400px; z-index: 1000; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.toast.error { border-color: #ff5b5b; background: #2d1a1a; }
+.toast.warning { border-color: #f0c987; background: #2d2a1a; }
+.toast.ok { border-color: #6dd6a0; background: #1a2d1f; }
+.error-box { background: #2d1a1a; border: 1px solid #ff5b5b; border-radius: 6px; padding: 10px 12px; color: #f08787; font-size: 13px; margin-top: 8px; }
+.error-box .hint { color: #cfa0a0; font-size: 11px; margin-top: 4px; }
+.progress-stage { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.progress-stage .label { font-size: 11px; color: #93a0c0; margin: 0; }
+.progress-stage .value { font-size: 11px; color: #6dd6a0; font-family: ui-monospace, monospace; }
+.upload-progress { width: 100%; height: 4px; background: #232a40; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.upload-progress-bar { height: 100%; background: #4f8cff; transition: width .2s; width: 0%; }
+</style>
+</head>
+<body>
+<h1>🎬 Auto-edit 视频剪辑 <span class="muted" id="apiStatus">· API: --</span></h1>
+
+<div id="toastBox"></div>
+
+<div class="panel">
+  <h2>① 上传视频</h2>
+  <div class="row">
+    <input type="file" id="fileInput" accept="video/*" />
+    <button class="btn" id="uploadBtn">上传</button>
+  </div>
+  <div class="upload-progress"><div class="upload-progress-bar" id="uploadBar"></div></div>
+  <div id="uploadInfo" class="muted" style="margin-top:8px"></div>
+  <div id="uploadError"></div>
+</div>
+
+<div class="panel" id="draftPanel" style="display:none">
+  <h2>② 草稿 <span class="status" id="draftStatus">--</span> <span class="muted" id="draftMeta"></span></h2>
+  <div id="segmentsBox"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn" id="confirmBtn">确认草稿 → 生成</button>
+    <button class="btn btn-secondary" id="reloadBtn">刷新草稿</button>
+  </div>
+  <div id="confirmError"></div>
+</div>
+
+<div class="panel" id="runPanel" style="display:none">
+  <h2>③ 渲染进度</h2>
+  <div id="runInfo" class="muted"></div>
+  <div class="progress-stage"><div class="label">总进度</div><div class="value" id="runProgressPct">0%</div></div>
+  <progress id="runProgress" value="0" max="100"></progress>
+  <div class="progress-stage" style="margin-top:10px"><div class="label">当前步骤</div><div class="value" id="currentNode">初始化…</div></div>
+  <progress id="nodeProgress" value="0" max="100"></progress>
+  <div id="nodesBox" style="margin-top:10px"></div>
+  <div id="videoBox" style="margin-top:12px"></div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:5181";
+let currentUploadId = null;
+let currentDraftId = null;
+let currentRunId = null;
+let pollTimer = null;
+let toastTimer = null;
+
+// 后端 errors.py 统一格式: {error_code, message, hint, details}; 老路由可能返回 {detail: "..."}
+function formatApiError(err, fallback) {
+  fallback = fallback || "操作失败，请稍后再试";
+  if (!err) return fallback;
+  if (typeof err === "string") return err || fallback;
+  if (err.status) {
+    const msg = err.message || fallback;
+    if (err.status === 401) return "请先登录后再试";
+    if (err.status === 403) return "无权限访问该资源";
+    if (err.status === 404) return "资源不存在或已删除";
+    if (err.status === 413) return "文件太大，请压缩后再上传";
+    if (err.status === 422) return msg + (err.hint ? "（" + err.hint + "）" : "");
+    if (err.status === 429) return "请求过于频繁，请稍后再试";
+    if (err.status >= 500) return "服务暂时不可用（" + err.status + "），请稍后再试";
+    if (err.hint) return msg + "（" + err.hint + "）";
+    return msg;
+  }
+  if (err.message) return err.message;
+  return fallback;
+}
+
+function showToast(msg, kind) {
+  kind = kind || "ok";
+  const box = document.getElementById("toastBox");
+  box.innerHTML = '<div class="toast ' + kind + '">' + escapeHtml(msg) + '</div>';
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { box.innerHTML = ""; }, 5000);
+}
+
+function showInlineError(boxId, err, fallback) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const msg = formatApiError(err, fallback);
+  let html = '<div class="error-box">⚠ ' + escapeHtml(msg) + '</div>';
+  if (err && err.hint) html += '<div class="hint">提示: ' + escapeHtml(err.hint) + '</div>';
+  box.innerHTML = html;
+}
+
+function clearInlineError(boxId) {
+  const box = document.getElementById(boxId);
+  if (box) box.innerHTML = "";
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; });
+}
+
+async function api(path, opts) {
+  opts = opts || {};
+  const r = await fetch(API + path, opts);
+  const txt = await r.text();
+  if (!r.ok) {
+    let body = null;
+    try { body = JSON.parse(txt); } catch (e) {}
+    const enriched = {
+      status: r.status,
+      error_code: body && body.error_code,
+      message: body && (body.message || body.detail) || ("HTTP " + r.status),
+      hint: body && body.hint || "",
+      details: body && body.details || {},
+    };
+    throw enriched;
+  }
+  return JSON.parse(txt);
+}
+
+function log(msg) {
+  const box = document.getElementById("runInfo");
+  box.textContent = new Date().toLocaleTimeString() + " " + msg + "\n" + box.textContent;
+}
+
+document.getElementById("apiStatus").textContent = "· API: " + API;
+
+document.getElementById("uploadBtn").onclick = function () {
+  const f = document.getElementById("fileInput").files[0];
+  if (!f) return showToast("请先选择视频文件", "warning");
+  clearInlineError("uploadError");
+  document.getElementById("uploadInfo").innerHTML = "";
+  const bar = document.getElementById("uploadBar");
+  bar.style.width = "0%";
+  const fd = new FormData(); fd.append("file", f, f.name);
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", API + "/autoedit/uploads");
+  xhr.upload.onprogress = function (e) {
+    if (e.lengthComputable) {
+      const pct = Math.round(e.loaded * 100 / e.total);
+      bar.style.width = pct + "%";
+      document.getElementById("uploadInfo").textContent = "上传中… " + pct + "% (" + (e.loaded / 1024 / 1024).toFixed(1) + "MB / " + (e.total / 1024 / 1024).toFixed(1) + "MB)";
+    }
+  };
+  xhr.onload = function () {
+    bar.style.width = "100%";
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        const up = JSON.parse(xhr.responseText);
+        currentUploadId = up.id;
+        document.getElementById("uploadInfo").innerHTML =
+          '✅ 上传成功 id=' + up.id + '<br>duration=' + up.duration_seconds + 's size=' + up.size_bytes + 'B ' + up.width + 'x' + up.height;
+        log("上传成功: " + up.filename);
+        showToast("上传成功，正在生成草稿…", "ok");
+        api("/autoedit/uploads/" + up.id + "/drafts?language=zh-CN", { method: "POST" }).then(function (draft) {
+          currentDraftId = draft.id;
+          renderDraft(draft);
+        }).catch(function (e) { showInlineError("uploadError", e, "草稿生成失败"); });
+      } catch (e) { showInlineError("uploadError", { message: "响应解析失败: " + xhr.responseText.slice(0, 100) }); }
+    } else {
+      showInlineError("uploadError", { status: xhr.status, message: "上传失败 (HTTP " + xhr.status + ")" });
+    }
+  };
+  xhr.onerror = function () {
+    showInlineError("uploadError", { message: "网络连接失败，请检查 API 地址或服务是否启动" });
+  };
+  xhr.ontimeout = function () {
+    showInlineError("uploadError", { message: "上传超时，文件过大或网络不稳定" });
+  };
+  xhr.timeout = 600000; // 10 分钟
+  xhr.send(fd);
+};
+
+document.getElementById("reloadBtn").onclick = async function () {
+  if (!currentDraftId) return showToast("请先上传视频", "warning");
+  try {
+    const draft = await api("/autoedit/drafts/" + currentDraftId);
+    renderDraft(draft);
+  } catch (e) { showInlineError("confirmError", e, "刷新草稿失败"); }
+};
+
+document.getElementById("confirmBtn").onclick = async function () {
+  if (!currentDraftId) return showToast("请先上传视频", "warning");
+  clearInlineError("confirmError");
+  try {
+    const draft = await api("/autoedit/drafts/" + currentDraftId + "/confirm", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language: "zh-CN" }),
+    });
+    renderDraft(draft);
+    log("草稿已确认，正在启动渲染…");
+    showToast("草稿已确认，开始渲染", "ok");
+    const run = await api("/autoedit-runs/from-draft/" + currentDraftId, { method: "POST" });
+    currentRunId = run.id;
+    document.getElementById("runPanel").style.display = "block";
+    pollRun();
+  } catch (e) { showInlineError("confirmError", e, "确认失败"); }
+};
+
+function renderDraft(draft) {
+  document.getElementById("draftPanel").style.display = "block";
+  const sb = document.getElementById("draftStatus");
+  sb.textContent = draft.status;
+  sb.className = "status " + draft.status;
+  document.getElementById("draftMeta").textContent = "v" + draft.version + " | " + draft.segments.length + " segs | " + draft.duration_seconds + "s";
+  const box = document.getElementById("segmentsBox");
+  box.innerHTML = "";
+  draft.segments.forEach(function (seg, idx) {
+    const div = document.createElement("div");
+    div.className = "segment" + (seg.kind === "drop" ? " drop" : "");
+    div.innerHTML = '\n      <div class="meta">#' + idx + ' [' + seg.start_seconds + 's → ' + seg.end_seconds + 's]\n        <span class="tag ' + seg.kind + '">' + seg.kind + '</span>\n        <span class="tag">' + (seg.asset_kind || "none") + '</span>\n        music=' + seg.music_volume + '\n      </div>\n      <div class="col">\n        <div class="label">字幕</div>\n        <textarea data-seg="' + seg.id + '" data-field="subtitle">' + escapeHtml(seg.subtitle || "") + '</textarea>\n      </div>\n      <div class="row" style="margin-top:6px">\n        <select data-seg="' + seg.id + '" data-field="kind">\n          <option value="keep" ' + (seg.kind === "keep" ? "selected" : "") + '>keep 保留</option>\n          <option value="trim" ' + (seg.kind === "trim" ? "selected" : "") + '>trim 精简</option>\n          <option value="drop" ' + (seg.kind === "drop" ? "selected" : "") + '>drop 删除</option>\n        </select>\n        <button class="btn btn-secondary" data-save="' + seg.id + '">保存</button>\n      </div>\n    ';
+    box.appendChild(div);
+  });
+  box.querySelectorAll("button[data-save]").forEach(function (btn) {
+    btn.onclick = async function () {
+      const sid = btn.getAttribute("data-save");
+      const ta = box.querySelector('textarea[data-seg="' + sid + '"]');
+      const sel = box.querySelector('select[data-seg="' + sid + '"]');
+      try {
+        await api("/autoedit/drafts/" + currentDraftId + "/segments/" + sid, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subtitle: ta.value, kind: sel.value }),
+        });
+        log("已保存 segment " + sid.slice(0, 8));
+        showToast("已保存", "ok");
+        document.getElementById("reloadBtn").click();
+      } catch (e) { showInlineError("confirmError", e, "保存失败"); }
+    };
+  });
+}
+
+async function pollRun() {
+  if (!currentRunId) return;
+  try {
+    const run = await api("/autoedit-runs/" + currentRunId);
+    document.getElementById("runProgress").value = run.progress;
+    document.getElementById("runProgressPct").textContent = run.progress + "%";
+    const nodes = run.nodes || [];
+    const processing = nodes.filter(function (n) { return n.status === "processing"; });
+    const lastNode = nodes.length ? nodes[nodes.length - 1] : null;
+    let currentLabel = "初始化…";
+    if (run.status === "success") currentLabel = "完成 ✓";
+    else if (run.status === "failed") currentLabel = "失败 ✗";
+    else if (processing.length) currentLabel = processing.map(function (n) { return n.node_type + (n.segment_id ? " (" + n.segment_id.slice(0, 6) + ")" : ""); }).join(", ");
+    else if (lastNode) currentLabel = lastNode.node_type + " (" + lastNode.status + ")";
+    document.getElementById("currentNode").textContent = currentLabel;
+    document.getElementById("runInfo").innerHTML = "<b>status=" + run.status + "</b> | 总节点 " + nodes.length + " | 完成 " + nodes.filter(function (n) { return n.status === "success"; }).length + (run.message ? " | " + escapeHtml(run.message) : "");
+    const nb = document.getElementById("nodesBox");
+    nb.innerHTML = nodes.map(function (n) {
+      return '<div class="node ' + n.status + '">[' + n.node_type + ']' + (n.segment_id ? " seg=" + n.segment_id.slice(0, 8) : "") + " " + n.status + (n.provider ? " · " + n.provider : "") + (n.message ? " · " + escapeHtml(n.message.slice(0, 80)) : "") + "</div>";
+    }).join("");
+    if (run.status === "success" && run.output_path) {
+      const vb = document.getElementById("videoBox");
+      vb.innerHTML = '<div class="muted">' + escapeHtml(run.output_path) + '</div><video controls src="' + API + '/autoedit-runs/' + run.id + '/output"></video>';
+      pollTimer && clearTimeout(pollTimer);
+      log("✅ 完成: " + run.output_path);
+      showToast("渲染完成", "ok");
+    } else if (run.status === "failed") {
+      pollTimer && clearTimeout(pollTimer);
+      log("❌ 失败: " + run.message);
+      showToast("渲染失败: " + (run.message || "未知错误"), "error");
+    } else {
+      pollTimer = setTimeout(pollRun, 3000);
+    }
+  } catch (e) {
+    log("⚠ 轮询失败: " + formatApiError(e));
+    pollTimer = setTimeout(pollRun, 5000);
+  }
+}
+
+// health check
+fetch(API + "/health").then(function (r) { return r.json(); }).then(function (j) {
+  document.getElementById("apiStatus").textContent = "· API: " + j.status;
+}).catch(function () {
+  document.getElementById("apiStatus").textContent = "· API: 连接失败";
+});
+</script>
+</body>
+</html>
