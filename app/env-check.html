@@ -38,13 +38,14 @@ pre { background: #0a0f1c; padding: 12px; border-radius: 6px; font-family: ui-mo
 <div class="panel"><h2>本机能力</h2><div class="cap-grid" id="caps"></div></div>
 <div class="panel"><h2>Wav2Lip-ONNX (数字人)</h2><div id="wav2lip"></div></div>
 <div class="panel"><h2>Provider 发布能力矩阵</h2><div class="muted" id="publishSummary"></div><div class="cap-grid" id="providerGroups" style="margin-top:10px"></div></div>
+<div class="panel"><h2>外部 Provider 健康度 (P6B)</h2><div class="muted" id="externalSummary"></div><div class="cap-grid" id="externalProviders" style="margin-top:10px"></div></div>
 <div class="panel"><h2>硬件</h2><div class="grid" id="hardware"></div></div>
 <div class="panel"><h2>环境与依赖</h2><div class="grid" id="env"></div></div>
 <div class="panel"><h2>Python 包</h2><div id="pkgs"></div></div>
 <div class="panel"><h2>警告与提示</h2><div id="warnings"></div></div>
 <div class="panel"><h2>完整诊断 JSON</h2><button onclick="showRaw()">展开 / 收起</button><pre id="raw" style="display:none"></pre></div>
 <script>
-const API = "http://127.0.0.1:8001";
+const API = "http://127.0.0.1:5181";
 const capNames = {edge_tts:"Edge TTS 80+ 语言",faster_whisper:"Faster-Whisper 转写 (CPU)",wav2lip_onnx:"Wav2Lip-ONNX 数字人 (CPU)",remotion_render:"Remotion 渲染 (Chrome)",autoedit_pipeline:"Auto-edit 剪辑 (ffmpeg)",sadtalker:"SadTalker 数字人 (需 NVIDIA)",musetalk:"MuseTalk 数字人 (需 NVIDIA)",gpt_sovits_cpu:"GPT-SoVITS 声音克隆 (CPU 慢)",gpt_sovits_gpu:"GPT-SoVITS 声音克隆 (GPU 快)",heygen_api:"HeyGen 云端 API (付费)"};
 const capReasons = {edge_tts:"永远可用",faster_whisper:"CPU 可用, 30s 音频约 10s",wav2lip_onnx:"CPU 可用, 100MB 模型",remotion_render:"需 Node + Chrome",autoedit_pipeline:"需 ffmpeg",sadtalker:"需 NVIDIA GPU + CUDA",musetalk:"需 NVIDIA GPU 4GB+ VRAM",gpt_sovits_cpu:"CPU 模式 10s 音频约 30-60s",gpt_sovits_gpu:"需 NVIDIA GPU + CUDA",heygen_api:"需 HEYGEN_API_KEY"};
 
@@ -79,6 +80,7 @@ async function load() {
       w2.appendChild(hint);
     }
     const matrix = d.capability_groups || {publish_grade:false, groups:[]};
+    const ext = d.external_providers || {};
     const summary = document.getElementById("publishSummary");
     summary.innerHTML = matrix.publish_grade
       ? '<span style="color:#6dd6a0">✓ 默认 Provider 均可用于正式发布</span>'
@@ -98,6 +100,26 @@ async function load() {
       });
       groups.appendChild(card);
     });
+    const extBox = document.getElementById("externalProviders");
+    const extSummary = document.getElementById("externalSummary");
+    const extEntries = Object.entries(ext);
+    if (extEntries.length === 0) {
+      extBox.appendChild(el("div", "muted", "(no external probes yet)"));
+    } else {
+      const healthy = extEntries.filter(([, v]) => v.available).length;
+      extSummary.innerHTML = healthy === extEntries.length
+        ? `<span style="color:#6dd6a0">✓ 全部可达 (${healthy}/${extEntries.length})</span>`
+        : `<span style="color:#f0c987">⚠ ${healthy}/${extEntries.length} 可达, 缺额/限流已记录</span>`;
+      extEntries.forEach(function(e) {
+        const k = e[0], v = e[1] || {};
+        const card = el("div", "provider-group");
+        const status = v.available ? "good" : "warning";
+        card.innerHTML = "<div class=\"group-head\"><strong>" + k + "</strong><span class=\"tag " + status + "\">" + (v.available ? "可达" : "失败") + "</span></div>" +
+          "<div class=\"muted\">" + (v.http_status || "no-status") + " · " + (v.latency_ms == null ? "?" : v.latency_ms + "ms") + "</div>" +
+          "<div class=\"provider-meta\">" + (v.error ? v.error : v.base_url) + "</div>";
+        extBox.appendChild(card);
+      });
+    }
     const hw = document.getElementById("hardware");
     hw.appendChild(item("CPU", d.cpu.cores_logical + " 核 (" + d.cpu.machine + ")"));
     hw.appendChild(item("内存", d.memory.total_gb ? d.memory.total_gb + " GB" : "N/A"));

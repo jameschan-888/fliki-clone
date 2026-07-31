@@ -14,6 +14,7 @@ export default defineConfig({
         voices: resolve(__dirname, "voices.html"),
         avatars: resolve(__dirname, "avatars.html"),
         envCheck: resolve(__dirname, "env-check.html"),
+        templates: resolve(__dirname, "templates.html"),
       },
     },
   },

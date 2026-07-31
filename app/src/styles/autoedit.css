@@ -1,0 +1,250 @@
+/* AutoEditPage 样式 (rev24 阶段 C P1-B, 替代旧 vanilla inline style) */
+.autoeditPage {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+  color: var(--color-text-primary, #172033);
+}
+.autoeditHeader h1 {
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+.autoeditApiStatus {
+  font-size: 12px;
+  color: var(--color-text-tertiary, #677189);
+  font-weight: 400;
+  margin-left: 8px;
+}
+.autoeditCard {
+  background: var(--color-bg-surface, #ffffff);
+  border: 1px solid var(--color-border, #e3e7ef);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+.autoeditCardTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-accent, #6245d7);
+  margin: 0 0 12px 0;
+}
+.autoeditPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.autoeditWarning {
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  border-left: 3px solid #ffc107;
+  color: #ffd54f;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 4px 0 8px 0;
+}
+.autoeditWarning strong { color: #ffb300; margin-right: 4px; }
+.autoeditRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.autoeditCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.autoeditBtn {
+  background: var(--color-text-accent, #6245d7);
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.autoeditBtn:hover {
+  background: var(--color-text-accent-strong, #7658ed);
+}
+.autoeditBtn-secondary {
+  background: var(--color-bg-elevated, #f7f8fb);
+  color: var(--color-text-primary, #172033);
+  border: 1px solid var(--color-border, #e3e7ef);
+}
+.autoeditMuted {
+  color: var(--color-text-tertiary, #677189);
+  font-size: 12px;
+}
+.autoeditUploadInfo {
+  font-size: 12px;
+  color: var(--color-text-secondary, #596176);
+  padding: 6px 0;
+}
+.autoeditSeg {
+  background: var(--color-bg-elevated, #f7f8fb);
+  border: 1px solid var(--color-border, #e3e7ef);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.autoeditSeg-drop {
+  opacity: 0.5;
+  border-style: dashed;
+}
+.autoeditSegMeta {
+  font-size: 11px;
+  color: var(--color-text-tertiary, #677189);
+  margin-bottom: 6px;
+}
+.autoeditLabel {
+  font-size: 11px;
+  color: var(--color-text-tertiary, #677189);
+}
+.autoeditTag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  margin-right: 4px;
+  background: var(--color-bg-elevated, #f7f8fb);
+  color: var(--color-text-secondary, #596176);
+}
+.autoeditTag-keep {
+  background: var(--color-status-confirmed-bg, #dff7e8);
+  color: var(--color-text-success, #15713c);
+}
+.autoeditTag-trim {
+  background: var(--color-warn-bg, #fff8e6);
+  color: var(--color-text-warning, #8a5d00);
+}
+.autoeditTag-drop {
+  background: var(--color-tag-off-bg, #fde2e2);
+  color: var(--color-status-error, #d84b4b);
+}
+.autoeditStatus {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.autoeditStatus-draft {
+  background: var(--color-status-draft-bg, #fff0cc);
+  color: var(--color-text-warning, #8a5d00);
+}
+.autoeditStatus-confirmed {
+  background: var(--color-status-confirmed-bg, #dff7e8);
+  color: var(--color-text-success, #15713c);
+}
+.autoeditProgress {
+  width: 100%;
+  height: 6px;
+}
+.autoeditLog {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--color-text-secondary, #596176);
+  background: var(--color-bg-elevated, #f7f8fb);
+  padding: 10px;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.autoeditNode {
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  background: var(--color-bg-base, #f3f5f9);
+}
+.autoeditNode-success {
+  border-left: 3px solid var(--color-status-success, #28a164);
+}
+.autoeditNode-failed {
+  border-left: 3px solid var(--color-status-error, #d84b4b);
+}
+.autoeditNode-processing {
+  border-left: 3px solid var(--color-status-warning, #e0a02b);
+}
+.autoeditOutput {
+  margin-top: 8px;
+}
+.autoeditVideo {
+  max-width: 100%;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+/* ToastContainer */
+.toastContainer {
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: var(--z-toast, 1000);
+}
+.toast {
+  background: var(--color-bg-surface, #ffffff);
+  color: var(--color-text-primary, #172033);
+  border: 1px solid var(--color-border, #e3e7ef);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  max-width: 400px;
+  box-shadow: var(--shadow-md, 0 12px 30px rgba(0, 0, 0, 0.2));
+  cursor: pointer;
+}
+.toast-ok {
+  border-color: var(--color-status-success, #28a164);
+}
+.toast-warning {
+  border-color: var(--color-status-warning, #e0a02b);
+}
+.toast-error {
+  border-color: var(--color-status-error, #d84b4b);
+}
+.toast-info {
+  border-color: var(--color-text-accent, #6245d7);
+}
+/* InlineError */
+.errorBox {
+  background: var(--color-tag-off-bg, #fde2e2);
+  border: 1px solid var(--color-status-error, #d84b4b);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--color-status-error, #d84b4b);
+  font-size: 13px;
+  margin-top: 8px;
+}
+.errorBox .errorHint {
+  color: var(--color-text-tertiary, #677189);
+  font-size: 11px;
+  margin-top: 4px;
+}
+/* UploadProgress */
+.uploadProgressWrap {
+  margin-top: 6px;
+}
+.uploadProgressTrack {
+  width: 100%;
+  height: 4px;
+  background: var(--color-border, #e3e7ef);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.uploadProgressBar {
+  height: 100%;
+  background: var(--color-text-accent, #6245d7);
+  transition: width 0.2s;
+}
+.uploadProgressMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-text-tertiary, #677189);
+  margin-top: 4px;
+}

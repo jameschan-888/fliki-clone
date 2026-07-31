@@ -13,6 +13,10 @@ type ProviderRow = {
   extra: Record<string, unknown>;
   has_api_key: boolean;
   api_key_masked: string | null;
+  is_mock?: boolean;
+  source?: string;
+  persist?: boolean;
+  api_key_env?: string;
 };
 
 type Props = {
@@ -25,7 +29,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   stock: "素材库",
   tts: "配音",
   avatar: "数字人",
-  music: "音乐",
+  music: "音乐"
 };
 
 export function ProviderKeyManager({ open, onClose, category }: Props) {
@@ -54,7 +58,25 @@ export function ProviderKeyManager({ open, onClose, category }: Props) {
 
   useEffect(() => { if (open) void load(); }, [open, category]);
 
-  function startEdit(row: ProviderRow) {
+  function publishClass(r: ProviderRow): string {
+  if (r.is_mock) return "warning";
+  if (r.has_api_key && r.enabled) return "good";
+  if (!r.has_api_key) return "bad";
+  return "warn";
+}
+function publishLabel(r: ProviderRow): string {
+  if (r.is_mock) return "仅 Mock";
+  if (r.has_api_key && r.enabled) return "可发布";
+  if (!r.has_api_key) return "需 Key";
+  return "未启用";
+}
+function copyEnvBlock(rows: ProviderRow[]): string {
+  return rows
+    .filter((r) => r.has_api_key)
+    .map((r) => `${r.api_key_env || r.id.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}=`)
+    .join("\n");
+}
+function startEdit(row: ProviderRow) {
     setEditing(row.id);
     setApiKey("");
     setBaseUrl(row.base_url || "");
@@ -103,7 +125,14 @@ export function ProviderKeyManager({ open, onClose, category }: Props) {
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modalHeader">
           <h3>Provider 密钥与配置</h3>
-          <button type="button" onClick={onClose}>✕</button>
+          <div className="row">
+            <button type="button" onClick={() => {
+              const env = copyEnvBlock(rows);
+              navigator.clipboard?.writeText(env);
+              setMessage(env ? "已复制 key 列表到剪贴板 (无明文)" : "当前没有已配置 key");
+            }}>复制 key 变量名</button>
+            <button type="button" onClick={onClose}>✕</button>
+          </div>
         </div>
         {error && <p className="error">{error}</p>}
         {message && <p className="hint ok">{message}</p>}
@@ -112,11 +141,13 @@ export function ProviderKeyManager({ open, onClose, category }: Props) {
             <h4>{CATEGORY_LABEL[cat] || cat}</h4>
             <ul>
               {list.map((r) => (
-                <li key={r.id} className={r.enabled ? "on" : "off"}>
+                <li key={r.id} className={"prov " + publishClass(r)}>
                   <div>
                     <strong>{r.name}</strong>
                     <span className="keyTag">{r.has_api_key ? `key: ${r.api_key_masked}` : "未配 key"}</span>
                     {r.is_default && <span className="defaultTag">默认</span>}
+                    {r.is_mock && <span className="tag warning">Mock</span>}
+                    <span className={"tag " + publishClass(r)}>{publishLabel(r)}</span>
                   </div>
                   <div>
                     <span>{r.base_url || "—"}</span>

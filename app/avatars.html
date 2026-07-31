@@ -47,7 +47,7 @@ h1{margin-bottom:8px;font-size:22px}
 <div class="help">没有看到合适的 Avatar？先用 <code>POST /avatar-clones</code>（multipart：ref_face 必填，ref_audio 可选）创建一个。带 ONNX 模型时选择 Wav2Lip 本地推理；没模型时系统仍会生成静态头像 MP4，不会阻塞渲染。</div>
 
 <script>
-var API="http://127.0.0.1:8001";
+var API="http://127.0.0.1:5181";
 var qs=new URLSearchParams(location.search);
 var target=qs.get("target")||"";
 var current=qs.get("current")||"";

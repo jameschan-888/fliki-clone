@@ -1,7 +1,15 @@
-﻿import { useEffect, useState } from "react";
-import { apiAssetUrl, listAvatarClones, previewAvatarUrl } from "../../api/drafts";
+import { useEffect, useRef, useState } from "react";
+import {
+  apiAssetUrl,
+  deleteAvatarClone,
+  listAvatarClones,
+  previewAvatarUrl,
+  updateAvatarMeta,
+  uploadAvatarAudio,
+  uploadAvatarFace
+} from "../../api/drafts";
 
-export type AvatarClone = {
+type AvatarClone = {
   uuid: string;
   avatar_name: string;
   ref_face_path: string;
@@ -24,6 +32,7 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -33,9 +42,11 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
       .then((rows) => setClones(rows as AvatarClone[]))
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open, refreshTick]);
 
   if (!open) return null;
+
+  function reload() { setRefreshTick((k) => k + 1); }
 
   async function submit() {
     if (!file || !name.trim()) {
@@ -54,11 +65,10 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
         const body = await r.json().catch(() => ({}));
         throw new Error(body.message || body.detail || "创建失败");
       }
-      const rows = await listAvatarClones();
-      setClones(rows as AvatarClone[]);
       setShowCreate(false);
       setName("");
       setFile(null);
+      reload();
       onAfterChange?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "创建失败");
@@ -71,7 +81,7 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
     <div className="modalMask" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modalHeader">
-          <h3>选择 Avatar</h3>
+          <h3>选择 / 管理 Avatar</h3>
           <button type="button" onClick={onClose}>✕</button>
         </div>
         <p className="hint">未安装数字人模型时会自动生成静态头像视频，不会阻塞整条任务。</p>
@@ -85,11 +95,13 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
                 <span>纯旁白 / 字幕</span>
               </button>
               {clones.map((c) => (
-                <button key={c.uuid} type="button" className={"cloneCard" + (current === `avatar:${c.uuid}` ? " active" : "")} onClick={() => onPick(`avatar:${c.uuid}`)}>
-                  <img src={previewAvatarUrl(c.uuid)} alt={c.avatar_name} />
-                  <strong>{c.avatar_name}</strong>
-                  <span>{c.enabled ? "已启用" : "已停用"}</span>
-                </button>
+                <AvatarCard
+                  key={c.uuid}
+                  clone={c}
+                  selected={current === `avatar:${c.uuid}`}
+                  onPick={() => onPick(`avatar:${c.uuid}`)}
+                  onChanged={() => { reload(); onAfterChange?.(); }}
+                />
               ))}
             </div>
             <div className="modalFoot">
@@ -107,6 +119,138 @@ export function AvatarPicker({ open, current, onPick, onClose, onAfterChange }: 
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function AvatarCard({
+  clone,
+  selected,
+  onPick,
+  onChanged
+}: {
+  clone: AvatarClone;
+  selected: boolean;
+  onPick: () => void;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [localError, setLocalError] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(clone.avatar_name);
+  const faceRef = useRef<HTMLInputElement | null>(null);
+  const audioRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleFace(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setBusy("face"); setLocalError("");
+    try {
+      await uploadAvatarFace(clone.uuid, f);
+      onChanged();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "换图失败");
+    } finally {
+      setBusy(null);
+      if (faceRef.current) faceRef.current.value = "";
+    }
+  }
+  async function handleAudio(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setBusy("audio"); setLocalError("");
+    try {
+      await uploadAvatarAudio(clone.uuid, f);
+      onChanged();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "换音失败");
+    } finally {
+      setBusy(null);
+      if (audioRef.current) audioRef.current.value = "";
+    }
+  }
+  async function saveName() {
+    const newName = nameInput.trim();
+    if (!newName || newName === clone.avatar_name) {
+      setEditingName(false);
+      setNameInput(clone.avatar_name);
+      return;
+    }
+    setBusy("name"); setLocalError("");
+    try {
+      await updateAvatarMeta(clone.uuid, { avatar_name: newName });
+      onChanged();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "改名失败");
+    } finally {
+      setBusy(null);
+      setEditingName(false);
+    }
+  }
+  async function handleDelete() {
+    if (!window.confirm(`删除 Avatar "${clone.avatar_name}"? 文件也会一起删除。`)) return;
+    setBusy("delete"); setLocalError("");
+    try {
+      await deleteAvatarClone(clone.uuid);
+      onChanged();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className={"cloneCard" + (selected ? " active" : "")}>
+      <button type="button" className="clonePick" onClick={onPick}>
+        <img src={previewAvatarUrl(clone.uuid)} alt={clone.avatar_name} />
+        {editingName ? (
+          <input
+            className="renameInput"
+            autoFocus
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveName();
+              else if (e.key === "Escape") { setEditingName(false); setNameInput(clone.avatar_name); }
+            }}
+          />
+        ) : (
+          <strong>{clone.avatar_name}</strong>
+        )}
+        <span>{clone.enabled ? "已启用" : "已停用"}</span>
+      </button>
+      <div className="cloneTools">
+        <button type="button" disabled={!!busy} title="换人脸图"
+          onClick={(e) => { e.stopPropagation(); faceRef.current?.click(); }}>
+          {busy === "face" ? "…" : "✏️ 换图"}
+        </button>
+        <input ref={faceRef} type="file" accept="image/png,image/jpeg,image/webp" hidden
+          onChange={handleFace} />
+        <button type="button" disabled={!!busy} title="换参考音频"
+          onClick={(e) => { e.stopPropagation(); audioRef.current?.click(); }}>
+          {busy === "audio" ? "…" : "🔊 换音"}
+        </button>
+        <input ref={audioRef} type="file" accept="audio/mpeg,audio/wav,audio/m4a" hidden
+          onChange={handleAudio} />
+        {editingName ? (
+          <>
+            <button type="button" disabled={!!busy} onClick={(e) => { e.stopPropagation(); saveName(); }}>✓</button>
+            <button type="button" disabled={!!busy} onClick={(e) => { e.stopPropagation(); setEditingName(false); setNameInput(clone.avatar_name); }}>✕</button>
+          </>
+        ) : (
+          <button type="button" disabled={!!busy} title="改名"
+            onClick={(e) => { e.stopPropagation(); setEditingName(true); }}>
+            {busy === "name" ? "…" : "✏️ 改名"}
+          </button>
+        )}
+        <button type="button" className="danger" disabled={!!busy} title="删除"
+          onClick={(e) => { e.stopPropagation(); handleDelete(); }}>
+          {busy === "delete" ? "…" : "🗑"}
+        </button>
+      </div>
+      {localError && <p className="error">{localError}</p>}
     </div>
   );
 }

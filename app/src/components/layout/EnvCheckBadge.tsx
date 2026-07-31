@@ -32,18 +32,27 @@ export function EnvCheckBadge({ refreshSeconds = 60 }: Props) {
 
   useEffect(() => {
     let stop = false;
-    async function tick() {
+    let inFlight = false;
+    let lastFetch = 0;
+    const cacheMs = Math.max(refreshSeconds * 1000, 60_000);
+    async function tick(force = false) {
+      if (inFlight) return;
+      if (!force && Date.now() - lastFetch < cacheMs) return;
+      inFlight = true;
       try {
         const r = await fetch(API + "/env-check/quick");
         if (!r.ok) throw new Error("env-check failed");
         const data = (await r.json()) as Quick;
         if (!stop) setQuick(data);
+        lastFetch = Date.now();
       } catch {
         if (!stop) setQuick(null);
+      } finally {
+        inFlight = false;
       }
     }
-    void tick();
-    const id = window.setInterval(tick, refreshSeconds * 1000);
+    void tick(true);
+    const id = window.setInterval(() => { void tick(); }, cacheMs);
     return () => { stop = true; window.clearInterval(id); };
   }, [refreshSeconds]);
 
@@ -59,6 +68,12 @@ export function EnvCheckBadge({ refreshSeconds = 60 }: Props) {
       setLoadingFull(false);
     }
   }
+  function refreshNow() {
+    setQuick(null);
+    void fetch(API + "/env-check/quick").then(async (r) => {
+      if (r.ok) setQuick((await r.json()) as Quick);
+    }).catch(() => setQuick(null));
+  }
 
   const level = badgeLevel(quick);
   const label = level === "ok" ? "环境就绪" : level === "warn" ? "环境有警告" : "环境异常";
@@ -73,7 +88,10 @@ export function EnvCheckBadge({ refreshSeconds = 60 }: Props) {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
               <h3>环境诊断</h3>
-              <button type="button" onClick={() => setOpen(false)}>✕</button>
+              <div>
+                <button type="button" onClick={refreshNow}>↻ 重新检查</button>
+                <button type="button" onClick={() => setOpen(false)}>✕</button>
+              </div>
             </div>
             {!quick ? <p className="error">无法连接后端 /env-check</p> : (
               <>

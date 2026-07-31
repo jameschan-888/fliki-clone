@@ -17,14 +17,14 @@
     <section class="grid">
       <a class="card" href="/drafts.html"><span class="icon">🎬</span><h2>Script to Video</h2><p>输入脚本，编辑场景、画面、字幕、时长、声音和 Avatar，确认后再生成。</p><span class="tag">P5A + P5B + P5D-5</span></a>
       <a class="card" href="/autoedit.html"><span class="icon">🎞️</span><h2>Auto-edit</h2><p>上传已有视频，自动转写、切分、加字幕与 B-roll，再确认渲染。</p><span class="tag">P5C</span></a>
-      <a class="card" href="/voices.html"><span class="icon">🎤</span><h2>80+ 语言声音库</h2><p>搜索 321 个声音，按语言和性别筛选，生成试听音频。</p><span class="tag">P5D-2</span></a>
+      <a class="card" href="/voices.html"><span class="icon">🎤</span><h2>80+ 语言声音库</h2><p>搜索 321 个声音，按语言和性别筛选，生成试听音频。</p><span class="tag">P5D-2</span></a><a class="card" href="/templates.html"><span class="icon">🧩</span><h2>模板市场</h2><p>5 套本地模板（开场/结尾/列表/引用/数据），选一套应用到场景，渲染按 structure 出图。</p><span class="tag">P7C-B</span></a>
       <a class="card" href="/avatars.html"><span class="icon">🧑‍🎤</span><h2>Avatar 库</h2><p>上传人脸参考图与默认音频，绑定到场景；缺模型时自动回退静态 MP4。</p><span class="tag">P5E</span></a>
       <a class="card" href="/env-check.html"><span class="icon">🔍</span><h2>环境诊断</h2><p>检查 FFmpeg、Node、Python、GPU、磁盘、Wav2Lip 模型与本地数字人能力。</p><span class="tag">P5D-1</span></a>
     </section>
     <div class="note">当前原则：草稿可编辑、节点可重试、接口可替换；Pexels / Pixabay / Freesound 默认走低成本素材路径。</div>
   </main>
   <script>
-    fetch("http://127.0.0.1:8001/health").then(function(response){return response.json()}).then(function(result){document.getElementById("apiDot").classList.add("ok");document.getElementById("apiStatus").textContent="本地服务正常 · "+result.status}).catch(function(){document.getElementById("apiStatus").textContent="本地服务未启动"});
+    fetch("http://127.0.0.1:5181/health").then(function(response){return response.json()}).then(function(result){document.getElementById("apiDot").classList.add("ok");document.getElementById("apiStatus").textContent="本地服务正常 · "+result.status}).catch(function(){document.getElementById("apiStatus").textContent="本地服务未启动"});
   </script>
 </body>
 </html>

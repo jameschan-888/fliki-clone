@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>模板市场 - Fliki Clone</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#0e1320;color:#e6e8ee;padding:20px;max-width:1200px;margin:0 auto}nav{margin-bottom:14px}nav a{color:#8fb0ff;text-decoration:none;font-size:13px}h1{margin-bottom:8px;font-size:24px}.lead{color:#9aa3b8;margin-bottom:18px;font-size:13px;line-height:1.6}.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:18px;padding:10px 14px;background:#161c2d;border-radius:8px;border:1px solid #232a40;font-size:13px}.bar strong{color:#fff}.bar .api{color:#93a0c0}.bar .target{color:#7fdbb6}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}.card{background:#161c2d;border:1px solid #232a40;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:.2s transform,.2s border-color}.card:hover{transform:translateY(-3px);border-color:#718cff}.card.selected{border-color:#48d58b;box-shadow:0 0 0 3px rgba(72,213,139,.15)}.thumb{width:100%;height:160px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}.thumb .label{position:relative;z-index:2;color:#fff;font-size:18px;font-weight:700;text-align:center;padding:0 16px;text-shadow:0 1px 4px rgba(0,0,0,.4)}.body{padding:14px;display:flex;flex-direction:column;gap:6px;flex:1}.name{font-size:15px;font-weight:600}.desc{font-size:12px;color:#9aa3b8;line-height:1.5;flex:1}.meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.tag{padding:3px 8px;border-radius:999px;background:#252f4e;color:#9db2ff;font-size:11px;font-weight:700;text-transform:uppercase}.actions{margin-top:auto;padding:12px 14px;border-top:1px solid #232a40;display:flex;gap:8px}.btn{flex:1;padding:8px 10px;border:1px solid #2d3756;border-radius:6px;background:#1e2742;color:#e6e8ee;cursor:pointer;font-size:13px;transition:.15s}.btn:hover{background:#2a3354;border-color:#718cff}.btn.primary{background:#1f3d2c;border-color:#48d58b;color:#9ff0c4}.btn.primary:hover{background:#26543a}.empty{padding:32px;text-align:center;color:#7e88a3;background:#161c2d;border:1px dashed #2d3756;border-radius:12px}.help{margin-top:24px;padding:14px 16px;background:#161c2d;border-left:3px solid #718cff;border-radius:6px;color:#9aa3b8;font-size:13px;line-height:1.7}.help code{background:#0c1020;padding:1px 6px;border-radius:4px;color:#9ff0c4}.detail-panel{margin-top:12px;padding:14px;background:#0c1020;border:1px solid #232a40;border-radius:8px;display:none}.detail-panel.show{display:block}.field-row{padding:6px 0;border-bottom:1px dashed #232a40;font-size:12px}.field-row:last-child{border-bottom:none}.field-key{color:#48d58b;font-weight:700}.field-label{color:#9db2ff}.field-meta{color:#6c7593;font-size:11px;margin-left:8px}
+</style>
+</head>
+<body>
+<nav><a href="/">← 功能首页</a></nav>
+<h1>🧩 模板市场 <span id="apiStatus" class="lead" style="font-size:13px">· API: --</span></h1>
+<p class="lead">5 套本地模板（开场 / 结尾 / 列表 / 引用 / 数据），选一套应用到场景，渲染时按 structure 出图。无 Canva 账号也能跑。</p>
+<div class="bar">
+  <span>当前场景：<span class="target" id="targetView">未指定</span></span>
+  <span>当前模板：<span class="target" id="currentView">未选</span></span>
+  <label style="margin-left:auto">分类筛选：<select id="category" style="background:#0e1320;border:1px solid #2a3142;color:#e6e8ee;padding:5px 8px;border-radius:5px;font-size:12px"></select></label>
+</div>
+<div id="grid" class="grid"></div>
+<div id="empty" class="empty" style="display:none">没有匹配模板。</div>
+<div class="help">点击"查看字段"展开模板字段定义（key / label / 必填 / 默认值）。点击"选用"通过 postMessage 把 template_id + 默认 fields 回填到草稿编辑器（需在场景编辑模式打开）。</div>
+<script>
+var API="http://127.0.0.1:5181";
+var qs=new URLSearchParams(location.search);
+var target=qs.get("target")||"";
+var current=qs.get("current")||"";
+var grid=document.getElementById("grid");
+var emptyEl=document.getElementById("empty");
+document.getElementById("targetView").textContent=target||"\u2014";
+document.getElementById("currentView").textContent=current||"\u2014";
+
+function escapeHtml(value){return String(value==null?"":value).replace(/[&<>"']/g,function(ch){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]})}
+
+function renderThumbBg(t){
+  var bg=t.structure&&t.structure.background;
+  if(!bg)return "linear-gradient(135deg,#293669,#0c1020)";
+  if(bg.type==="solid")return bg.color||"#0c1020";
+  if(bg.type==="gradient"&&Array.isArray(bg.colors))return "linear-gradient(135deg,"+bg.colors.join(",")+")";
+  return "linear-gradient(135deg,#293669,#0c1020)";
+}
+
+function pickTemplate(t){
+  if(!target||!window.opener){alert("当前不是场景选择模式（缺少 opener 或 target）");return}
+  var defaults={};
+  (t.fields||[]).forEach(function(f){if(f.default!==undefined&&f.default!=="")defaults[f.key]=f.default;else if(f.required)defaults[f.key]="";});
+  window.opener.postMessage({type:"template_picked",target:target,template_id:t.id,fields:defaults,action:"set"},"*");
+  window.close();
+}
+
+function clearTemplate(){
+  if(!target||!window.opener){alert("当前不是场景选择模式");return}
+  window.opener.postMessage({type:"template_picked",target:target,action:"clear"},"*");
+  window.close();
+}
+
+function renderCard(t){
+  var isSelected=t.id===current;
+  var bg=renderThumbBg(t);
+  var pickBtn=isSelected
+    ? '<button class="btn primary" disabled>\u2713 当前已选</button>'
+    : '<button class="btn primary" data-pick="'+escapeHtml(t.id)+'">\u2713 选用此模板</button>';
+  var detailId="detail-"+t.id;
+  return '<article class="card'+(isSelected?" selected":"")+'">'
+    +'<div class="thumb" style="background:'+bg+'"><div class="label">'+escapeHtml(t.name)+'</div></div>'
+    +'<div class="body"><div class="name">'+escapeHtml(t.name)+'</div><div class="desc">'+escapeHtml(t.description)+'</div>'
+    +'<div class="meta"><span class="tag">'+escapeHtml(t.category)+'</span><span class="tag">'+(t.fields?t.fields.length:0)+' 字段</span></div></div>'
+    +'<div class="actions">'
+    +'<button class="btn" data-detail="'+escapeHtml(t.id)+'">查看字段</button>'
+    +pickBtn
+    +(current?'<button class="btn" data-clear style="background:#3a2222;border-color:#ff7a7a;color:#ffb3b3">清除</button>':'')
+    +'</div>'
+    +'<div class="detail-panel" id="'+detailId+'"></div>'
+    +'</article>';
+}
+
+function renderDetail(t){
+  var rows=(t.fields||[]).map(function(f){
+    var badges=[];
+    if(f.required)badges.push('<span class="field-meta" style="color:#ff9aa2">必填</span>');
+    else badges.push('<span class="field-meta">选填</span>');
+    if(f.max_length)badges.push('<span class="field-meta">\u2264 '+f.max_length+'</span>');
+    if(f.default!==undefined&&f.default!=="")badges.push('<span class="field-meta">默认: '+escapeHtml(String(f.default))+'</span>');
+    return '<div class="field-row"><span class="field-key">'+escapeHtml(f.key)+'</span> <span class="field-label">'+escapeHtml(f.label)+'</span> '+badges.join("")+'</div>';
+  }).join("");
+  var layerInfo="";
+  if(t.structure&&t.structure.layers){
+    layerInfo='<div style="margin-top:8px;padding-top:8px;border-top:1px solid #232a40;font-size:11px;color:#9aa3b8">'
+      +'<div style="color:#9db2ff;margin-bottom:4px">图层 ('+t.structure.layers.length+'):</div>'
+      +t.structure.layers.map(function(l){return '<div style="padding:2px 0">\u25ab <span style="color:#9db2ff">'+escapeHtml(l.type)+'</span>';if(l.text_field)layerInfo+=' <span style="color:#48d58b">'+escapeHtml(l.text_field)+'</span>';if(l.animation)layerInfo+=' <span style="color:#6c7593">['+escapeHtml(l.animation)+']</span>';layerInfo+='</div>';}).join("")
+      +'</div>';
+  }
+  return rows+layerInfo;
+}
+
+async function loadCategories(){
+  var cats=await fetch(API+"/templates/categories").then(function(r){return r.json()});
+  var sel=document.getElementById("category");
+  sel.innerHTML='<option value="">全部分类（'+cats.length+'）</option>'+cats.map(function(c){return '<option value="'+escapeHtml(c.category)+'">'+escapeHtml(c.category)+'（'+c.count+'）</option>'}).join("");
+}
+
+async function loadTemplates(){
+  var cat=document.getElementById("category").value;
+  // P1-4: 一次拿到 fields + structure, 去掉 N+1 详情请求
+  var params=["enabled_only=true","include_config=true"];
+  if(cat)params.push("category="+encodeURIComponent(cat));
+  var url=API+"/templates?"+params.join("&");
+  var list=await fetch(url).then(function(r){return r.json()});
+  if(!list.length){grid.innerHTML="";emptyEl.style.display="block";return}
+  emptyEl.style.display="none";
+  // include_config=true 一次拿全 fields/structure, 不再 per-template fetch
+  var details=list;
+  grid.innerHTML=details.map(renderCard).join("");
+  grid.querySelectorAll("button[data-pick]").forEach(function(btn){btn.onclick=function(){var t=details.find(function(x){return x.id===btn.dataset.pick});if(t)pickTemplate(t)}});
+  grid.querySelectorAll("button[data-detail]").forEach(function(btn){btn.onclick=function(){
+    var panel=document.getElementById("detail-"+btn.dataset.detail);
+    if(panel.classList.contains("show")){panel.classList.remove("show");return}
+    var t=details.find(function(x){return x.id===btn.dataset.detail});
+    panel.innerHTML=renderDetail(t);
+    panel.classList.add("show");
+  }});
+  var clearBtn=grid.querySelector("button[data-clear]");
+  if(clearBtn)clearBtn.onclick=clearTemplate;
+}
+
+document.getElementById("category").addEventListener("change",loadTemplates);
+
+Promise.all([loadCategories(),loadTemplates()]).then(function(){
+  document.getElementById("apiStatus").textContent="\u2713 API OK";
+}).catch(function(err){
+  document.getElementById("apiStatus").textContent="\u2717 API 失败: "+err.message;
+  grid.innerHTML='<div class="empty">加载失败: '+escapeHtml(err.message)+'</div>';
+});
+</script>
+</body>
+</html>
