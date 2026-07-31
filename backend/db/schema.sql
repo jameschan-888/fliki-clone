@@ -1,4 +1,4 @@
--- Fliki 还原 SQLite Schema v1
+﻿-- Fliki 还原 SQLite Schema v1
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -164,6 +164,7 @@ CREATE TABLE IF NOT EXISTS render_jobs (
   file TEXT,
   thumbnail TEXT,
   thumbnail_preview TEXT,
+  user_id TEXT,
   created_at TEXT,
   finished_at TEXT
   -- FK 懒激活: playback_id 自动创建对应 project (render_create handler 中)
@@ -183,7 +184,8 @@ CREATE TABLE IF NOT EXISTS workflow_drafts (
   confirmed_snapshot_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  confirmed_at TEXT
+  confirmed_at TEXT,
+  user_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_workflow_drafts_status ON workflow_drafts(status, updated_at DESC);
 
@@ -199,6 +201,16 @@ CREATE TABLE IF NOT EXISTS scene_drafts (
   voice TEXT NOT NULL DEFAULT 'zh-CN-XiaoxiaoNeural',
   avatar TEXT,
   avatar_layout TEXT,
+  template_id TEXT,
+  template_fields TEXT,
+  stock_url TEXT,
+  camera_motion TEXT NOT NULL DEFAULT 'zoom-in',
+  video_aspect TEXT NOT NULL DEFAULT '16:9',
+  video_transition_mode TEXT NOT NULL DEFAULT 'fade',
+  media_width INTEGER NOT NULL DEFAULT 1280,
+  media_height INTEGER NOT NULL DEFAULT 720,
+  subtitle_display TEXT,
+  subtitle_spoken TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY(workflow_draft_id) REFERENCES workflow_drafts(id) ON DELETE CASCADE,
@@ -240,7 +252,9 @@ CREATE TABLE IF NOT EXISTS workflow_runs (
   status TEXT NOT NULL DEFAULT 'queued',
   progress INTEGER NOT NULL DEFAULT 0,
   render_job_id TEXT,
+  output_path TEXT,
   message TEXT,
+  user_id TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   finished_at TEXT,
@@ -330,3 +344,42 @@ CREATE TABLE IF NOT EXISTS edge_voices (
 );
 CREATE INDEX IF NOT EXISTS idx_edge_voices_locale_gender ON edge_voices(Locale, Gender);
 CREATE INDEX IF NOT EXISTS idx_edge_voices_friendly_name ON edge_voices(FriendlyName);
+
+-- ===== P7-1 MiniMax Voice Clones (cloud clone, persistent) =====
+CREATE TABLE IF NOT EXISTS minimax_voice_clones (
+    id TEXT PRIMARY KEY,
+    uuid TEXT UNIQUE NOT NULL,
+    cloned_name TEXT NOT NULL,
+    ref_audio_path TEXT NOT NULL,
+    ref_audio_sha256 TEXT NOT NULL,
+    ref_text TEXT NOT NULL DEFAULT '',
+    sample_text TEXT NOT NULL DEFAULT '',
+    language TEXT NOT NULL DEFAULT 'zh',
+    voice_id TEXT NOT NULL,
+    model TEXT NOT NULL DEFAULT 'speech-02-turbo',
+    provider TEXT NOT NULL DEFAULT 'minimax',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_minimax_voice_clones_sha256 ON minimax_voice_clones(ref_audio_sha256);
+CREATE INDEX IF NOT EXISTS idx_minimax_voice_clones_uuid ON minimax_voice_clones(uuid);
+CREATE INDEX IF NOT EXISTS idx_minimax_voice_clones_enabled ON minimax_voice_clones(enabled);
+
+-- ===== P7C-B Local Video Templates (intro / outro / list / quote / data) =====
+CREATE TABLE IF NOT EXISTS templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    builtin INTEGER NOT NULL DEFAULT 1,
+    config_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category, enabled);
+CREATE INDEX IF NOT EXISTS idx_templates_enabled ON templates(enabled);
+
+-- ===== rev24 stage C #8: multi-tenant FK =====
+-- Indexes for user_id are created dynamically in main.init_db() so legacy
+-- databases without the user_id column are upgraded safely.

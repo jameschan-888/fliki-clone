@@ -53,3 +53,21 @@ def fetch_with_fallback(query,destination):
         try:return provider.fetch(query,destination)
         except Exception as error: errors.append(f"{provider.name}: {error}")
     raise ProviderError("; ".join(errors))
+
+
+# ===== P7-3 MiniMax Image HTTP adapter (cloud API, image-01) =====
+from .minimax_image import MiniMaxImageProvider, MiniMaxImageError  # noqa: F401
+
+
+def build_minimax_image_provider(api_key=None, model="image-01", timeout=60.0):
+    return MiniMaxImageProvider(api_key=api_key, model=model, timeout=timeout)
+
+
+# ===== P7-4 MiniMax Video HTTP adapter (cloud API, Hailuo-2.3) =====
+from .minimax_video import MiniMaxVideoProvider, MiniMaxVideoError  # noqa: F401
+
+
+def build_minimax_video_provider(api_key=None, model="MiniMax-Hailuo-2.3", timeout=30.0,
+                                   poll_interval=5.0, max_polls=240):
+    return MiniMaxVideoProvider(api_key=api_key, model=model, timeout=timeout,
+                                  poll_interval=poll_interval, max_polls=max_polls)

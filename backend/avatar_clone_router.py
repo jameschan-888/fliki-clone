@@ -1,4 +1,4 @@
-# P5E Avatar clone CRUD + synthesize (Wav2Lip-ONNX).
+﻿# P5E Avatar clone CRUD + synthesize (Wav2Lip-ONNX).
 # Always safe to import; downstream ONNX inference is invoked through the
 # Provider which already falls back to a static-image MP4 when ONNX deps
 # or the model file are unavailable. That guarantees even an empty install
@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from providers.base import ProviderError
 from providers.avatar import build_wav2lip_provider
 from provider_config import seed_runtime_providers
+from file_security import safe_extension  # P1-8
 
 
 ALLOWED_FACE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
@@ -163,12 +164,13 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
 
         audio_dest_path = ""
         if ref_audio is not None and ref_audio.filename:
-            audio_ext = Path(ref_audio.filename).suffix.lower()
-            if audio_ext not in ALLOWED_AUDIO_EXT:
+            try:
+                audio_ext = safe_extension(ref_audio.filename, ALLOWED_AUDIO_EXT)
+            except ValueError as exc:
                 face_dest.unlink(missing_ok=True)
                 raise HTTPException(
                     status_code=422,
-                    detail=f"Unsupported audio extension {audio_ext!r}; allowed: {sorted(ALLOWED_AUDIO_EXT)}",
+                    detail=f"Unsupported audio extension; allowed: {sorted(ALLOWED_AUDIO_EXT)} ({exc})",
                 )
             audio_dest = audio_root / f"{new_uuid}{audio_ext}"
             audio_size = 0
@@ -299,6 +301,136 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
             raise HTTPException(status_code=404, detail="Avatar output not found")
         from fastapi.responses import FileResponse
         return FileResponse(str(path), media_type="video/mp4", filename=f"{avatar_uuid}.mp4")
+
+    async def _stream_to_path(upload: UploadFile, dest: Path, max_bytes: int) -> int:
+        size = 0
+        with dest.open("wb") as out:
+            while True:
+                chunk = await upload.read(64 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > max_bytes:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail=f"Upload exceeds cap {max_bytes} bytes")
+                out.write(chunk)
+        return size
+
+    @router.put("/{avatar_uuid}/ref-face")
+    async def replace_ref_face(avatar_uuid: str, ref_face: UploadFile = File(...)):
+        connection = get_db()
+        try:
+            row = connection.execute("SELECT uuid, ref_face_path FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
+            if row is None:
+                raise HTTPException(status_code=404, detail="Avatar clone not found")
+            if not ref_face.filename:
+                raise HTTPException(status_code=422, detail="ref_face filename is required")
+            face_ext = Path(ref_face.filename).suffix.lower()
+            if face_ext not in ALLOWED_FACE_EXT:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Unsupported face image extension {face_ext!r}; allowed: {sorted(ALLOWED_FACE_EXT)}",
+                )
+            new_dest = face_root / f"{avatar_uuid}{face_ext}"
+            await _stream_to_path(ref_face, new_dest, MAX_FACE_BYTES)
+            if new_dest.stat().st_size < 256:
+                new_dest.unlink(missing_ok=True)
+                raise HTTPException(status_code=422, detail="Face image too small (<256B)")
+            _validate_image_magic(new_dest, face_ext)
+            old_path = Path(row["ref_face_path"]) if row["ref_face_path"] else None
+            if old_path and old_path != new_dest and old_path.is_file():
+                try:
+                    old_path.unlink()
+                except OSError:
+                    pass
+            connection.execute(
+                "UPDATE avatar_clones SET ref_face_path=? WHERE uuid=?",
+                (str(new_dest), avatar_uuid),
+            )
+            connection.commit()
+            updated = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
+            return row_payload(updated)
+        finally:
+            connection.close()
+
+    @router.put("/{avatar_uuid}/ref-audio")
+    async def replace_ref_audio(avatar_uuid: str, ref_audio: UploadFile = File(...)):
+        connection = get_db()
+        try:
+            row = connection.execute("SELECT uuid, ref_audio_path, default_audio_path FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
+            if row is None:
+                raise HTTPException(status_code=404, detail="Avatar clone not found")
+            if not ref_audio.filename:
+                raise HTTPException(status_code=422, detail="ref_audio filename is required")
+            audio_ext = Path(ref_audio.filename).suffix.lower()
+            if audio_ext not in ALLOWED_AUDIO_EXT:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Unsupported audio extension {audio_ext!r}; allowed: {sorted(ALLOWED_AUDIO_EXT)}",
+                )
+            new_dest = audio_root / f"{avatar_uuid}{audio_ext}"
+            await _stream_to_path(ref_audio, new_dest, MAX_AUDIO_BYTES)
+            if new_dest.stat().st_size < 64:
+                new_dest.unlink(missing_ok=True)
+                raise HTTPException(status_code=422, detail="Audio too small (<64B)")
+            for old_key in ("ref_audio_path", "default_audio_path"):
+                old_path = Path(row[old_key]) if row[old_key] else None
+                if old_path and old_path != new_dest and old_path.is_file():
+                    try:
+                        old_path.unlink()
+                    except OSError:
+                        pass
+            connection.execute(
+                "UPDATE avatar_clones SET ref_audio_path=?, default_audio_path=? WHERE uuid=?",
+                (str(new_dest), str(new_dest), avatar_uuid),
+            )
+            connection.commit()
+            updated = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
+            return row_payload(updated)
+        finally:
+            connection.close()
+
+    @router.patch("/{avatar_uuid}/meta")
+    def update_meta(avatar_uuid: str, body: dict):
+        connection = get_db()
+        try:
+            row = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
+            if row is None:
+                raise HTTPException(status_code=404, detail="Avatar clone not found")
+            updates = {}
+            if "avatar_name" in body:
+                name = (body["avatar_name"] or "").strip()
+                if not name:
+                    raise HTTPException(status_code=422, detail="avatar_name cannot be empty")
+                if len(name) > 120:
+                    raise HTTPException(status_code=422, detail="avatar_name too long (>120)")
+                updates["avatar_name"] = name
+            if "language" in body:
+                lang = (body["language"] or "").strip()
+                if len(lang) > 16:
+                    raise HTTPException(status_code=422, detail="language too long (>16)")
+                updates["language"] = lang or "zh"
+            if "permission_note" in body:
+                note = str(body["permission_note"] or "")
+                if len(note) > 2000:
+                    raise HTTPException(status_code=422, detail="permission_note too long (>2000)")
+                updates["permission_note"] = note
+            if "enabled" in body:
+                updates["enabled"] = 1 if body["enabled"] else 0
+            if not updates:
+                raise HTTPException(status_code=422, detail="no editable fields supplied")
+            set_clause = ", ".join(f"{k}=?" for k in updates.keys())
+            params = list(updates.values()) + [avatar_uuid]
+            connection.execute(
+                f"UPDATE avatar_clones SET {set_clause} WHERE uuid=?",
+                params,
+            )
+            connection.commit()
+            updated = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
+            return row_payload(updated)
+        finally:
+            connection.close()
 
     @router.get("/{avatar_uuid}/ref-face")
     def get_ref_face(avatar_uuid: str):

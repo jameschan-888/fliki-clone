@@ -86,7 +86,7 @@ def _run_payload(conn, run_id):
         "autoedit_draft_id": row["autoedit_draft_id"],
         "status": row["status"],
         "progress": row["progress"],
-        "output_path": row["render_job_id"],
+        "output_path": row["output_path"] or row["render_job_id"],
         "message": row["message"],
         "nodes": [_node_payload(n) for n in nodes],
         "created_at": row["created_at"],
@@ -154,12 +154,13 @@ def _node_tts(conn, run_id, segment, work_dir):
     """TTS 节点: EdgeTTS 合成旁白"""
     from providers.tts import EdgeTTSProvider
 
-    input_data = {"text": segment["subtitle"], "voice": "zh-CN-XiaoxiaoNeural"}
+    tts_text = (segment.get("subtitle") or segment.get("text") or "").strip() or "场景无字幕"
+    input_data = {"text": tts_text, "voice": "zh-CN-XiaoxiaoNeural"}
     node = _ensure_node(conn, run_id, segment["id"], "tts", input_data)
     voice_path = work_dir / "voice.mp3"
 
     def work():
-        result = EdgeTTSProvider().synthesize(segment["subtitle"], voice_path, voice="zh-CN-XiaoxiaoNeural")
+        result = EdgeTTSProvider().synthesize(tts_text, voice_path, voice="zh-CN-XiaoxiaoNeural")
         dur = _ffprobe_duration(voice_path)
         if dur:
             result["duration_seconds"] = dur
@@ -208,12 +209,13 @@ def _node_cut_segment(conn, run_id, segment, upload_path, voice_path, broll_path
 
     def work():
         seg_duration = max(0.5, segment["end_seconds"] - segment["start_seconds"])
-        # 1. 写 srt 字幕
+        # 1. 写 srt 字幕 (兑底处理 None subtitle)
         srt_path = work_dir / "subtitle.srt"
+        subtitle_text = (segment.get("subtitle") or segment.get("text") or "").strip() or " "
         _write_srt([{
             "start": 0.0,
             "end": seg_duration,
-            "text": segment["subtitle"],
+            "text": subtitle_text,
         }], srt_path)
         # srt path for ffmpeg subtitles filter (escape : and \\)
         srt_escaped = str(srt_path).replace("\\", "/").replace(":", "\\:")
@@ -226,13 +228,13 @@ def _node_cut_segment(conn, run_id, segment, upload_path, voice_path, broll_path
         # 字幕烧入: scale 到 1280:720 + 黑边
         vf = f"scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black,subtitles='{srt_escaped}'"
         if voice_path and Path(voice_path).exists():
-            # 原视频静音 + 旁白混音
+            # 有 voice: 视频静音原音, 旁白混合 (兑底处理: 原视频无音频流时仍能运行)
             af = "[1:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=1.0[voice]"
-            # duration=first: 以视频时长为准, 旁白不足部分静音, 旁白超出部分裁掉
-            cmd += ["-filter_complex", f"[0:v]{vf}[v];{af};[0:a]volume=0.0[orig];[orig][voice]amix=inputs=2:duration=first:dropout_transition=0[a]"]
+            # duration=first: 以视频时长为准
+            cmd += ["-filter_complex", f"[0:v]{vf}[v];{af};[voice]anull[a]"]
             cmd += ["-map", "[v]", "-map", "[a]"]
         else:
-            # 仅裁剪烧字幕, 保留原音
+            # 仅裁剪烧字幕, 保留原音 (原视频可能无音频流)
             cmd += ["-vf", vf]
             cmd += ["-map", "0:v", "-map", "0:a?"]
         cmd += ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-pix_fmt", "yuv420p"]
@@ -242,9 +244,10 @@ def _node_cut_segment(conn, run_id, segment, upload_path, voice_path, broll_path
             cmd += ["-c:a", "aac", "-b:a", "128k"]
         cmd += [str(cut_path)]
 
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        proc = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=180)
         if proc.returncode != 0:
-            raise RuntimeError(f"cut ffmpeg failed: {proc.stderr.strip()[-500:]}")
+            err_text = (proc.stderr or "").strip() or "(empty stderr)"
+            raise RuntimeError(f"cut ffmpeg failed (rc={proc.returncode}): {err_text[-500:]}")
         if not cut_path.exists() or cut_path.stat().st_size < 1024:
             raise RuntimeError(f"cut output missing or empty: {cut_path}")
         return ("ffmpeg", {
@@ -419,7 +422,7 @@ def execute_pipeline(run_id, get_db):
 
         conn.execute(
             "UPDATE autoedit_runs SET status='success', progress=100, message=NULL, "
-            "render_job_id=?, updated_at=?, finished_at=? WHERE id=?",
+            "output_path=?, render_job_id=NULL, updated_at=?, finished_at=? WHERE id=?",
             (str(final_path), _now(), _now(), run_id),
         )
         conn.commit()

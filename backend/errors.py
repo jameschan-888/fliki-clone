@@ -1,132 +1,166 @@
-from __future__ import annotations
+"""rev24 阶段 D D2-1: 统一错误响应格式.
 
-from dataclasses import dataclass, field
-from typing import Any
+所有 4xx/5xx 响应统一为 {error_code, message, hint, details, status} 结构.
+前端 ApiError 类型 + formatApiError(err, fallback) helper 见 app/src/api/errors.ts.
+"""
+from typing import Any, Dict, Optional
+from fastapi import HTTPException
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
-
-
-@dataclass(slots=True)
-class ErrorResult:
-    error_code: str
-    message_zh: str
-    hint: str = ""
-    details: dict[str, Any] = field(default_factory=dict)
-
-
-class LingjianError(Exception):
-    """统一错误类型，借鉴灵剪 packages/core/errors.py。
-
-    - error_code: 机器可读，便于前端按码展示/国际化。
-    - message_zh: 中文用户消息。
-    - hint: 修复方向。
-    - details: 任意上下文（field / value / path 等）。
-    """
-
-    def __init__(self, error_code: str, message_zh: str, hint: str = "", details: dict[str, Any] | None = None, status_code: int = 400):
-        super().__init__(message_zh)
-        self.error_code = error_code
-        self.message_zh = message_zh
-        self.hint = hint
-        self.details = details or {}
-        self.status_code = status_code
-
-    def to_result(self) -> ErrorResult:
-        return ErrorResult(self.error_code, self.message_zh, self.hint, self.details)
-
-
-# ===== 常用错误码（与后端语义对齐）=====
+# ====== 错误码常量 (snake_case, 前端可枚举) ======
+# 400
+ERR_BAD_REQUEST = "BAD_REQUEST"
+# 401
+ERR_INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
+ERR_MISSING_TOKEN = "MISSING_TOKEN"
+ERR_TOKEN_EXPIRED = "TOKEN_EXPIRED"
+# 403
+ERR_ADMIN_ONLY = "ADMIN_ONLY"
+ERR_FORBIDDEN = "FORBIDDEN"
+# 404
+ERR_NOT_FOUND = "NOT_FOUND"
+ERR_USER_NOT_FOUND = "USER_NOT_FOUND"
+ERR_RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"
+# 409
+ERR_CONFLICT = "CONFLICT"
+ERR_EMAIL_EXISTS = "EMAIL_EXISTS"
+ERR_ALREADY_EXISTS = "ALREADY_EXISTS"
+ERR_INVALID_STATE = "INVALID_STATE"
 MOCK_PROVIDER_BLOCKS_RELEASE = "MOCK_PROVIDER_BLOCKS_RELEASE"
-PROVIDER_NOT_FOUND = "PROVIDER_NOT_FOUND"
-PROVIDER_CONFIG_INVALID = "PROVIDER_CONFIG_INVALID"
-DRAFT_NOT_FOUND = "DRAFT_NOT_FOUND"
-DRAFT_NOT_EDITABLE = "DRAFT_NOT_EDITABLE"
-DRAFT_NOT_CONFIRMED = "DRAFT_NOT_CONFIRMED"
-DRAFT_EMPTY = "DRAFT_EMPTY"
-SCENE_NOT_FOUND = "SCENE_NOT_FOUND"
-LANGUAGE_VOICE_MISMATCH = "LANGUAGE_VOICE_MISMATCH"
-RUN_NOT_FOUND = "RUN_NOT_FOUND"
-RUN_NOT_FAILED = "RUN_NOT_FAILED"
-RENDER_JOB_NOT_FOUND = "RENDER_JOB_NOT_FOUND"
-UPLOAD_NOT_FOUND = "UPLOAD_NOT_FOUND"
-MEDIA_NOT_FOUND = "MEDIA_NOT_FOUND"
-PATH_UNSAFE = "PATH_UNSAFE"
+ERR_MOCK_PROVIDER_BLOCKS_RELEASE = MOCK_PROVIDER_BLOCKS_RELEASE
+# 422
+ERR_VALIDATION_ERROR = "VALIDATION_ERROR"
+# 429
+ERR_RATE_LIMITED = "RATE_LIMITED"
+# 500
+ERR_INTERNAL_ERROR = "INTERNAL_ERROR"
+# 502/503
+ERR_PROVIDER_DOWN = "PROVIDER_DOWN"
+ERR_SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
+# 兜底
+ERR_UNKNOWN = "UNKNOWN_ERROR"
 
 
-def to_http_exception(error: LingjianError) -> HTTPException:
-    """把 LingjianError 转 FastAPI HTTPException，detail 用机器码 + 提示的字典。"""
-    detail = {
-        "error_code": error.error_code,
-        "message_zh": error.message_zh,
-        "hint": error.hint,
-        "details": error.details,
-    }
-    return HTTPException(status_code=error.status_code, detail=detail)
-
-
-def register_error_handlers(app: FastAPI) -> None:
-    """在 FastAPI app 上挂统一错误处理。
-
-    - LingjianError：转统一响应体 {error_code, message, hint, details}。
-    - HTTPException：保留 FastAPI 默认 detail，但额外加 error_code=MAPPING_BY_STATUS。
-    - 其他未捕获异常：返回 500 + UNKNOWN_ERROR，hint 指向 server log。
-    """
-    @app.exception_handler(LingjianError)
-    async def _lingjian_handler(_request: Request, exc: LingjianError):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error_code": exc.error_code,
-                "message": exc.message_zh,
-                "hint": exc.hint,
-                "details": exc.details,
-            },
-        )
-
-    @app.exception_handler(HTTPException)
-    async def _http_handler(_request: Request, exc: HTTPException):
-        detail = exc.detail
-        if isinstance(detail, dict) and "error_code" in detail:
-            payload = {
-                "error_code": detail.get("error_code"),
-                "message": detail.get("message_zh") or str(detail.get("message") or ""),
-                "hint": detail.get("hint", ""),
-                "details": detail.get("details", {}),
-            }
-        else:
-            payload = {
-                "error_code": _status_to_error_code(exc.status_code),
-                "message": str(detail) if detail is not None else "",
-                "hint": "",
-                "details": {},
-            }
-        return JSONResponse(status_code=exc.status_code, content=payload)
-
-    @app.exception_handler(Exception)
-    async def _generic_handler(_request: Request, exc: Exception):
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error_code": "UNKNOWN_ERROR",
-                "message": str(exc)[:500] or exc.__class__.__name__,
-                "hint": "请查看后端日志获取完整堆栈。",
-                "details": {"exception": exc.__class__.__name__},
-            },
-        )
-
-
-_STATUS_TO_CODE = {
-    400: "BAD_REQUEST",
-    401: "UNAUTHORIZED",
-    403: "FORBIDDEN",
-    404: "NOT_FOUND",
-    409: "CONFLICT",
-    413: "PAYLOAD_TOO_LARGE",
-    422: "VALIDATION_ERROR",
-    429: "TOO_MANY_REQUESTS",
+# ====== 状态码 -> 默认 error_code ======
+DEFAULT_ERROR_CODE_BY_STATUS = {
+    400: ERR_BAD_REQUEST,
+    401: ERR_MISSING_TOKEN,
+    403: ERR_FORBIDDEN,
+    404: ERR_NOT_FOUND,
+    409: ERR_CONFLICT,
+    422: ERR_VALIDATION_ERROR,
+    429: ERR_RATE_LIMITED,
+    500: ERR_INTERNAL_ERROR,
+    502: ERR_PROVIDER_DOWN,
+    503: ERR_SERVICE_UNAVAILABLE,
 }
 
 
-def _status_to_error_code(status: int) -> str:
-    return _STATUS_TO_CODE.get(status, f"HTTP_{status}")
+def make_error_response(
+    status_code: int,
+    error_code=None,
+    message=None,
+    hint=None,
+    details=None,
+):
+    """构造统一错误响应体 (status 必填, 其他字段给空默认值)."""
+    return {
+        "error_code": error_code or DEFAULT_ERROR_CODE_BY_STATUS.get(status_code, ERR_UNKNOWN),
+        "message": message or "",
+        "hint": hint or "",
+        "details": details or {},
+        "status": status_code,
+    }
+
+
+class LingjianError(HTTPException):
+    def __init__(self, error_code, message, hint="", details=None, status_code=400):
+        self.error_code = error_code
+        self.message = message
+        self.hint = hint
+        self.details = details or {}
+        super().__init__(
+            status_code=status_code,
+            detail=make_error_response(status_code, error_code, message, hint, self.details),
+        )
+
+
+def normalize_http_exception_detail(detail):
+    """把 FastAPI HTTPException 的 detail 转成统一格式.
+
+    - dict 形态: 透传 (假设已经按 {error_code, message, hint, details} 写),
+                 缺省字段补空, status 后续由 handler 填
+    - str 形态: 包成默认格式, error_code 由 handler 按 status_code 填
+    - None/其他: 用空 message
+    """
+    if isinstance(detail, dict):
+        return {
+            "error_code": detail.get("error_code", "") or "",
+            "message": detail.get("message", "") or "",
+            "hint": detail.get("hint", "") or "",
+            "details": detail.get("details", {}) or {},
+            "status": detail.get("status", 0) or 0,
+        }
+    elif isinstance(detail, str):
+        return {
+            "error_code": "",
+            "message": detail,
+            "hint": "",
+            "details": {},
+            "status": 0,
+        }
+    else:
+        return {
+            "error_code": "",
+            "message": str(detail) if detail is not None else "",
+            "hint": "",
+            "details": {},
+            "status": 0,
+        }
+
+
+
+def register_error_handlers(app):
+    """rev24 阶段 D D2-1: 把 3 个 exception handler 注册到 FastAPI app.
+
+    - HTTPException (所有 4xx/5xx 抛出) -> 统一 error_code + message + hint + details + status
+    - RequestValidationError (pydantic 验证失败) -> 422 + VALIDATION_ERROR + details.errors
+    - Exception (兜底) -> 500 + INTERNAL_ERROR (不泄露 stack)
+    """
+    from fastapi import HTTPException
+    from fastapi.responses import JSONResponse
+    from fastapi.exceptions import RequestValidationError
+
+    @app.exception_handler(HTTPException)
+    async def _http_handler(request, exc):
+        body = normalize_http_exception_detail(exc.detail)
+        if not body["error_code"]:
+            body["error_code"] = DEFAULT_ERROR_CODE_BY_STATUS.get(exc.status_code, ERR_UNKNOWN)
+        body["status"] = exc.status_code
+        headers = getattr(exc, "headers", None)
+        return JSONResponse(status_code=exc.status_code, content=body, headers=headers)
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_handler(request, exc):
+        return JSONResponse(
+            status_code=422,
+            content=make_error_response(
+                422,
+                ERR_VALIDATION_ERROR,
+                "请求参数验证失败",
+                "检查 body / query / path 参数, 对照 API 文档",
+                {"errors": exc.errors()},
+            ),
+        )
+
+    @app.exception_handler(Exception)
+    async def _unhandled_handler(request, exc):
+        return JSONResponse(
+            status_code=500,
+            content=make_error_response(
+                500,
+                ERR_INTERNAL_ERROR,
+                "服务器内部错误",
+                "查看后端日志 / 联系管理员",
+                {"path": str(request.url.path) if request else ""},
+            ),
+        )

@@ -31,6 +31,15 @@ def resolve_browser_executable():
         for candidate in WINDOWS_BROWSER_CANDIDATES:
             if Path(candidate).is_file():
                 return candidate
+    # Final fallback: scan Program Files for any Chrome/Edge install.
+    for base in (r"C:\\Program Files", r"C:\\Program Files (x86)"):
+        for exe_name in ("chrome.exe", "msedge.exe"):
+            candidate = Path(base) / "Google" / "Chrome" / "Application" / exe_name
+            if candidate.is_file():
+                return str(candidate)
+            candidate = Path(base) / "Microsoft" / "Edge" / "Application" / exe_name
+            if candidate.is_file():
+                return str(candidate)
     return None
 
 
@@ -65,8 +74,10 @@ def build_render_command(props_path: Path, output_path: Path):
         "--props",
         str(props_path),
         "--concurrency",
-        "1",
+        str(os.environ.get("REMOTION_CONCURRENCY") or "8"),
     ]
+    command.append("--log=verbose")
+    command.extend(["--timeout", os.environ.get("REMOTION_TIMEOUT_MS", "2700000")])
     public_dir = resolve_public_dir(props_path)
     if public_dir:
         command.extend(["--public-dir", public_dir])
@@ -172,22 +183,33 @@ def main():
         )
 
     print("[render-progress] 0", flush=True)
-    process = subprocess.Popen(
-        command,
-        cwd=remotion_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        bufsize=1,
-    )
+    log_path = output_dir / "worker.log"
+    log_handle = open(log_path, "w", encoding="utf-8", errors="replace")
+    popen_kwargs = {
+        "cwd": remotion_dir,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.STDOUT,
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "replace",
+    }
+    if platform.system() == "Windows":
+        CREATE_NO_WINDOW = 0x08000000
+        popen_kwargs["creationflags"] = CREATE_NO_WINDOW
+    process = subprocess.Popen(command, **popen_kwargs)
     output_tail = []
     last_progress = -1
     if process.stdout is None:
         print("ERROR: Remotion stdout pipe was not created", file=sys.stderr)
+        log_handle.close()
         sys.exit(2)
-    for output_line in process.stdout:
+    for raw_line in iter(process.stdout.readline, ""):
+        try:
+            output_line = raw_line
+        except Exception:
+            output_line = raw_line.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+        log_handle.write(output_line)
+        log_handle.flush()
         output_tail.append(output_line)
         output_tail = output_tail[-200:]
         progress = parse_render_progress(output_line)
@@ -196,9 +218,18 @@ def main():
         ):
             print(f"[render-progress] {progress}", flush=True)
             last_progress = progress
+    if process.stdout is not None:
+        process.stdout.close()
     return_code = process.wait()
+    log_handle.close()
     if return_code != 0:
-        print("FAILED:", "".join(output_tail)[-4000:], file=sys.stderr)
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="replace") as fh:
+                tail = fh.read()[-4000:]
+        except OSError:
+            tail = "".join(output_tail)[-4000:]
+        print("FAILED:", tail, file=sys.stderr)
+        print(f"WORKER_LOG={log_path}", file=sys.stderr)
         sys.exit(return_code)
     print("[render-progress] 93", flush=True)
 

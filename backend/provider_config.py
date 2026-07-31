@@ -158,10 +158,14 @@ def provider_payload(row):
 def seed_runtime_providers(connection):
     providers = [
         ("provider_stock_pexels", "stock", "pexels", 1, 1, 0, {"api_key_env":"PEXELS_API_KEY","base_url":"https://api.pexels.com"}),
+        ("provider_stock_minimax", "stock", "minimax_image", 0, 0, 30, {"model":"image-01","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
+        ("provider_stock_minimax_video", "stock", "minimax_video", 0, 0, 25, {"model":"MiniMax-Hailuo-2.3","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
         ("provider_stock_pixabay", "stock", "pixabay", 1, 0, 10, {"api_key_env":"PIXABAY_API_KEY","base_url":"https://pixabay.com/api"}),
         ("provider_tts_edge", "tts", "edge_tts", 1, 1, 0, {"model":"zh-CN-XiaoxiaoNeural"}),
+        ("provider_tts_minimax", "tts", "minimax", 0, 0, 40, {"model":"speech-02-turbo","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
         ("provider_tts_gpt_sovits", "tts", "gpt_sovits", 0, 0, 50, {"base_url":"http://127.0.0.1:9880","model":"GPT-SoVITS-v2","api_key_env":"FLIKI_GPT_SOVITS_URL"}),
         ("provider_avatar_wav2lip", "avatar", "wav2lip_onnx", 0, 1, 0, {"model_path":"data/models/wav2lip_onnx","ffmpeg_binary":"ffmpeg","auto_download":False,"fps":25.0,"max_dimension":320}),
+        ("provider_music_minimax", "music", "minimax_music", 0, 0, 30, {"model":"music-3.0","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
         ("provider_music_freesound", "music", "freesound", 1, 1, 0, {"api_key_env":"FREESOUND_API_KEY","base_url":"https://freesound.org/apiv2"}),
         ("provider_music_silence", "music", "silence", 1, 0, 100, {}),
         ("provider_text_mock", "text", "mock", 1, 1, 100, {"is_mock": True}),

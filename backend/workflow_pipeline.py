@@ -7,15 +7,20 @@ import uuid
 from datetime import datetime,timezone
 from pathlib import Path
 
-from fastapi import APIRouter,BackgroundTasks,HTTPException
+from fastapi import APIRouter,BackgroundTasks,HTTPException,Request
 from pydantic import BaseModel
 
-from providers.music import FreesoundProvider
+from providers.music import FreesoundProvider, fetch_music_with_fallback
+
+UPLOAD_DIR = Path(__file__).parent / "data" / "uploads"
 from providers.stock import fetch_with_fallback
-from providers.tts import DEFAULT_VOICE, EdgeTTSProvider
+from providers.tts import DEFAULT_VOICE, EdgeTTSProvider, synthesize_tts_with_fallback
 from services.cadence import detect_voice_segments as cadence_detect, cadence_summary as cadence_summary_svc
 from providers.avatar import build_wav2lip_provider, AVATAR_CLONE_PREFIX
 from providers.base import ProviderError
+from providers.template_renderer import TemplateRenderer
+from avatar_segment_pipeline import synthesize_segmented_avatar
+from workers.segment_dispatcher import dispatch_segments as render_segments_dispatch
 
 
 def now(): return datetime.now(timezone.utc).isoformat()
@@ -28,6 +33,8 @@ def media_duration(path):
 
 
 def synthesize_scene_voice(scene, destination):
+    """已废弃: P7-Fallback 之后用 synthesize_tts_with_fallback.
+    保留仅为兼容旧测试."""
     selected_voice = scene["voice"] or DEFAULT_VOICE
     return EdgeTTSProvider().synthesize(scene["narration"], destination, voice=selected_voice)
 
@@ -111,10 +118,20 @@ def synthesize_scene_avatar(scene, audio_source, destination, connection=None, c
         provider_kwargs = dict(config)
     provider = build_wav2lip_provider(**provider_kwargs) if provider_kwargs else build_wav2lip_provider()
     try:
-        result = provider.synthesize(
-            face_image_path=face_path,
+        model_path = provider_kwargs.get("model_path") if provider_kwargs else None
+        cache_dir = Path(__file__).parent / "data" / "avatar_segment_cache"
+        result = synthesize_segmented_avatar(
+            face_path=face_path,
             audio_path=audio_source,
             destination_path=destination,
+            provider_factory=lambda: provider,
+            cache_dir=cache_dir,
+            model_path=model_path,
+            minimum_seconds=2.0,
+            maximum_seconds=6.0,
+            fps=float(provider_kwargs.get("fps", 25.0)) if provider_kwargs else 25.0,
+            max_dimension=int(provider_kwargs.get("max_dimension", 320)) if provider_kwargs else 320,
+            ffmpeg_binary=provider_kwargs.get("ffmpeg_binary", "ffmpeg") if provider_kwargs else "ffmpeg",
         )
         result["avatar_uuid"] = (row["uuid"] if row else avatar_token[len(AVATAR_CLONE_PREFIX):])
         result["avatar_name"] = row["avatar_name"] if row else avatar_token
@@ -149,6 +166,39 @@ def stage_asset(source_path, public_dir, stem):
     return f"/public/{destination.name}"
 
 
+def _resolve_template_plan(scene, connection):
+    """Pipeline template node worker. Mock 模式不真渲染, 仅生成 plan.
+    视频额度测试期间防止误触发下游 Remotion / ffmpeg 调用."""
+    template_id = (scene["template_id"] if "template_id" in scene.keys() else None)
+    if not template_id:
+        return ("template_mock", {"ok": False, "skipped": True, "reason": "no template_id"})
+    fields_raw = (scene["template_fields"] if "template_fields" in scene.keys() else None)
+    if isinstance(fields_raw, str):
+        try: fields = json.loads(fields_raw or "{}")
+        except Exception: fields = {}
+    else:
+        fields = fields_raw or {}
+    template = None
+    try:
+        from templates_router import _template_payload
+        row = connection.execute("SELECT * FROM templates WHERE id=?", (template_id,)).fetchone()
+        if row is not None:
+            template = _template_payload(row, include_config=True)
+    except Exception:
+        template = None
+    if template is None:
+        return ("template_mock", {"ok": False, "skipped": True, "reason": "template not found"})
+    renderer = TemplateRenderer(
+        template, fields,
+        mode="mock", scene_id=scene["id"],
+        duration_override=(scene["duration_seconds"] if "duration_seconds" in scene.keys() else None),
+    )
+    plan_result = renderer.render()
+    return ("template_mock", plan_result)
+
+
+
+
 def node_payload(row):
     return {"id":row["id"],"scene_draft_id":row["scene_draft_id"],"node_type":row["node_type"],"status":row["status"],"progress":row["progress"],"provider":row["provider"],"attempt":row["attempt"],"result":json.loads(row["result_json"] or "null"),"message":row["message"]}
 
@@ -172,13 +222,48 @@ def complete_node(connection,node_id,provider,result):
     connection.execute("UPDATE workflow_nodes SET status='success',progress=100,provider=?,result_json=?,message=NULL,updated_at=?,finished_at=? WHERE id=?",(provider,json.dumps(result,ensure_ascii=False),now(),now(),node_id));connection.commit()
 
 
-def run_node(connection,node,work):
-    if node["status"]=="success" and node["result_json"]:return json.loads(node["result_json"])
-    connection.execute("UPDATE workflow_nodes SET status='processing',progress=10,attempt=attempt+CASE WHEN status='failed' THEN 1 ELSE 0 END,message=NULL,updated_at=? WHERE id=?",(now(),node["id"]));connection.commit()
-    try:
-        provider,result=work();complete_node(connection,node["id"],provider,result);return result
-    except Exception as error:
-        connection.execute("UPDATE workflow_nodes SET status='failed',message=?,updated_at=?,finished_at=? WHERE id=?",(str(error)[:2000],now(),now(),node["id"]));connection.commit();raise
+def run_node(connection, node, work, *, max_attempts=None):
+    """Run a workflow node with auto-retry (exponential backoff).
+
+    - max_attempts: max attempts (default env FLIKI_NODE_MAX_ATTEMPTS, default 3)
+    - 第一次失败后按 0.5s, 1s, 2s, 4s ... 退避重试
+    - 用尽 attempts 后把节点标记 failed 终态, 抛出原异常让 execute_pipeline 终止
+    """
+    if max_attempts is None:
+        max_attempts = int(os.getenv("FLIKI_NODE_MAX_ATTEMPTS", "3"))
+    assert max_attempts >= 1, "max_attempts must be >= 1"
+    if node["status"] == "success" and node["result_json"]:
+        return json.loads(node["result_json"])
+    last_error = None
+    import time as _time
+    for try_index in range(max_attempts):
+        connection.execute(
+            "UPDATE workflow_nodes SET status='processing',progress=10,attempt=?,message=NULL,updated_at=? WHERE id=?",
+            (try_index + 1, now(), node["id"]),
+        )
+        connection.commit()
+        try:
+            provider, result = work()
+            complete_node(connection, node["id"], provider, result)
+            return result
+        except Exception as error:
+            last_error = error
+            connection.execute(
+                "UPDATE workflow_nodes SET status='failed',message=?,updated_at=? WHERE id=?",
+                (str(error)[:2000], now(), node["id"]),
+            )
+            connection.commit()
+            if try_index < max_attempts - 1:
+                backoff = min(8.0, 0.5 * (2 ** try_index))
+                _time.sleep(backoff)
+                continue
+            break
+    connection.execute(
+        "UPDATE workflow_nodes SET status='failed',message=?,updated_at=?,finished_at=? WHERE id=?",
+        (f"[after {max_attempts} attempts] " + str(last_error)[:1900], now(), now(), node["id"]),
+    )
+    connection.commit()
+    raise last_error
 
 
 def upsert_asset(connection,run_id,scene_id,asset_type,result):
@@ -221,7 +306,7 @@ def execute_pipeline(run_id,get_db,render_create,render_body_class,background_ta
             scene_dir=run_dir/scene["id"];scene_dir.mkdir(parents=True,exist_ok=True)
             selected_voice=scene["voice"] or DEFAULT_VOICE
             tts_node=ensure_node(connection,run_id,scene["id"],"tts",{"text":scene["narration"],"voice":selected_voice})
-            tts=run_node(connection,tts_node,lambda:("edge_tts",synthesize_scene_voice(scene,scene_dir/"voice.mp3")));tts["duration_seconds"]=media_duration(tts["local_path"]);upsert_asset(connection,run_id,scene["id"],"voice",tts)
+            tts=run_node(connection,tts_node,lambda:("tts_chain",synthesize_tts_with_fallback(scene["narration"], scene_dir/"voice.mp3", voice=selected_voice, language=(scene["language"] if "language" in scene.keys() else "zh"))));tts["duration_seconds"]=media_duration(tts["local_path"]);upsert_asset(connection,run_id,scene["id"],"voice",tts)
             enrich_voice_with_cadence(tts)
             upsert_asset(connection,run_id,scene["id"],"voice",tts)
             audio_src=stage_asset(tts["local_path"],public_dir,f"scene-{index}-voice")
@@ -232,13 +317,34 @@ def execute_pipeline(run_id,get_db,render_create,render_body_class,background_ta
                 if avatar_meta.get("local_path") and Path(avatar_meta["local_path"]).is_file():
                     avatar_src=stage_asset(avatar_meta["local_path"],public_dir,f"scene-{index}-avatar")
                     upsert_asset(connection,run_id,scene["id"],"avatar",{"provider":avatar_meta.get("provider") or "wav2lip_onnx","local_path":avatar_meta["local_path"],"duration_seconds":tts.get("duration_seconds"),"source_url":None})
-            stock_node=ensure_node(connection,run_id,scene["id"],"stock",{"query":scene["visual_intent"]})
-            stock=run_node(connection,stock_node,lambda:(lambda result:(result["provider"],result))(fetch_with_fallback(scene["visual_intent"],scene_dir/"stock.mp4")));upsert_asset(connection,run_id,scene["id"],"stock",stock)
+            stock_url=(scene["stock_url"] if "stock_url" in scene.keys() else None)
+            stock_node=ensure_node(connection,run_id,scene["id"],"stock",{"query":scene["visual_intent"],"stock_url":stock_url})
+            if stock_url:
+                stock_dest=scene_dir/"stock.mp4"
+                if stock_url.startswith("/uploads/"):
+                    src_file=UPLOAD_DIR/stock_url[len("/uploads/"):]
+                else:
+                    src_file=Path(stock_url)
+                try:
+                    shutil.copy(src_file,stock_dest)
+                    stock={"provider":"local","source_url":stock_url,"local_path":str(stock_dest),"page_url":None,"creator":"user-upload"}
+                except OSError:
+                    stock=run_node(connection,stock_node,lambda:(lambda result:(result["provider"],result))(fetch_with_fallback(scene["visual_intent"],scene_dir/"stock.mp4")))
+            else:
+                stock=run_node(connection,stock_node,lambda:(lambda result:(result["provider"],result))(fetch_with_fallback(scene["visual_intent"],scene_dir/"stock.mp4")))
+            upsert_asset(connection,run_id,scene["id"],"stock",stock)
             video_src=stage_asset(stock["local_path"],public_dir,f"scene-{index}-stock")
-            rendered_scenes.append({"id":scene["id"],"title":scene["title"],"subtitle":scene["subtitle"],"durationInSeconds":tts.get("duration_seconds") or scene["duration_seconds"],"videoSrc":video_src,"audioSrc":audio_src,"avatarSrc":avatar_src,"avatarFallback":bool(avatar_meta and avatar_meta.get("fallback_used")),"avatarMode":(avatar_meta or {}).get("mode"),"avatarName":(avatar_meta or {}).get("avatar_name"),"avatarLayout":None})
+            template_plan=None
+            if (scene["template_id"] if "template_id" in scene.keys() else None):
+                template_node=ensure_node(connection,run_id,scene["id"],"template",{"template_id":(scene["template_id"] if "template_id" in scene.keys() else None),"fields":scene["template_fields"] or {}})
+                template_plan=run_node(connection,template_node,lambda:_resolve_template_plan(scene, connection))
+                try: fields=(scene["template_fields"] if ("template_fields" in scene.keys() and scene["template_fields"] is not None) else {})
+                except Exception: fields={}
+                upsert_asset(connection,run_id,scene["id"],"template",{"provider":(template_plan.get("plan") or {}).get("provider","mock"),"local_path":(template_plan.get("plan") or {}).get("placeholder_path") or f"templates/{scene['template_id']}/mock-{scene['id']}.mp4","source_url":None,"duration_seconds":(template_plan.get("plan") or {}).get("duration_seconds"),"template_id":scene["template_id"],"layer_count":(template_plan.get("plan") or {}).get("layer_count",0)})
+            rendered_scenes.append({"id":scene["id"],"title":scene["title"],"subtitle":scene["subtitle"],"durationInSeconds":tts.get("duration_seconds") or scene["duration_seconds"],"videoSrc":video_src,"audioSrc":audio_src,"avatarSrc":avatar_src,"cameraMotion":(scene["camera_motion"] if "camera_motion" in scene.keys() else "zoom-in"),"templateId":(scene["template_id"] if "template_id" in scene.keys() else None),"templatePlan":(template_plan or {}).get("plan") if template_plan else None,"avatarFallback":bool(avatar_meta and avatar_meta.get("fallback_used")),"avatarMode":(avatar_meta or {}).get("mode"),"avatarName":(avatar_meta or {}).get("avatar_name"),"avatarLayout":None,"subtitle_display":(scene["subtitle_display"] if "subtitle_display" in scene.keys() else scene["subtitle"]),"subtitle_spoken":(scene["subtitle_spoken"] if "subtitle_spoken" in scene.keys() else scene["narration"]),"video_aspect":(scene["video_aspect"] if "video_aspect" in scene.keys() else "16:9"),"video_transition_mode":(scene["video_transition_mode"] if "video_transition_mode" in scene.keys() else "fade"),"media_width":(scene["media_width"] if "media_width" in scene.keys() else 1280),"media_height":(scene["media_height"] if "media_height" in scene.keys() else 720)})
             connection.execute("UPDATE workflow_runs SET progress=?,updated_at=? WHERE id=?",(10+int(55*(index+1)/len(scenes)),now(),run_id));connection.commit()
         music_node=ensure_node(connection,run_id,None,"music",{"query":"calm cinematic background music"})
-        music=run_node(connection,music_node,lambda:("freesound",FreesoundProvider().fetch("calm cinematic background music",run_dir/"music.mp3")))
+        music=run_node(connection,music_node,lambda:("music_chain",fetch_music_with_fallback("calm cinematic background music",run_dir/"music.mp3")))
         global_avatar_layout=_load_avatar_layout(connection)
         for rs, sc in zip(rendered_scenes, scenes):
             sc_layout_raw = sc["avatar_layout"]
@@ -252,10 +358,22 @@ def execute_pipeline(run_id,get_db,render_create,render_body_class,background_ta
         render_node=ensure_node(connection,run_id,None,"render",{"props_path":str(props_path)})
         connection.execute("UPDATE workflow_nodes SET status='processing',progress=5,provider='remotion',updated_at=? WHERE id=?",(now(),render_node["id"]));connection.execute("UPDATE workflow_runs SET status='rendering',progress=70,updated_at=? WHERE id=?",(now(),run_id));connection.commit()
         resolution="480p" if preview else "720p"
-        response=render_create(render_body_class(playback_id=f"workflow-{run_id}",props_path=str(props_path),resolution=resolution),background_tasks)
-        connection.execute("UPDATE workflow_runs SET render_job_id=?,progress=75,updated_at=? WHERE id=?",(response["jobId"],now(),run_id));connection.execute("UPDATE workflow_nodes SET result_json=? WHERE id=?",(json.dumps(response),render_node["id"]));connection.commit()
-    except Exception as error:
-        connection.execute("UPDATE workflow_runs SET status='failed',message=?,updated_at=?,finished_at=? WHERE id=?",(str(error)[:2000],now(),now(),run_id));connection.commit()
+        dispatch_ok, dispatch_msg, final_job_id = render_segments_dispatch(
+            connection,
+            run_id,
+            rendered_scenes,
+            props,
+            Path(__file__).parent / "data" / "workflow_runs" / run_id,
+            resolution,
+        )
+        if dispatch_ok:
+            connection.execute("UPDATE workflow_runs SET render_job_id=?,progress=100,updated_at=?,finished_at=? WHERE id=?", (final_job_id, now(), now(), run_id))
+            connection.execute("UPDATE workflow_nodes SET status='success',progress=100,result_json=?,finished_at=?,updated_at=? WHERE id=?", (json.dumps({"jobId": final_job_id, "dispatch_msg": dispatch_msg}, ensure_ascii=False), now(), now(), render_node["id"]))
+            connection.commit()
+        else:
+            connection.execute("UPDATE workflow_nodes SET status='failed',message=?,finished_at=?,updated_at=? WHERE id=?", (dispatch_msg[:2000] if dispatch_msg else "dispatch failed", now(), now(), render_node["id"]))
+            connection.commit()
+            raise RuntimeError("render_segments_dispatch failed: " + (dispatch_msg or ""))
     finally:connection.close()
 
 
@@ -272,37 +390,161 @@ def sync_render(connection,run):
     connection.commit()
 
 
-def create_router(get_db,render_create,render_body_class):
+def rerender_existing(run_id, get_db, render_create, render_body_class, background_tasks):
+    connection = get_db()
+    try:
+        run = connection.execute("SELECT * FROM workflow_runs WHERE id=?", (run_id,)).fetchone()
+        if run is None:
+            raise HTTPException(status_code=404, detail="Workflow run not found")
+        if run["status"] not in ("success", "failed", "rendering"):
+            raise HTTPException(status_code=409, detail="Run is still generating assets")
+        scenes = connection.execute("SELECT id, camera_motion FROM scene_drafts WHERE workflow_draft_id=? ORDER BY position", (run["workflow_draft_id"],)).fetchall()
+        motion_by_id = {row["id"]: (row["camera_motion"] or "zoom-in") for row in scenes}
+        run_dir = Path(__file__).parent / "data" / "workflow_runs" / run_id
+        public_dir = run_dir / "remotion_public"
+        assets = connection.execute(
+            "SELECT scene_draft_id, asset_type, local_path FROM scene_assets WHERE workflow_run_id=?",
+            (run_id,),
+        ).fetchall()
+        missing = [row for row in assets if not row["local_path"] or not Path(row["local_path"]).is_file()]
+        if missing:
+            raise HTTPException(status_code=409, detail="Source assets missing; please re-generate the draft first")
+        props_path = Path(__file__).parent / "data" / "props" / f"workflow-{run_id}.json"
+        if not props_path.is_file():
+            raise HTTPException(status_code=409, detail="Original render props missing; cannot rerender")
+        payload = json.loads(props_path.read_text(encoding="utf-8"))
+        for scene in payload.get("scenes", []):
+            scene["cameraMotion"] = motion_by_id.get(scene["id"], "zoom-in")
+        payload["_publicDir"] = str(public_dir)
+        payload["_rerenderSource"] = run_id
+        props_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        render_node = ensure_node(connection, run_id, None, "render", {"props_path": str(props_path), "rerender": True})
+        connection.execute(
+            "UPDATE workflow_nodes SET status='processing', progress=5, provider='remotion', updated_at=? WHERE id=?",
+            (now(), render_node["id"]),
+        )
+        connection.execute(
+            "UPDATE workflow_runs SET status='rendering', progress=70, message='仅重新渲染（复用素材）', updated_at=?, finished_at=NULL WHERE id=?",
+            (now(), run_id),
+        )
+        connection.commit()
+        connection.close()
+        response = render_create(
+            render_body_class(playback_id=f"workflow-{run_id}", props_path=str(props_path), resolution="720p"),
+            background_tasks,
+        )
+        connection = get_db()
+        connection.execute(
+            "UPDATE workflow_runs SET render_job_id=?, progress=75, updated_at=? WHERE id=?",
+            (response["jobId"], now(), run_id),
+        )
+        connection.execute(
+            "UPDATE workflow_nodes SET result_json=? WHERE id=?",
+            (json.dumps(response, ensure_ascii=False), render_node["id"]),
+        )
+        connection.commit()
+        return run_payload(connection, run_id)
+    finally:
+        connection.close()
+
+
+def create_router(get_db, render_create, render_body_class):
+    from auth_router import get_user_id_from_request as _uid_of_request
     router=APIRouter(prefix="/workflow-runs",tags=["workflow-runs"])
+    @router.get("")
+    def list_runs(request: Request = None, page: int = 0, limit: int = 20, status: str | None = None):
+        """列出当前 user 的 workflow_runs (按 created_at DESC, 默认 20, 上限 100).
+        - 无 token: 返回空数组 (不暴露他人 run)
+        - 有 token: 强制按 user_id 过滤
+        - 可选 status 过滤 (queued/running/success/failed)
+        - page=0 (默认) 返 list 形态 (向后兼容); page>=1 返 wrapper {items, total, page, limit, has_more}
+        """
+        from auth_router import get_user_id_from_request as _uid
+        user_id = _uid(request)
+        if not user_id:
+            return [] if page <= 0 else {"items": [], "total": 0, "page": page, "limit": limit, "has_more": False}
+        connection = get_db()
+        try:
+            clauses = ["user_id = ?"]
+            params: list = [user_id]
+            if status:
+                clauses.append("status = ?")
+                params.append(status)
+            where = " WHERE " + " AND ".join(clauses)
+            capped_limit = max(1, min(limit, 100))
+            if page <= 0:
+                # 旧行为: 返 list
+                rows = connection.execute(
+                    "SELECT * FROM workflow_runs" + where + " ORDER BY created_at DESC LIMIT ?", params + [capped_limit]
+                ).fetchall()
+                return [run_payload(connection, row["id"]) for row in rows]
+            # 新行为: 分页 wrapper
+            total = int(connection.execute(
+                "SELECT count(*) FROM workflow_runs" + where, params
+            ).fetchone()[0] or 0)
+            offset = (page - 1) * capped_limit
+            rows = connection.execute(
+                "SELECT * FROM workflow_runs" + where + " ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                params + [capped_limit, offset]
+            ).fetchall()
+            items = [run_payload(connection, row["id"]) for row in rows]
+            return {
+                "items": items,
+                "total": total,
+                "page": page,
+                "limit": capped_limit,
+                "has_more": (offset + len(items)) < total,
+            }
+        finally:
+            connection.close()
     @router.post("/from-draft/{draft_id}")
-    def create_run(draft_id:str,background_tasks:BackgroundTasks,preview:bool=False):
+    def create_run(draft_id:str,background_tasks:BackgroundTasks,request:Request = None,preview:bool=False,force:bool=False):
+        from auth_router import get_user_id_from_request as _uid
+        user_id = _uid(request)
         connection=get_db()
         try:
-            draft=connection.execute("SELECT status FROM workflow_drafts WHERE id=?",(draft_id,)).fetchone()
-            if draft is None:raise HTTPException(status_code=404,detail="Workflow draft not found")
+            if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
+            draft=connection.execute("SELECT status, user_id FROM workflow_drafts WHERE id=?",(draft_id,)).fetchone()
+            if draft is None or draft["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow draft not found")
             if draft["status"]!="confirmed":raise HTTPException(status_code=409,detail="Confirm the draft before generation")
             existing=connection.execute("SELECT * FROM workflow_runs WHERE workflow_draft_id=? AND status IN ('queued','generating_assets','rendering','success') ORDER BY created_at DESC LIMIT 1",(draft_id,)).fetchone()
-            if existing:return run_payload(connection,existing["id"])
-            run_id=uuid.uuid4().hex;timestamp=now();connection.execute("INSERT INTO workflow_runs (id,workflow_draft_id,status,progress,created_at,updated_at) VALUES (?,?,'queued',0,?,?)",(run_id,draft_id,timestamp,timestamp));connection.commit()
+            if existing and (existing["status"] != "success" or not force):return run_payload(connection,existing["id"])
+            run_id=uuid.uuid4().hex;timestamp=now();connection.execute("INSERT INTO workflow_runs (id,workflow_draft_id,status,progress,created_at,updated_at,user_id) VALUES (?,?,'queued',0,?,?,?)",(run_id,draft_id,timestamp,timestamp,user_id));connection.commit()
             background_tasks.add_task(execute_pipeline,run_id,get_db,render_create,render_body_class,background_tasks,preview)
             return run_payload(connection,run_id)
         finally:connection.close()
     @router.get("/{run_id}")
-    def get_run(run_id:str):
+    def get_run(run_id:str,request:Request = None):
         connection=get_db()
         try:
+            user_id = _uid_of_request(request)
+            if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
             run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
-            if run is None:raise HTTPException(status_code=404,detail="Workflow run not found")
+            if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
             sync_render(connection,run)
             return run_payload(connection,run_id)
         finally:connection.close()
     @router.post("/{run_id}/retry")
-    def retry_run(run_id:str,background_tasks:BackgroundTasks,preview:bool=False):
+    def retry_run(run_id:str,background_tasks:BackgroundTasks,preview:bool=False,request:Request = None):
         connection=get_db()
         try:
+            user_id = _uid_of_request(request)
+            if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
             run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
-            if run is None:raise HTTPException(status_code=404,detail="Workflow run not found")
+            if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
             if run["status"]!="failed":raise HTTPException(status_code=409,detail="Only failed runs can be retried")
             connection.execute("UPDATE workflow_runs SET status='queued',message=NULL,updated_at=?,finished_at=NULL WHERE id=?",(now(),run_id));connection.commit();background_tasks.add_task(execute_pipeline,run_id,get_db,render_create,render_body_class,background_tasks);return run_payload(connection,run_id)
         finally:connection.close()
+    @router.post("/{run_id}/rerender")
+    def rerender_run(run_id:str,background_tasks:BackgroundTasks,request:Request = None):
+        user_id = _uid_of_request(request)
+        if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
+        connection=get_db()
+        try:
+            run=connection.execute("SELECT user_id FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
+            if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
+        finally:connection.close()
+        return rerender_existing(run_id, get_db, render_create, render_body_class, background_tasks)
     return router
+
+

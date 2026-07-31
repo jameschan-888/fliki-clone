@@ -31,8 +31,8 @@ PROVIDER_CONFIG_PATH = DATA_DIR / 'provider_config.json'
 DATA_DIR_STR = str(DATA_DIR)
 
 HOST = os.getenv('FLIKI_HOST', '127.0.0.1')
-PORT = int(os.getenv('FLIKI_PORT', '8001'))
-RENDER_TIMEOUT_SECONDS = max(1, int(os.getenv('RENDER_TIMEOUT_SECONDS', '900')))
+PORT = int(os.getenv('FLIKI_PORT', '5181'))
+RENDER_TIMEOUT_SECONDS = max(60, int(os.getenv('RENDER_TIMEOUT_SECONDS', '3600')))
 
 MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 

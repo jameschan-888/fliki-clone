@@ -1,13 +1,19 @@
-﻿import json
+import json
 import math
 import re
 import uuid
 from datetime import datetime, timezone
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 
 from providers.tts import DEFAULT_VOICE
+from templates_router import _template_payload, _validate_all, seed_templates
+
+CameraMotion = Literal["none", "zoom-in", "zoom-out", "pan-left", "pan-right", "pan-up", "pan-down"]
+VideoAspect = Literal["16:9", "9:16", "1:1"]
+VideoTransitionMode = Literal["none", "fade", "cut", "slide-left", "slide-right", "slide-up", "slide-down"]
 
 
 def utc_now():
@@ -37,6 +43,15 @@ def split_script(source_script: str, minimum_scenes: int = 3, maximum_scenes: in
             "narration": narration,
             "visual_intent": "、".join(visual_keywords[:6]) or narration[:30],
             "subtitle": narration,
+            # P0-4: subtitle_display (屏幕显示) + subtitle_spoken (TTS) 默认都跟 narration
+            "subtitle_display": narration,
+            "subtitle_spoken": narration,
+            # P0-5: 默认 16:9 (1280x720)
+            "media_width": 1280,
+            "media_height": 720,
+            # P1-7: VideoAspect / VideoTransitionMode (Pixelle 审计)
+            "video_aspect": "16:9",
+            "video_transition_mode": "fade",
             "duration_seconds": max(2.0, round(len(narration) / 4.2, 1)),
         })
     return scenes
@@ -57,6 +72,19 @@ class ScenePatchBody(BaseModel):
     voice: str | None = Field(default=None, min_length=1, max_length=120)
     avatar: str | None = Field(default=None, max_length=120)
     avatar_layout: dict | None = None
+    template_id: str | None = Field(default=None, max_length=64)
+    template_fields: dict | None = None
+    stock_url: str | None = Field(default=None, max_length=500)
+    camera_motion: CameraMotion | None = None
+    # P0-5: media 宽高 (默认 None = 沿用 1280x720)
+    media_width: int | None = Field(default=None, ge=320, le=3840)
+    media_height: int | None = Field(default=None, ge=240, le=2160)
+    # P0-4: subtitle 双轨 (display=屏幕, spoken=TTS)
+    subtitle_display: str | None = Field(default=None, max_length=5000)
+    subtitle_spoken: str | None = Field(default=None, max_length=5000)
+    # P1-7: VideoAspect / VideoTransitionMode (Pixelle 审计)
+    video_aspect: VideoAspect | None = None
+    video_transition_mode: VideoTransitionMode | None = None
 
     @model_validator(mode="after")
     def require_change(self):
@@ -75,6 +103,19 @@ class SceneCreateBody(BaseModel):
     voice: str | None = Field(default=None, min_length=1, max_length=120)
     avatar: str | None = Field(default=None, max_length=120)
     position: int | None = Field(default=None, ge=0)
+    template_id: str | None = Field(default=None, max_length=64)
+    template_fields: dict | None = None
+    stock_url: str | None = Field(default=None, max_length=500)
+    camera_motion: CameraMotion = "zoom-in"
+    # P0-5: media 宽高 (默认 1280x720)
+    media_width: int | None = Field(default=None, ge=320, le=3840)
+    media_height: int | None = Field(default=None, ge=240, le=2160)
+    # P0-4: subtitle 双轨 (display 默认 = subtitle; spoken 默认 = narration)
+    subtitle_display: str | None = Field(default=None, max_length=5000)
+    subtitle_spoken: str | None = Field(default=None, max_length=5000)
+    # P1-7: VideoAspect / VideoTransitionMode (Pixelle 审计)
+    video_aspect: VideoAspect = "16:9"
+    video_transition_mode: VideoTransitionMode = "fade"
 
 
 class ReorderBody(BaseModel):
@@ -93,11 +134,27 @@ def voice_matches_language(voice: str, language: str):
 
 
 def scene_from_row(row):
-    out = {name: row[name] for name in ("id", "position", "title", "narration", "visual_intent", "subtitle", "duration_seconds", "voice", "avatar")}
-    layout = row["avatar_layout"]
+    available = set(row.keys())
+    names = ("id", "position", "title", "narration", "visual_intent", "subtitle", "duration_seconds", "voice", "avatar", "template_id", "stock_url", "media_width", "media_height", "subtitle_display", "subtitle_spoken", "video_aspect", "video_transition_mode")
+    out = {name: row[name] for name in names if name in available}
+    out["camera_motion"] = row["camera_motion"] if "camera_motion" in available and row["camera_motion"] else "zoom-in"
+    # P0-5: media 宽高 (默认 1280x720)
+    out["media_width"] = row["media_width"] if "media_width" in available and row["media_width"] else 1280
+    out["media_height"] = row["media_height"] if "media_height" in available and row["media_height"] else 720
+    # P0-4: subtitle 双轨 (默认回落到 subtitle)
+    out["subtitle_display"] = row["subtitle_display"] if "subtitle_display" in available and row["subtitle_display"] else out.get("subtitle", "")
+    out["subtitle_spoken"] = row["subtitle_spoken"] if "subtitle_spoken" in available and row["subtitle_spoken"] else out.get("narration", "")
+    # P1-7: VideoAspect / VideoTransitionMode 默认值 (避免前端 undefined)
+    out["video_aspect"] = row["video_aspect"] if "video_aspect" in available and row["video_aspect"] else "16:9"
+    out["video_transition_mode"] = row["video_transition_mode"] if "video_transition_mode" in available and row["video_transition_mode"] else "fade"
+    layout = row["avatar_layout"] if "avatar_layout" in available else None
     if layout:
         try: out["avatar_layout"] = json.loads(layout)
         except Exception: out["avatar_layout"] = None
+    tf = row["template_fields"] if "template_fields" in available else None
+    if tf:
+        try: out["template_fields"] = json.loads(tf)
+        except Exception: out["template_fields"] = None
     return out
 
 
@@ -113,6 +170,21 @@ def draft_payload(connection, draft_id: str):
         "scenes": [scene_from_row(scene) for scene in scenes], "created_at": draft["created_at"],
         "updated_at": draft["updated_at"], "confirmed_at": draft["confirmed_at"],
     }
+
+
+def _validate_template_fields(connection, template_id, user_fields):
+    """校验 scene 引用 template_id 是否存在 + fields 是否合法. 返回 merged dict 或抛 HTTPException."""
+    if not template_id:
+        return None
+    seed_templates(connection)
+    row = connection.execute("SELECT * FROM templates WHERE id=?", (template_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=422, detail=f"Template {template_id!r} not found")
+    template = _template_payload(row, include_config=True)
+    merged, errors = _validate_all(template, user_fields or {})
+    if errors:
+        raise HTTPException(status_code=422, detail={"template_id": template_id, "errors": errors})
+    return merged
 
 
 def require_editable(connection, draft_id: str):
@@ -132,40 +204,116 @@ def record_revision(connection, draft_id: str):
 
 
 def create_router(get_db):
+    from auth_router import get_user_id_from_request as _uid_of_request
     router = APIRouter(prefix="/workflow-drafts", tags=["workflow-drafts"])
 
+    def _require_draft_owner(connection, draft_id: str, request):
+        """强制 user_id 与 draft 的 user_id 一致; 不一致返回 404 (不暴露存在性).
+        - 无 token: 401 Authentication required
+        - draft 不存在或不属于当前 user: 404 (跨用户静默)
+        """
+        user_id = _uid_of_request(request)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        row = connection.execute(
+            "SELECT user_id FROM workflow_drafts WHERE id=?", (draft_id,)
+        ).fetchone()
+        if row is None or row["user_id"] != user_id:
+            raise HTTPException(status_code=404, detail="Workflow draft not found")
+        return user_id
+
+
     @router.post("")
-    def create_draft(body: DraftCreateBody):
+    def create_draft(body: DraftCreateBody, request: Request = None):
+        from auth_router import get_user_id_from_request as _uid
+        user_id = _uid(request)
         connection = get_db()
         draft_id, now = uuid.uuid4().hex, utc_now()
         scenes = split_script(body.source_script)
         try:
-            connection.execute("INSERT INTO workflow_drafts (id, title, source_script, language, status, version, created_at, updated_at) VALUES (?, ?, ?, ?, 'draft', 1, ?, ?)", (draft_id, body.title or "未命名视频", body.source_script.strip(), body.language, now, now))
+            connection.execute("INSERT INTO workflow_drafts (id, title, source_script, language, status, version, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, 'draft', 1, ?, ?, ?)", (draft_id, body.title or "未命名视频", body.source_script.strip(), body.language, now, now, user_id))
             for scene in scenes:
-                connection.execute("INSERT INTO scene_drafts (id, workflow_draft_id, position, title, narration, visual_intent, subtitle, duration_seconds, voice, avatar, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (scene["id"], draft_id, scene["position"], scene["title"], scene["narration"], scene["visual_intent"], scene["subtitle"], scene["duration_seconds"], scene.get("voice") or DEFAULT_VOICE, scene.get("avatar"), now, now))
+                connection.execute("INSERT INTO scene_drafts (id, workflow_draft_id, position, title, narration, visual_intent, subtitle, duration_seconds, voice, avatar, video_aspect, video_transition_mode, media_width, media_height, subtitle_display, subtitle_spoken, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (scene["id"], draft_id, scene["position"], scene["title"], scene["narration"], scene["visual_intent"], scene["subtitle"], scene["duration_seconds"], scene.get("voice") or DEFAULT_VOICE, scene.get("avatar"), scene.get("video_aspect") or "16:9", scene.get("video_transition_mode") or "fade", scene.get("media_width") or 1280, scene.get("media_height") or 720, scene.get("subtitle_display") or scene.get("subtitle") or scene["subtitle"], scene.get("subtitle_spoken") or scene.get("narration") or scene["narration"], now, now))
             connection.commit()
             return draft_payload(connection, draft_id)
         finally:
             connection.close()
 
-    @router.get("/{draft_id}")
-    def get_draft(draft_id: str):
+    # rev24 stage C #8: 按 user_id 过滤的 drafts 列表端点; 匿名 token 返回空数组
+    @router.get("")
+    def list_drafts(request: Request = None, page: int = 0, limit: int = 50, status: str | None = None):
+        """列出当前 user 的所有 drafts (按 updated_at DESC, 默认 50, 上限 200).
+        - 无 token: 返回空数组 / 空 wrapper (不暴露他人草稿)
+        - 有 token: 按 user_id 严格过滤
+        - 可选 status 过滤 (draft / confirmed / archived)
+        - page=0 (默认) 返 list 形态 (向后兼容); page>=1 返 wrapper {items, total, page, limit, has_more}
+        """
+        from auth_router import get_user_id_from_request as _uid
+        user_id = _uid(request)
+        if not user_id:
+            return [] if page <= 0 else {"items": [], "total": 0, "page": page, "limit": limit, "has_more": False}
         connection = get_db()
+        try:
+            clauses = ["user_id = ?"]
+            params: list = [user_id]
+            if status:
+                clauses.append("status = ?")
+                params.append(status)
+            where = " WHERE " + " AND ".join(clauses)
+            capped_limit = max(1, min(limit, 200))
+            if page <= 0:
+                # 旧行为: 返 list
+                rows = connection.execute(
+                    "SELECT id FROM workflow_drafts" + where + " ORDER BY updated_at DESC LIMIT ?",
+                    params + [capped_limit],
+                ).fetchall()
+                return [draft_payload(connection, row["id"]) for row in rows]
+            # 新行为: 分页 wrapper
+            total = int(connection.execute(
+                "SELECT count(*) FROM workflow_drafts" + where, params
+            ).fetchone()[0] or 0)
+            offset = (page - 1) * capped_limit
+            rows = connection.execute(
+                "SELECT id FROM workflow_drafts" + where + " ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+                params + [capped_limit, offset],
+            ).fetchall()
+            items = [draft_payload(connection, row["id"]) for row in rows]
+            return {
+                "items": items,
+                "total": total,
+                "page": page,
+                "limit": capped_limit,
+                "has_more": offset + len(items) < total,
+            }
+        finally:
+            connection.close()
+
+    @router.get("/{draft_id}")
+    def get_draft(draft_id: str, request: Request = None):
+        connection = get_db()
+        _require_draft_owner(connection, draft_id, request)
         try:
             return draft_payload(connection, draft_id)
         finally:
             connection.close()
 
     @router.patch("/{draft_id}/scenes/{scene_id}")
-    def update_scene(draft_id: str, scene_id: str, body: ScenePatchBody):
+    def update_scene(draft_id: str, scene_id: str, body: ScenePatchBody, request: Request = None):
         connection = get_db()
+        _require_draft_owner(connection, draft_id, request)
         try:
             require_editable(connection, draft_id)
             if connection.execute("SELECT id FROM scene_drafts WHERE id=? AND workflow_draft_id=?", (scene_id, draft_id)).fetchone() is None:
                 raise HTTPException(status_code=404, detail="Scene draft not found")
             values = body.model_dump(exclude_unset=True)
+            if "template_id" in values or "template_fields" in values:
+                tid = values.get("template_id")
+                tf = values.get("template_fields") or {}
+                _validate_template_fields(connection, tid, tf)
             if "avatar_layout" in values and values["avatar_layout"] is not None:
                 values["avatar_layout"] = json.dumps(values["avatar_layout"], ensure_ascii=False)
+            if "template_fields" in values and values["template_fields"] is not None:
+                values["template_fields"] = json.dumps(values["template_fields"], ensure_ascii=False)
             assignments = ", ".join(f"{name}=?" for name in values)
             connection.execute(f"UPDATE scene_drafts SET {assignments}, updated_at=? WHERE id=?", (*values.values(), utc_now(), scene_id))
             record_revision(connection, draft_id)
@@ -175,15 +323,19 @@ def create_router(get_db):
             connection.close()
 
     @router.post("/{draft_id}/scenes")
-    def add_scene(draft_id: str, body: SceneCreateBody):
+    def add_scene(draft_id: str, body: SceneCreateBody, request: Request = None):
         connection = get_db()
+        _require_draft_owner(connection, draft_id, request)
         try:
             require_editable(connection, draft_id)
+            if body.template_id:
+                _validate_template_fields(connection, body.template_id, body.template_fields or {})
             count = connection.execute("SELECT COUNT(*) FROM scene_drafts WHERE workflow_draft_id=?", (draft_id,)).fetchone()[0]
             position = min(body.position if body.position is not None else count, count)
             connection.execute("UPDATE scene_drafts SET position=position+1 WHERE workflow_draft_id=? AND position>=?", (draft_id, position))
             now, narration = utc_now(), body.narration.strip()
-            connection.execute("INSERT INTO scene_drafts (id, workflow_draft_id, position, title, narration, visual_intent, subtitle, duration_seconds, voice, avatar, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (uuid.uuid4().hex, draft_id, position, body.title, narration, body.visual_intent, body.subtitle or narration, body.duration_seconds or max(2.0, round(len(narration) / 4.2, 1)), body.voice or DEFAULT_VOICE, body.avatar, now, now))
+            tf_json = json.dumps(body.template_fields, ensure_ascii=False) if body.template_fields else None
+            connection.execute("INSERT INTO scene_drafts (id, workflow_draft_id, position, title, narration, visual_intent, subtitle, duration_seconds, voice, avatar, template_id, template_fields, stock_url, camera_motion, video_aspect, video_transition_mode, media_width, media_height, subtitle_display, subtitle_spoken, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (uuid.uuid4().hex, draft_id, position, body.title, narration, body.visual_intent, body.subtitle or narration, body.duration_seconds or max(2.0, round(len(narration) / 4.2, 1)), body.voice or DEFAULT_VOICE, body.avatar, body.template_id, tf_json, body.stock_url, body.camera_motion, body.video_aspect, body.video_transition_mode, body.media_width or 1280, body.media_height or 720, body.subtitle_display or body.subtitle or narration, body.subtitle_spoken or narration, now, now))
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
@@ -191,8 +343,9 @@ def create_router(get_db):
             connection.close()
 
     @router.delete("/{draft_id}/scenes/{scene_id}")
-    def delete_scene(draft_id: str, scene_id: str):
+    def delete_scene(draft_id: str, scene_id: str, request: Request = None):
         connection = get_db()
+        _require_draft_owner(connection, draft_id, request)
         try:
             require_editable(connection, draft_id)
             if connection.execute("SELECT COUNT(*) FROM scene_drafts WHERE workflow_draft_id=?", (draft_id,)).fetchone()[0] <= 1:
@@ -209,8 +362,9 @@ def create_router(get_db):
             connection.close()
 
     @router.post("/{draft_id}/reorder")
-    def reorder_scenes(draft_id: str, body: ReorderBody):
+    def reorder_scenes(draft_id: str, body: ReorderBody, request: Request = None):
         connection = get_db()
+        _require_draft_owner(connection, draft_id, request)
         try:
             require_editable(connection, draft_id)
             current_ids = [row["id"] for row in connection.execute("SELECT id FROM scene_drafts WHERE workflow_draft_id=? ORDER BY position", (draft_id,)).fetchall()]
@@ -227,8 +381,9 @@ def create_router(get_db):
             connection.close()
 
     @router.post("/{draft_id}/confirm")
-    def confirm_draft(draft_id: str):
+    def confirm_draft(draft_id: str, request: Request = None):
         connection = get_db()
+        _require_draft_owner(connection, draft_id, request)
         try:
             payload = draft_payload(connection, draft_id)
             if payload["status"] == "confirmed":

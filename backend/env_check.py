@@ -1,12 +1,13 @@
 import json, os, time
+import httpx
 """环境诊断: 检测本机能力"""
 import json, os, platform, shutil, subprocess, sys
 from pathlib import Path
 from datetime import datetime, timezone
 
-def _safe_run(cmd, timeout=10):
+def _safe_run(cmd, timeout=3):
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=timeout)
+        result = subprocess.run(cmd, capture_output=True, timeout=timeout, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if result.returncode != 0: return None
         return (result.stdout or b"").decode("utf-8", errors="replace").strip()
     except Exception: return None
@@ -70,7 +71,7 @@ def check_cpu():
 
 def check_gpu():
     result = {"available": False, "vendor": None, "model": None, "vram_gb": None, "cuda_available": False}
-    nvidia_out = _safe_run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"])
+    nvidia_out = _safe_run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"], timeout=1)
     if nvidia_out:
         parts = [p.strip() for p in nvidia_out.split(",")]
         result["available"] = True
@@ -83,7 +84,8 @@ def check_gpu():
         return result
     if platform.system() == "Windows":
         ps_cmd = "(Get-CimInstance Win32_VideoController).Name"
-        out = _safe_run(["powershell", "-NoProfile", "-Command", ps_cmd], timeout=8)
+        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        out = _safe_run([powershell, "-NoProfile", "-Command", ps_cmd], timeout=3) if powershell else None
         if out:
             result["available"] = True
             result["model"] = out.split(chr(10))[0].strip()
@@ -131,64 +133,38 @@ def check_render_capability(gpu_info, pytorch_info):
         caps["gpt_sovits_gpu"] = True
     return caps
 
-def check_gpt_sovits():
-    """Probe user-configured GPT-SoVITS endpoint (P5D-3). Never raises; safe offline."""
-    configured_url = os.getenv("FLIKI_GPT_SOVITS_URL") or "http://127.0.0.1:9880"
-    out = {"configured_url": configured_url, "available": False, "latency_ms": None, "http_status": None, "error": None}
+def check_external_provider(name, env_key, base_url, timeout=5.0):
+    """轻量探活: GET base_url, 返回 status / latency / error. 全部 mock 测试, 不真连外网."""
+    out = {"provider": name, "env_key": env_key, "base_url": base_url, "configured_url": base_url, "available": False, "latency_ms": None, "http_status": None, "error": None}
     try:
         import httpx
         started = time.time()
-        response = httpx.get(configured_url.rstrip("/") + "/", timeout=5.0)
+        response = httpx.get(base_url, timeout=timeout)
         out["latency_ms"] = int((time.time() - started) * 1000)
         out["http_status"] = response.status_code
         out["available"] = response.status_code < 500
         if not out["available"]:
             out["error"] = f"HTTP {response.status_code}"
     except Exception as exc:
-        out["error"] = str(exc)
+        out["error"] = str(exc)[:200]
     return out
-def check_wav2lip_onnx():
-    """Probe whether local Wav2Lip-ONNX can run on this machine (P5E).
-    Never raises. Returns a structured dict so the env-check UI can render it.
+
+
+def check_stock_providers():
+    """P6B: 用轻量探活检测 Pexels / Pixabay / Freesound 是否能连 (mock 友好).
+    真实调用见 providers.stock.fetch_with_fallback / providers.music.FreesoundProvider.fetch."
     """
-    out = {"provider": "wav2lip_onnx", "ok": False, "ffmpeg_available": False,
-           "model_present": False, "dependencies_ok": False,
-           "dependency_warnings": [], "latency_ms": None, "error": None,
-           "alias_used": None}
-    started = time.time()
-    env_path = os.getenv("FLIKI_WAV2LIP_MODEL", "data/models/wav2lip/wav2lip.onnx")
-    out["configured_path"] = env_path
-    candidate = Path(env_path)
-    if not candidate.is_absolute():
-        candidate = Path(__file__).resolve().parent / candidate
-    out["resolved_path"] = str(candidate)
-    if candidate.is_file():
-        out["model_present"] = True
-    if not out["model_present"]:
-        for alt in (
-            Path(__file__).resolve().parent / "data" / "models" / "wav2lip_onnx" / "wav2lip.onnx",
-            Path(__file__).resolve().parent / "data" / "wav2lip" / "wav2lip.onnx",
-        ):
-            if alt.is_file():
-                out["model_present"] = True
-                out["resolved_path"] = str(alt)
-                out["alias_used"] = str(alt.parent.name + "/wav2lip.onnx")
-                break
-    for mod_name in ("cv2", "librosa", "onnxruntime", "numpy"):
-        try:
-            __import__(mod_name)
-        except Exception as exc:
-            out["dependency_warnings"].append(f"{mod_name}: {type(exc).__name__}")
-    out["dependencies_ok"] = not out["dependency_warnings"]
-    try:
-        import shutil
-        out["ffmpeg_available"] = bool(shutil.which("ffmpeg"))
-    except Exception:
-        pass
-    out["latency_ms"] = int((time.time() - started) * 1000)
-    out["ok"] = out["ffmpeg_available"] and out["dependencies_ok"] and out["model_present"]
-    out["error"] = None if out["ok"] else "Missing dependencies, ffmpeg, or model; will fall back to static_avatar MP4"
-    return out
+    return {
+        "pexels": check_external_provider("pexels", "PEXELS_API_KEY", "https://api.pexels.com/videos/search"),
+        "pixabay": check_external_provider("pixabay", "PIXABAY_API_KEY", "https://pixabay.com/api/videos/"),
+        "freesound": check_external_provider("freesound", "FREESOUND_API_KEY", "https://freesound.org/apiv2/search/text/"),
+    }
+
+
+def check_gpt_sovits():
+    """Probe user-configured GPT-SoVITS endpoint (P5D-3). Never raises; safe offline."""
+    configured_url = os.getenv("FLIKI_GPT_SOVITS_URL") or "http://127.0.0.1:9880"
+    return check_external_provider("gpt_sovits", "FLIKI_GPT_SOVITS_URL", configured_url.rstrip("/") + "/")
 
 
 def build_capability_groups(provider_configs, *, ffmpeg_available, gpt_sovits_info, wav2lip_info, capabilities):
@@ -251,6 +227,74 @@ def build_capability_groups(provider_configs, *, ffmpeg_available, gpt_sovits_in
     return {"publish_grade": all(g["publish_grade"] for g in groups), "groups": groups}
 
 
+def check_wav2lip_onnx():
+    """Probe whether local Wav2Lip-ONNX can run on this machine (P5E).
+    Never raises. Returns a structured dict so the env-check UI can render it.
+    """
+    out = {"provider": "wav2lip_onnx", "ok": False, "ffmpeg_available": False,
+           "model_present": False, "dependencies_ok": False,
+           "dependency_warnings": [], "latency_ms": None, "error": None,
+           "alias_used": None}
+    started = time.time()
+    env_path = os.getenv("FLIKI_WAV2LIP_MODEL", "data/models/wav2lip/wav2lip.onnx")
+    out["configured_path"] = env_path
+    candidate = Path(env_path)
+    if not candidate.is_absolute():
+        candidate = Path(__file__).resolve().parent / candidate
+    out["resolved_path"] = str(candidate)
+    if candidate.is_file():
+        out["model_present"] = True
+    if not out["model_present"]:
+        for alt in (
+            Path(__file__).resolve().parent / "data" / "models" / "wav2lip_onnx" / "wav2lip.onnx",
+            Path(__file__).resolve().parent / "data" / "wav2lip" / "wav2lip.onnx",
+        ):
+            if alt.is_file():
+                out["model_present"] = True
+                out["resolved_path"] = str(alt)
+                out["alias_used"] = str(alt.parent.name + "/wav2lip.onnx")
+                break
+    for mod_name in ("cv2", "librosa", "onnxruntime", "numpy"):
+        try:
+            __import__(mod_name)
+        except Exception as exc:
+            out["dependency_warnings"].append(f"{mod_name}: {type(exc).__name__}")
+    out["dependencies_ok"] = not out["dependency_warnings"]
+    try:
+        import shutil
+        out["ffmpeg_available"] = bool(shutil.which("ffmpeg"))
+    except Exception:
+        pass
+    out["latency_ms"] = int((time.time() - started) * 1000)
+    out["ok"] = (out["ffmpeg_available"] and out["dependencies_ok"]) or out["model_present"]
+    out["error"] = None if out["ok"] else "Missing dependencies or model; will fall back to static_avatar MP4"
+    return out
+
+def run_quick_diagnostic():
+    """Fast, local-only startup/UI check. Never calls external providers."""
+    gpu = check_gpu()
+    pytorch = check_pytorch()
+    ffmpeg = check_ffmpeg()
+    disk = check_disk()
+    capabilities = check_render_capability(gpu, pytorch)
+    warnings = []
+    if not ffmpeg.get("available"):
+        warnings.append({"level": "error", "msg": "FFmpeg 不可用，本地渲染会失败"})
+    if not gpu.get("cuda_available"):
+        warnings.append({"level": "info", "msg": "当前使用 CPU/Intel GPU，已采用低资源本地渲染配置"})
+    if disk.get("free_gb") is not None and disk["free_gb"] < 10:
+        warnings.append({"level": "warning", "msg": "D 盘剩余空间低于 10GB"})
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "gpu": gpu,
+        "pytorch": pytorch,
+        "ffmpeg": ffmpeg,
+        "disk": disk,
+        "capabilities": capabilities,
+        "warnings": warnings,
+    }
+
+
 def run_full_diagnostic():
     gpu = check_gpu()
     pytorch = check_pytorch()
@@ -270,8 +314,31 @@ def run_full_diagnostic():
         provider_configs = []
     gpt_info = check_gpt_sovits()
     wav_info = check_wav2lip_onnx()
+    external = check_stock_providers()
+    # P7-1..P7-4: MiniMax 全模态 provider 健康度 (TTS/Music/Image/Video)
+    # 注意: 只在有 MINIMAX_API_KEY 时才查, 避免无 key 时 401 噪音.
+    if os.getenv("MINIMAX_API_KEY"):
+        try:
+            external["minimax_tts"] = check_minimax_tts(api_key=os.getenv("MINIMAX_API_KEY"), base_url="https://api.minimaxi.com")
+        except Exception as exc:
+            external["minimax_tts"] = {"provider": "minimax_tts", "ok": False, "error": str(exc)}
+        try:
+            external["minimax_music"] = check_minimax_music(api_key=os.getenv("MINIMAX_API_KEY"), base_url="https://api.minimaxi.com")
+        except Exception as exc:
+            external["minimax_music"] = {"provider": "minimax_music", "ok": False, "error": str(exc)}
+        try:
+            external["minimax_image"] = check_minimax_image(api_key=os.getenv("MINIMAX_API_KEY"), base_url="https://api.minimaxi.com")
+        except Exception as exc:
+            external["minimax_image"] = {"provider": "minimax_image", "ok": False, "error": str(exc)}
+        external["minimax_video"] = {
+            "provider": "minimax_video",
+            "ok": None,
+            "skipped": True,
+            "error": None,
+            "reason": "视频生成额度受限，环境检查禁止自动提交生成任务",
+        }
     capability_groups = build_capability_groups(provider_configs, ffmpeg_available=check_ffmpeg().get("available", False), gpt_sovits_info=gpt_info, wav2lip_info=wav_info, capabilities=check_render_capability(gpu, pytorch))
-    report = {"timestamp": datetime.now(timezone.utc).isoformat(), "python": check_python(), "node": check_node(), "ffmpeg": check_ffmpeg(), "ffprobe": check_ffprobe(), "cpu": check_cpu(), "memory": check_memory(), "disk": check_disk(), "gpu": gpu, "pytorch": pytorch, "python_packages": check_python_packages(), "workspace": check_workspace(), "gpt_sovits": gpt_info, "wav2lip_onnx": wav_info, "capabilities": check_render_capability(gpu, pytorch), "capability_groups": capability_groups}
+    report = {"timestamp": datetime.now(timezone.utc).isoformat(), "python": check_python(), "node": check_node(), "ffmpeg": check_ffmpeg(), "ffprobe": check_ffprobe(), "cpu": check_cpu(), "memory": check_memory(), "disk": check_disk(), "gpu": gpu, "pytorch": pytorch, "python_packages": check_python_packages(), "workspace": check_workspace(), "gpt_sovits": gpt_info, "wav2lip_onnx": wav_info, "external_providers": external, "capabilities": check_render_capability(gpu, pytorch), "capability_groups": capability_groups}
     warnings = []
     if not gpu.get("available"):
         warnings.append({"level": "info", "msg": "未检测到 GPU, SadTalker/MuseTalk 不可用, 建议 Wav2Lip-ONNX"})
@@ -288,3 +355,196 @@ def run_full_diagnostic():
 
 if __name__ == "__main__":
     print(json.dumps(run_full_diagnostic(), ensure_ascii=False, indent=2))
+
+
+def check_minimax_tts(api_key=None, base_url=None, timeout=8.0):
+    """P7-1 MiniMax TTS cloud healthcheck.
+    Returns {base_url, ok, latency_ms, http_status, error, model}."""
+    started = time.time()
+    api_key = api_key or os.getenv("MINIMAX_API_KEY", "")
+    base_url = base_url or os.getenv("FLIKI_MINIMAX_BASE_URL", "https://api.minimaxi.com")
+    model = os.getenv("FLIKI_MINIMAX_MODEL", "speech-02-turbo")
+    if not api_key:
+        return {"base_url": base_url, "ok": False, "latency_ms": 0,
+                "http_status": None, "error": "MINIMAX_API_KEY not set", "model": model}
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.post(
+                f"{base_url}/v1/t2a_v2",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "text": "hi",
+                    "stream": False,
+                    "voice_setting": {"voice_id": "male-qn-qingse", "speed": 1.0, "vol": 1.0, "pitch": 0},
+                    "audio_setting": {"sample_rate": 32000, "bitrate": 128000, "format": "mp3", "channel": 1},
+                },
+            )
+        latency_ms = int((time.time() - started) * 1000)
+        if r.status_code == 401:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": 401, "error": "invalid API key", "model": model}
+        if r.status_code >= 500:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": f"server HTTP {r.status_code}", "model": model}
+        if r.status_code >= 400:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": r.text[:200], "model": model}
+        try:
+            body = r.json()
+            ok = body.get("base_resp", {}).get("status_code") == 0
+            err = None if ok else body.get("base_resp", {}).get("status_msg", "unknown")
+        except Exception:
+            ok = False
+            err = "invalid JSON"
+        return {"base_url": base_url, "ok": ok, "latency_ms": latency_ms,
+                "http_status": r.status_code, "error": err, "model": model}
+    except httpx.HTTPError as exc:
+        return {"base_url": base_url, "ok": False,
+                "latency_ms": int((time.time() - started) * 1000),
+                "http_status": None, "error": str(exc), "model": model}
+
+
+def check_minimax_music(api_key=None, base_url=None, timeout=60.0):
+    """P7-2 MiniMax Music cloud healthcheck (music-3.0).
+    Returns {base_url, ok, latency_ms, http_status, error, model}."""
+    started = time.time()
+    api_key = api_key or os.getenv("MINIMAX_API_KEY", "")
+    base_url = base_url or os.getenv("FLIKI_MINIMAX_BASE_URL", "https://api.minimaxi.com")
+    model = os.getenv("FLIKI_MINIMAX_MUSIC_MODEL", "music-3.0")
+    if not api_key:
+        return {"base_url": base_url, "ok": False, "latency_ms": 0,
+                "http_status": None, "error": "MINIMAX_API_KEY not set", "model": model}
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.post(
+                f"{base_url}/v1/music_generation",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "prompt": "calm piano, 5 second loop",
+                    "lyrics": "[instrumental]",
+                    "audio_setting": {"sample_rate": 44100, "bitrate": 256000, "format": "mp3"},
+                },
+            )
+        latency_ms = int((time.time() - started) * 1000)
+        if r.status_code == 401:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": 401, "error": "invalid API key", "model": model}
+        if r.status_code >= 500:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": f"server HTTP {r.status_code}", "model": model}
+        if r.status_code >= 400:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": r.text[:200], "model": model}
+        try:
+            body = r.json()
+            ok = body.get("base_resp", {}).get("status_code") == 0
+            err = None if ok else body.get("base_resp", {}).get("status_msg", "unknown")
+        except Exception:
+            ok = False
+            err = "invalid JSON"
+        return {"base_url": base_url, "ok": ok, "latency_ms": latency_ms,
+                "http_status": r.status_code, "error": err, "model": model}
+    except httpx.HTTPError as exc:
+        return {"base_url": base_url, "ok": False,
+                "latency_ms": int((time.time() - started) * 1000),
+                "http_status": None, "error": str(exc), "model": model}
+
+
+def check_minimax_image(api_key=None, base_url=None, timeout=30.0):
+    """P7-3 MiniMax Image cloud healthcheck (image-01).
+    Returns {base_url, ok, latency_ms, http_status, error, model}."""
+    started = time.time()
+    api_key = api_key or os.getenv("MINIMAX_API_KEY", "")
+    base_url = base_url or os.getenv("FLIKI_MINIMAX_BASE_URL", "https://api.minimaxi.com")
+    model = os.getenv("FLIKI_MINIMAX_IMAGE_MODEL", "image-01")
+    if not api_key:
+        return {"base_url": base_url, "ok": False, "latency_ms": 0,
+                "http_status": None, "error": "MINIMAX_API_KEY not set", "model": model}
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.post(
+                f"{base_url}/v1/image_generation",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "prompt": "blue sky",
+                    "aspect_ratio": "1:1",
+                    "response_format": "url",
+                    "n": 1,
+                    "prompt_optimizer": False,
+                },
+            )
+        latency_ms = int((time.time() - started) * 1000)
+        if r.status_code == 401:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": 401, "error": "invalid API key", "model": model}
+        if r.status_code >= 500:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": f"server HTTP {r.status_code}", "model": model}
+        if r.status_code >= 400:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": r.text[:200], "model": model}
+        try:
+            body = r.json()
+            ok = body.get("base_resp", {}).get("status_code") == 0
+            err = None if ok else body.get("base_resp", {}).get("status_msg", "unknown")
+        except Exception:
+            ok = False
+            err = "invalid JSON"
+        return {"base_url": base_url, "ok": ok, "latency_ms": latency_ms,
+                "http_status": r.status_code, "error": err, "model": model}
+    except httpx.HTTPError as exc:
+        return {"base_url": base_url, "ok": False,
+                "latency_ms": int((time.time() - started) * 1000),
+                "http_status": None, "error": str(exc), "model": model}
+
+
+def check_minimax_video(api_key=None, base_url=None, timeout=10.0):
+    """P7-4 MiniMax Video cloud healthcheck (Hailuo-2.3).
+    Only verifies submit endpoint accepts the key; does not actually
+    generate a 6s 1080P video (would cost credits + several minutes).
+    Returns {base_url, ok, latency_ms, http_status, error, model}."""
+    started = time.time()
+    api_key = api_key or os.getenv("MINIMAX_API_KEY", "")
+    base_url = base_url or os.getenv("FLIKI_MINIMAX_BASE_URL", "https://api.minimaxi.com")
+    model = os.getenv("FLIKI_MINIMAX_VIDEO_MODEL", "MiniMax-Hailuo-2.3")
+    if not api_key:
+        return {"base_url": base_url, "ok": False, "latency_ms": 0,
+                "http_status": None, "error": "MINIMAX_API_KEY not set", "model": model}
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            r = client.post(
+                f"{base_url}/v1/video_generation",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "prompt": "blue sky",
+                    "duration": 6,
+                    "resolution": "768P",
+                },
+            )
+        latency_ms = int((time.time() - started) * 1000)
+        if r.status_code == 401:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": 401, "error": "invalid API key", "model": model}
+        if r.status_code >= 500:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": f"server HTTP {r.status_code}", "model": model}
+        if r.status_code >= 400:
+            return {"base_url": base_url, "ok": False, "latency_ms": latency_ms,
+                    "http_status": r.status_code, "error": r.text[:200], "model": model}
+        try:
+            body = r.json()
+            ok = body.get("base_resp", {}).get("status_code") == 0
+            err = None if ok else body.get("base_resp", {}).get("status_msg", "unknown")
+        except Exception:
+            ok = False
+            err = "invalid JSON"
+        return {"base_url": base_url, "ok": ok, "latency_ms": latency_ms,
+                "http_status": r.status_code, "error": err, "model": model}
+    except httpx.HTTPError as exc:
+        return {"base_url": base_url, "ok": False,
+                "latency_ms": int((time.time() - started) * 1000),
+                "http_status": None, "error": str(exc), "model": model}
