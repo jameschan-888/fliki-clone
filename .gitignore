@@ -17,6 +17,9 @@ backend/workers/remotion-project/bundle/
 .env.*
 !.env.example
 
+# Archived secrets snapshot (历史 API key 快照, 已迁出到 D:/workspace/secrets-archive/, 目录留 .gitkeep 占位)
+docs/secrets.archive/*
+!docs/secrets.archive/.gitkeep
 # Runtime data (user uploads, generated assets, DB)
 app/data/
 backend/data/
