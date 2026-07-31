@@ -88,6 +88,19 @@ const results = [];
 for (const phase of phases) {
   const t0 = Date.now();
   console.log(`\n=== [${results.length + 1}/${phases.length}] ${phase.name} ===`);
+
+  if (phase.setup) {
+    const setupResult = runSetup(phase.setup, phase.cwd || ROOT, 60_000);
+    if (setupResult.status !== 0) {
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      if (setupResult.error) console.error("[SETUP ERR]", setupResult.error.message);
+      console.error("[SETUP FAIL]", phase.setup);
+      results.push({ name: phase.name, passed: false, elapsed, allowFail: phase.allowFail });
+      console.log(`[${elapsed}s] FAIL - ${phase.name} (setup)`);
+      continue;
+    }
+  }
+
   const result = run(phase.cmd, phase.args, phase.cwd, 600_000);
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   const passed = result.status === 0;
