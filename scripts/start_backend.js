@@ -13,9 +13,9 @@ const PID = path.join(RUN, 'backend.pid');
 const out = fs.openSync(LOG, 'a');
 const err = fs.openSync(ERR, 'a');
 const child = spawn('python', ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '5181'], {
-  cwd: BACKEND, detached: true, stdio: ['ignore', out, err], windowsHide: true,
+  cwd: BACKEND, detached: true, stdio: ['ignore', out, err], windowsHide: true, env: Object.assign({}, process.env, { RENDER_PROVIDER: process.env.RENDER_PROVIDER || 'cloud', RENDER_SEGMENT_SCENES: process.env.RENDER_SEGMENT_SCENES || '10' }),
 });
 fs.writeFileSync(PID, String(child.pid));
-fs.appendFileSync(LOG, `\n[${new Date().toISOString()}] spawned pid=${child.pid} port=8765\n`);
+fs.appendFileSync(LOG, `\n[${new Date().toISOString()}] spawned pid=${child.pid} port=5181\n`);
 console.log('spawned pid=' + child.pid);
 child.unref();

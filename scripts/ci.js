@@ -1,0 +1,112 @@
+const { spawnSync } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+
+const ROOT = "D:\\workspace\\Fliki视频制作还原";
+process.chdir(ROOT);
+
+// 在 Windows 上, npm/npx/.cmd 必须走 cmd.exe, python.exe 直接 spawn
+function run(cmd, args, cwd, timeoutMs) {
+  const isWin = process.platform === "win32";
+  const needsShell = isWin && (cmd === "npm" || cmd === "npx" || cmd.endsWith(".cmd") || cmd.endsWith(".bat"));
+  return spawnSync(cmd, args, {
+    cwd,
+    shell: needsShell,
+    stdio: "inherit",
+    timeout: timeoutMs || 600_000,
+  });
+}
+
+const phases = [
+  {
+    name: "路由挂载检查 (check_routes.py)",
+    cmd: "python",
+    args: ["scripts/check_routes.py", "--fail-on-warn"],
+    cwd: ROOT,
+    allowFail: false,
+  },
+  {
+    name: "后端单元测试 (全量)",
+    cmd: "python",
+    args: ["-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
+    cwd: path.join(ROOT, "backend"),
+    allowFail: false,
+  },
+  {
+    name: "API 合约测试",
+    cmd: "python",
+    args: ["-m", "unittest", "tests.test_api_contract"],
+    cwd: path.join(ROOT, "backend"),
+    allowFail: false,
+  },
+  {
+    name: "Provider 联调测试 (联网, 失败可跳过)",
+    cmd: "python",
+    args: ["-m", "unittest", "tests.providers.test_real_provider_matrix"],
+    cwd: path.join(ROOT, "backend"),
+    allowFail: true,
+  },
+  {
+    name: "Remotion TS 编译",
+    cmd: "node",
+    args: ["backend/workers/remotion-project/node_modules/typescript/bin/tsc", "--noEmit", "-p", "backend/workers/remotion-project"],
+    cwd: ROOT,
+    allowFail: false,
+  },
+  {
+    name: "前端生产构建",
+    cmd: "npm",
+    args: ["run", "build"],
+    cwd: path.join(ROOT, "app"),
+    allowFail: false,
+  },  {
+    name: "前端 vitest (RTL 组件测试)",
+    cmd: "npm",
+    args: ["test"],
+    cwd: path.join(ROOT, "app"),
+    allowFail: false,
+  },
+  {
+    // P1-5 + ROI-2 强 gate: 同步起后端 + 秒级模板预览 smoke, 镜像 GitHub CI 顺序.
+    // setup 脚本 ensureBackendSync: 用户自己起的 5181 复用, 没起就 spawn + 等就绪.
+    name: "模板预览 smoke (强 gate, 缺后端自动起, 30s 内未就绪则 FAIL)",
+    cmd: "python",
+    args: ["tests/e2e/test_template_preview_smoke.py"],
+    cwd: ROOT,
+    setup: "scripts/lib/ci_backend_setup.js",
+    allowFail: false,
+  },
+];
+
+function runSetup(setupPath, cwd, timeoutMs) {
+  if (!setupPath) return { status: 0 };
+  return spawnSync('node', [setupPath], { cwd, stdio: 'inherit', timeout: timeoutMs || 60_000 });
+}
+
+const startTime = Date.now();
+const results = [];
+for (const phase of phases) {
+  const t0 = Date.now();
+  console.log(`\n=== [${results.length + 1}/${phases.length}] ${phase.name} ===`);
+  const result = run(phase.cmd, phase.args, phase.cwd, 600_000);
+  const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+  const passed = result.status === 0;
+  if (!passed) {
+    if (result.error) console.error("[ERR]", result.error.message);
+    if (result.stderr) console.error("[STDERR]", String(result.stderr).slice(0, 500));
+  }
+  results.push({ name: phase.name, passed, elapsed, allowFail: phase.allowFail });
+  console.log(`[${elapsed}s] ${passed ? "OK" : "FAIL"} - ${phase.name}`);
+}
+
+console.log("\n=== 汇总 ===");
+let allOk = true;
+for (const r of results) {
+  const expected = r.passed || r.allowFail;
+  const tag = r.passed ? "OK" : (r.allowFail ? "OK (allowed fail)" : "FAIL");
+  console.log(`  ${tag.padEnd(20)} ${r.elapsed}s  ${r.name}`);
+  if (!expected) allOk = false;
+}
+const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+console.log(`\n总耗时: ${totalElapsed}s`);
+process.exit(allOk ? 0 : 1);

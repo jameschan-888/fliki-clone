@@ -6,7 +6,7 @@ const ROOT = 'D:/workspace/Fliki视频制作还原';
 const PID = path.join(ROOT, '.run', 'backend.pid');
 const LOG = path.join(ROOT, '.run', 'backend.log');
 const ERR = path.join(ROOT, '.run', 'backend.log.err');
-const PORT = 8765;
+const PORT = 5181;
 
 try {
   if (fs.existsSync(PID)) {
