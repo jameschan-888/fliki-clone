@@ -6,6 +6,10 @@
 
 ---
 
+> **项目状态 (2026-07-31, rev25 收口)**: 9 个 commit 链全部入仓 (`2ade58b → c61527b`); 完整 8 阶段 CI 564s 跑通, 后端 532 tests + 前端 32 vitest + provider 联调 4 + 模板 smoke 5 全部 PASS. 工作区 0 改动.
+
+> **可执行三档**: (1) 沙箱外跑 `node scripts/ci.js` 复现 8/8 绿门; (2) 沙箱外手起 OmniVoice docker 跑 `OMNIVOICE_E2E=1 python -m unittest tests.e2e.test_omnivoice_real`; (3) 去各家平台重置已暴露的 API key (miniMax/gemini/openrouter 优先).
+
 ## rev24 阶段 C #8 list 端点 user 过滤 (2026-07-29)
 
 **目标**: drafts / runs / render-jobs 三个表都有 user_id FK 后, 补 list 端点, 强制 user_id 过滤; 匿名 token 返回空数组防泄露.
