@@ -1,6 +1,14 @@
-﻿# Fliki 视频制作还原：移交文档
+﻿# ⚠️ 已并入 README.md — 本文档保留为历史参考, 不再单独维护
 
-更新时间：2026-07-25 (rev5: P5D-8 Wav2Lip CPU 真推理)
+**主文档: [README.md](./README.md)**
+
+本文档 (2026-07-27 版) 已并入 README.md. 后续请直接查阅 README.md; 本文档仅保留作为历史档案, 不再单独维护内容.
+
+---
+
+# Fliki 视频制作还原：移交文档
+
+更新时间：2026-07-25 (rev11: P7 前端暴露完成 + env-check 4 面板)
 
 > 给下一个对话或接手开发者使用。不要看截图，不要重新抓站；现有 `research/` 已覆盖当前需要的公开页面、登录态结构和接口行为。
 
@@ -41,18 +49,21 @@
 | P5C Auto-edit | 已完成 | 上传、ffprobe、Whisper、静音检测、草稿编辑、确认、剪辑渲染已闭环 |
 | Env-Check | 已完成 | 启动自检、Wav2Lip 明细和 Provider 发布能力矩阵已展示 |
 | Voice Gallery | 已完成 | Edge TTS 321 个声音、142 个 locale，可试听 |
-| GPT-SoVITS | 适配器完成 | 仅 HTTP 适配器；需要用户自行运行外部服务 |
+| GPT-SoVITS | 联调指引完成 (2026-07-25) | 客户端 + 4 个连通性测试通过；`docs/GPT_SOVITS.md` + `scripts/start_gpt_sovits_optional.cmd` 说明如何在另一台机器起服务并连通 |
 | Wav2Lip-ONNX | 已完成真机验证 (2026-07-25) | 模型 145MB 已就位；可选依赖已安装；中文路径兼容；CPU 真推理输出 `mode=wav2lip_onnx`、`fallback_used=false`，未冒充静态回退 |
 | 前端 Avatar 选择 | 已完成 | 草稿编辑器可选择、创建、清除 Avatar；直接显示 ref-face，并提示缺模型时静态回退 |
 | Docker / 安装清单 | 已完成 (2026-07-25) | image fliki-api:local 3.81GB (Playwright base + Python + Node 22 + Chromium + FFmpeg), 端口 8765, volume fliki-api-data 持久化 /app/data, env_file 注入 .env；关键接口均 200，Remotion 真渲染与缩略图生成通过 |
 | P5E Provider 密钥持久化 | 已完成 | `persist=true/false`、掩码返回、DELETE 清除、启动 hydrate、Docker secrets 卷与 0600 权限均已验证 |
-| Git 基线 | 已完成 (2026-07-25) | commit `4a35904`, 160 文件 / 19549 行, master 分支; .gitignore 已盖 node_modules / data / .env / 测试日志 / 临时脚本 |
+| P7-4 MiniMax Video Provider | 已完成 (2026-07-25, 真机 submit 通) | `backend/providers/stock/minimax_video.py` 完整 Hailuo-2.3 适配器（异步任务：submit → 轮询 → 下载）；支持 prompt + duration(1-10) + resolution(768P/1080P)；`__init__.py` 加 `build_minimax_video_provider()`；`provider_config.py` SECRET_ENV + seed 加 stock provider (priority 25)；`env_check.py` 加 `check_minimax_video`（只验 submit，不真生成）；12/12 Mock 测试通过；真机 submit 通过拿到 task_id |
+| P7-3 MiniMax Image Provider | 已完成 (2026-07-25, 真机通) | `backend/providers/stock/minimax_image.py` 完整 image-01 适配器；支持 prompt + aspect_ratio + n + prompt_optimizer；下载 image_urls 列表第一张（兼容 image_base64）；`__init__.py` 加 `build_minimax_image_provider()`；`provider_config.py` SECRET_ENV + seed 加 stock provider (priority 30)；`env_check.py` 加 `check_minimax_image`；13/13 Mock 测试通过；真机 36.8 秒生成 2 张 1280×720 JPG（n=2），442 KB |
+| P7-2 MiniMax Music Provider | 已完成 (2026-07-25, 真机通) | `backend/providers/music/minimax_music.py` 完整 music-3.0 适配器；支持 prompt + lyrics + duration + audio_setting；`__init__.py` 加 `build_minimax_music_provider()`；`provider_config.py` SECRET_ENV + seed 加 music provider (priority 30)；`env_check.py` 加 `check_minimax_music`；12/12 Mock 测试通过；真机生成 2.24MB / 70秒 / 44.1kHz / 256kbps 立体声 MP3，耗时 124 秒 |
+| P7-1 MiniMax TTS Provider | 已完成 (2026-07-25, 真机通) | `backend/providers/tts/minimax_tts.py` 完整 HTTP 适配器（T2A v2 + 文件上传 + 声音克隆 + voice_id 缓存 + healthcheck）；`__init__.py` 加 `MINIMAX_VOICE_NAME` / `build_minimax_provider()` / `detect_provider_for_voice` 分支；`provider_config.py` SECRET_ENV 加 `("tts","minimax")` + seed_runtime_providers 注册；`env_check.py` 加 `check_minimax_tts`；12/12 Mock 测试通过。真机合成 30KB MP3（"hi" 0.8s），已确认 `https://api.minimaxi.com` 是 MiniMax 平台正确域名（之前的 `api.minimax.io` 错）。| |
 
 ## 3. 已验证事实
 
 验证时间：2026-07-25（P5D-8 Wav2Lip CPU 真推理完成）。
 
-- Python 单元测试：`154/154` 通过（含 Wav2Lip 中文路径与模式契约测试；GPT-SoVITS 仍为 Mock，不连接外部服务）。
+- Python 单元测试：`201/201` 通过（新增 P7-3 MiniMax Image 13 个 Mock 用例：成功 / base64 回退 / aspect_ratio / n clamp / URL 下载失败 / 401 / 网络 / 空响应 / base_resp 错误 / 空 prompt / healthcheck 两态）。
 - Python 编译：`python -m compileall -q .` 通过。
 - 前端构建：`npm.cmd run build` 通过。
 - 运行环境：Python 3.12.7、Node 24.16.0、FFmpeg 8.1.2、8 逻辑核、约 15.8 GB 内存、Intel Iris Xe、无 CUDA。
@@ -355,7 +366,36 @@ Dockerfile 内 pip 用 mirrors.aliyun.com + default-timeout=120, npm 用 registr
 - `D:\workspace\踩坑日志.txt`（追加 P5D-7 5 条）
 
 
+### rev6：P6D 安装基线 (2026-07-25 收尾)
+
+**完成：**
+- `backend/.venv` 已创建并装好全部依赖（fastapi/uvicorn/pydantic/python-dotenv/httpx/edge-tts/python-multipart + onnxruntime/opencv/librosa/soundfile/numpy），pip 26.1.2。
+- `INSTALL.md` 6 节：前置 / 一键安装 / 启动停止 / 验证 / 端口冲突 / 模型与外部 Provider / 故障排查。
+- `scripts/bootstrap.cmd` 一键安装：venv → pip → .env.example → npm install → compileall → npm build 全过 (19 秒)。
+- `scripts/start_backend.cmd` (包装 `start_backend.js`) / `stop_backend.cmd` (pidfile + 端口 5181 反查) / `start_frontend.cmd` (npm dev --port 5180) / `status.cmd` (端口+pid+/health)。
+- `backend/.env.example` 加注释（8 段：Stock / Freesound / Provider Secret / LLM / TTS / Avatar / Pollinations）。
+- 修 `start_backend.js` 注释 bug（"port=8765" → "port=5181"）。
+
+**坑：**
+- `spawnSync('npm.cmd', [...], {shell:false})` 在 Windows 返回 `status:null`（.cmd 需 cmd.exe 解析）。bootstrap.js 加 `needShell = /\.(cmd|bat)$/i.test(cmd)` 自动给 .cmd 加 shell:true。
+- PowerShell 内置只读变量 `$PID` 被赋值会抛 `Cannot overwrite variable PID`。status.cmd / stop_backend.cmd 全部 `$pid` → `$procId` 改名。
+
+**验证：**
+- `scripts\bootstrap.cmd` 端到端跑通（venv + 13 pip 包 + 32 模块 vite build + env-check.html 11.81 KB）。
+- 后端测试 164/164 OK（含 P6A/P6B 新增 10 个）。
+- `scripts\status.cmd` 干净显示端口 / pidfile / /health；`scripts\stop_backend.cmd` 成功 Stop-Process。
+
+**影响文件：**
+- 新建：`scripts/bootstrap.cmd` / `scripts/bootstrap.js` / `scripts/start_backend.cmd` / `scripts/stop_backend.cmd` / `scripts/start_frontend.cmd` / `scripts/status.cmd`
+- 修改：`scripts/start_backend.js`（端口注释修复）
+- 修改：`backend/.env.example`（加 8 段注释）
+- 新建：`INSTALL.md`（6 节）
+- 更新：`HANDOFF.md`（本节）+ `PROJECT_STATUS_AND_PLAN.md` + `D:\workspace\踩坑日志.txt`（+2 条）
+
+---
+
 ## 13. 本次文档变更
+
 
 - 更新：`D:\workspace\Fliki视频制作还原\HANDOFF.md`（P5D-7 avatar 浮层参数化 + 真实端到端）
 - 更新：`D:\workspace\踩坑日志.txt`（追加 P5D-7 5 条坑）
@@ -363,3 +403,40 @@ Dockerfile 内 pip 用 mirrors.aliyun.com + default-timeout=120, npm 用 registr
 - 新建：`backend/tests/test_p5d7b_avatar_layout_extra.py`（2 个 case）
 - 修改：`backend/workflow_pipeline.py`（helper + props 字段 + Row.get 修复）
 - 上轮已修改：`backend/workers/remotion-project/src/Main.tsx`（Main.tsx SceneProps / AspectRatio）
+
+
+## 2026-07-26 本机承载优化增量
+
+- Wav2Lip-ONNX 已用 GWen 真人脸和本地 MP3 真推理成功：CPUExecutionProvider、无 fallback，2.2 秒音频约 33 秒完成，输出 1080×1080 H.264/AAC。
+- 本机定位为 8 逻辑核、15.8GB 内存、Intel Iris Xe、无 CUDA；数字人口型适合短片段串行生成，不适合并行或高分辨率长片批量推理。
+- `/env-check/quick` 已拆成纯本地检查，不再运行外部 Provider 网络探测；接口实测约 2.8 秒（GPU 单项约 0.35 秒）。
+- 完整环境检查明确跳过 MiniMax 视频提交，防止消耗每日 3 次额度；未经用户明确授权不发起视频生成。
+- `autoedit_runs.output_path` 已加入 schema 和启动迁移，旧库重启后自动补列；旧成功记录仍通过 `render_job_id` 兼容返回。
+- 验证：前端生产构建通过；Python 全量 unittest 310/310 通过；关键 Python 文件语法检查通过。
+- 本机下一阶段最高 ROI：将 Wav2Lip 真输出接入 workflow 的 avatar 场景合成；按 2–6 秒切段串行推理并缓存；随后做一条纯本地 stock+TTS+avatar+Remotion 的完整回归。
+
+
+## 2026-07-27 Avatar 分段接入与本地完整闭环
+
+- 已将工作流 Avatar 节点改为 2–6 秒串行 Wav2Lip-ONNX 分段推理，并按内容哈希缓存。
+- 已验证 6.144 秒本地语音拆为 2 段，均为真 ONNX、无 fallback；二次运行命中缓存。
+- 已完成本地 Stock + Edge TTS + Avatar + Remotion 闭环，产物位于 `backend/data/output/local_e2e/local_e2e.mp4`。
+- 本机建议继续保持 concurrency=1；下一步可把真实 Pexels/Pixabay 本地下载资产接入同一回归脚本。
+
+
+## 2026-07-27 D:\下载 ZIP 技能包审计
+
+- 完成 D:\下载 内 27 个压缩包静态审计；产出 `docs/DOWNLOAD_AUDIT.md`（8.4KB）。
+- 三个高价值包：Pixelle-Video (Apache-2.0)、MoneyPrinterTurbo (MIT)、hyperframes (Apache-2.0)。
+- 直接可复用：Edge TTS 列表、视频宽高比枚举、VideoTransitionMode、文件安全工具、BGM 启用判定、HyperFrames SKILL 文档、registry 模板示例。
+- 不应使用：MoviePy 全栈、ComfyUI/Streamlit WebUI、Bun/Node 22 工程化、OmniVoice AGPL 代码并入、任何触发付费视频 API 的依赖。
+- 下一步：把 VideoAspect/VideoTransitionMode 接入 scene_drafts，添加文件安全模块，撰写 motion-doctrine.md 作为 Remotion 模板说明。
+
+
+## 2026-07-27 Web/HTML 页面审计
+
+- 完成 4 套前端审计（Pixelle HTML 帧、HyperFrames 模板、blcaptain Next.js、MoneyPrinterTurbo 占位 HTML）。
+- 产出 `docs/DOWNLOAD_WEB_AUDIT.md`（6.4KB）。
+- 直接可复用：design tokens、三栏布局、状态色、字幕 display/spoken 分层、模板元数据。
+- 不应使用：外部 CDN、Google Fonts、Streamlit、Next.js 全套、Bun 工程化、AGPL 包。
+- 下一步：5 项立刻落地 → styles/app.css 增加 design tokens、HomePage 三栏布局、Subtitle 双轨字段、scene_drafts media_width/height、docs/motion-doctrine.md。

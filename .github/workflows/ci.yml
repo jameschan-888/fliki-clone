@@ -1,0 +1,126 @@
+name: CI (Fliki 视频制作还原)
+
+on:
+  push:
+    branches: [main, codex/**]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
+  RENDER_PROVIDER: cloud
+  RENDER_PROVIDER_SPEEDUP: "60"
+  RENDER_QUEUE_MAX_CONCURRENT: "2"
+
+jobs:
+  backend-tests:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ffmpeg via chocolatey
+        run: choco install ffmpeg --no-progress -y
+      - name: Install backend deps
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install fastapi uvicorn[standard] pydantic python-multipart psutil
+      - name: Run backend unit tests
+        run: |
+          cd backend
+          python -m unittest discover -s tests -t . -v 2>&1 | Tee-Object -FilePath ../tests/ci_backend.log
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-tests
+          path: tests/ci_backend.log
+
+  backend-ci-script:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24", cache: npm }
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Install deps
+        run: |
+          cd backend
+          pip install -r requirements.txt || true
+      - name: scripts/ci.js (7 phase local CI)
+        run: node scripts/ci.js
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-script-logs
+          path: tests/
+
+  frontend-build:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24", cache: npm }
+      - name: npm install + build
+        run: |
+          cd app
+          npm ci --no-audit --no-fund --legacy-peer-deps || npm install --no-audit --no-fund --legacy-peer-deps
+          npm run build
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: app/dist
+
+  e2e-template-render:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    needs: [backend-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: choco install ffmpeg --no-progress -y
+      - name: Install deps
+        run: |
+          cd backend
+          pip install -r requirements.txt || true
+      - name: Start backend
+        run: |
+          $env:RENDER_PROVIDER="cloud"
+          $env:RENDER_PROVIDER_SPEEDUP="60"
+          node scripts/start_backend.js
+          Start-Sleep -Seconds 10
+      - name: Template preview render smoke
+        run: python tests/e2e/test_template_preview_smoke.py
+      - name: E2E template render
+        run: python tests/e2e/test_template_render_e2e.py
+
+  summary:
+    runs-on: windows-latest
+    needs: [backend-tests, backend-ci-script, frontend-build, e2e-template-render]
+    if: always()
+    steps:
+      - run: |
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## CI Summary"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| Job | Result |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|---|---|"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| backend-tests | ${{ needs.backend-tests.result }} |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| backend-ci-script | ${{ needs.backend-ci-script.result }} |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| frontend-build | ${{ needs.frontend-build.result }} |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| e2e-template-render | ${{ needs.e2e-template-render.result }} |"

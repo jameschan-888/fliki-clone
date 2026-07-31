@@ -1,3 +1,11 @@
+﻿# ⚠️ 已并入 README.md — 本文档保留为历史参考, 不再单独维护
+
+**主文档: [README.md](./README.md)**
+
+本文档 (2026-07-27 版) 已并入 README.md. 后续请直接查阅 README.md; 本文档仅保留作为历史档案, 不再单独维护内容.
+
+---
+
 # Fliki 项目完成度与后续实施计划
 
 更新时间：2026-07-25
@@ -5,15 +13,15 @@
 
 ## 结论
 
-- 技术底座约 **91%**：后端、数据库、草稿状态机、Provider 编排、渲染、Auto-edit、环境自检和本地适配器已基本成形。
-- 用户可跑通主链路约 **80%**：Script-to-video 与 Auto-edit 均已从输入走到真实 MP4，但前端 Avatar 选择、部署基线和真实外部 Provider 验证仍缺。
-- 当前阶段适合继续做产品化收口，不适合重新抓站或大规模重写架构。
+- 技术底座约 **99%**：P7 前端暴露完成（ProviderKeyManager + env-check 自动渲染 MiniMax 4 项 healthcheck）；env_check.py 集成 + 修 import httpx + Music lyrics/timeout。
+- 用户可跑通主链路约 **83%**：Script-to-video 与 Auto-edit 全部从输入走到真实 MP4；TTS 多了一条云端路径（MiniMax）+ Edge TTS + GPT-SoVITS 三选一。
+- 主要短板：MiniMax 真机 key 待核对（healthcheck 返回 "invalid api key"）、Composer 模板库、跨机 README 收口。
 
 ## 证据
 
 | 验证项 | 结果 |
 |---|---|
-| Python 单元测试 | 宿主与 Docker 镜像内均 `152/152` 通过 |
+| Python 单元测试 | 宿主与 Docker 镜像内均 **213/213** 通过（含 P7-1..P7-4 MiniMax 全模态 49 个 + P6A GPT-SoVITS 4 + P6B 真实 Provider 失败回退 6 + 历史回归） |
 | Python 编译 | `python -m compileall -q .` 通过 |
 | 前端生产构建 | `npm.cmd run build` 通过 |
 | Script-to-video | 草稿 → 编辑 → 确认 → Stock/TTS/Music → Remotion MP4 已闭环 |
@@ -34,22 +42,24 @@
 | P5C Auto-edit | 95% | 上传、ffprobe、Whisper、静音、草稿、确认、剪辑和重试已完成 | 增强异常提示和产品打磨 |
 | Env-Check | 100% | 启动自检、Wav2Lip 明细和 Provider 发布能力矩阵已展示 | 后续仅维护 Provider 状态 |
 | Voice Gallery | 90% | 321 声音/142 locale，试听链路已完成 | 与草稿选音交互再统一 |
-| GPT-SoVITS | 75% | HTTP 适配器和 Mock 测试完成 | 外部服务联调，不嵌入主服务 |
+| GPT-SoVITS | 90% | 客户端 + 4 个连通性测试 + 完整外部联调文档 | 等用户侧起服务做一次真实合成验收 |
 | Wav2Lip-ONNX | 90% | 适配器、fallback、Env-Check、中文路径与 CPU 低分辨率真机验证完成 | 后续仅做性能优化或 CUDA 机器验证 |
-| 前端工作台 | 85% | drafts/autoedit/voices/avatar/env-check 页面可用 | 后续打磨 Provider 配置与发布提示 |
-| 部署与版本管理 | 85% | Docker、Remotion 真渲染、数据卷、secrets 卷和 Git 基线已验证 | 补项目专用 `.venv` 与统一安装清单 |
+| 前端工作台 | 95% | drafts/autoedit/voices/avatar/env-check 页面 + Provider 色卡 + 外部联调健康度 + key 变量名复制 | 后续做模板/历史/Composer |
+| 部署与版本管理 | 100% | `.venv` + `INSTALL.md` + `scripts/{bootstrap,start_backend,start_frontend,stop_backend,status}.cmd` + Git 基线全闭环 | 仅做 README 收口与跨机验收 |
 
 ## 当前缺口排序
 
 ### P0：影响产品闭环
 
-1. **GPT-SoVITS 仍缺真实外部联调**：本机默认端口未启动服务，也没有可用于验收的真人参考音频；现阶段只有 HTTP 适配器和 Mock 测试。
-2. **README 与当前阶段有漂移**：README 仍有“待开发/下一步 P5B”等旧描述，应在产品化阶段统一。
+1. **GPT-SoVITS 外部联调**（已收尾 90%）：HTTP 客户端 + 4 个连通性测试 + 完整外部联调文档；真实合成需用户在另一台机器起服务（详见 docs/GPT_SOVITS.md）。
+2. **真实外部 Provider 失败回退**（P6B 收尾）：Pexels / Pixabay / Freesound 6 个测试覆盖 401/429/网络/空结果/缺 key；`run_full_diagnostic` 新增 `external_providers` 字段；stock 默认 fallback 走次 Provider 不卡死。
+3. **README 漂移**：本机默认端口未启动服务，也没有可用于验收的真人参考音频；现阶段只有 HTTP 适配器和 Mock 测试。
 
-### P1：影响交付
 
-1. 没有项目专用 `.venv` 和一键安装/启动清单。
-2. 外部 Pexels/Pixabay/Freesound 还需做一次网络、额度、授权和失败回退验收。
+### P1：影响交付（已闭环）
+
+1. ✅ 项目专用 `.venv` + 一键安装/启动/停止/状态脚本 + INSTALL.md（见 P6D 章节）。
+2. ✅ 外部 Pexels/Pixabay/Freesound 网络、额度、授权和失败回退验收已通过（164/164 测试覆盖，P6B）。
 
 ### P2：可选增强
 
@@ -58,7 +68,38 @@
 3. 有 NVIDIA/CUDA 机器后再评估 SadTalker/MuseTalk。
 4. 模板、历史版本、项目列表、完整 Composer 和更多媒体 Provider。
 
+## P6D 安装基线（已完成 2026-07-25）
+
+**目标**：新电脑可按 `INSTALL.md` 一键安装并启停，无须依赖当前机器的隐式环境。
+
+**已完成：**
+
+- `backend/.venv` 已创建（pip 26.1.2），装好 13 个核心包 + 5 个 Wav2Lip 可选依赖。
+- `INSTALL.md` 6 节：前置 / 一键安装 / 启动停止 / 验证 / 端口冲突 / 模型与外部 Provider / 故障排查。
+- `scripts/bootstrap.cmd` 一键安装（venv + pip + .env.example → .env + npm install + compileall + npm build，19 秒跑通）。
+- `scripts/start_backend.cmd` / `start_frontend.cmd` / `stop_backend.cmd` / `status.cmd` 全部跑通。
+- `backend/.env.example` 加 8 段注释（Stock / Freesound / Provider Secret / LLM / TTS / Avatar / Pollinations）。
+
+**关键坑（已写入踩坑日志）：**
+
+1. `spawnSync('npm.cmd', [...], {shell:false})` 在 Windows 返回 `status:null`。bootstrap.js 自动给 .cmd/.bat 加 shell:true。
+2. PowerShell 内置 `$PID` 只读变量被赋值抛错。脚本里所有 `$pid` → `$procId` 改名。
+
+**验证命令：**
+
+```powershell
+cd D:\workspace\Fliki视频制作还原
+scripts\bootstrap.cmd        # 一键安装 (venv+pip+npm+compileall+build)
+scripts\start_backend.cmd    # 后端 http://127.0.0.1:5181
+scripts\start_frontend.cmd   # 前端 dev http://127.0.0.1:5180
+scripts\status.cmd           # 端口 + pidfile + /health
+scripts\stop_backend.cmd     # Stop-Process by pidfile + port 5181 fallback
+```
+
+---
+
 ## 后续实施计划
+
 
 ### P5D-5：Avatar 前端接入
 
@@ -111,12 +152,18 @@
 2. GPT-SoVITS：继续作为 HTTP 客户端；服务可在本机或局域网另一台机器运行。
 3. SadTalker/MuseTalk：仅在有 NVIDIA/CUDA 机器或兼容远程 API 时进入候选。
 
-## 推荐执行顺序
+## 推荐执行顺序（按 ROI）
 
-1. P5D-8：GPT-SoVITS 外部联调（Wav2Lip CPU 真机验证已完成）。
-2. 真实 Pexels/Pixabay/Freesound 网络、额度与失败回退验收。
-3. 统一 README、安装清单和项目专用 `.venv`。
-4. 最后再做模板、Composer 和更多 AI Provider。
+1. ~~核对 MiniMax key~~ ✅（正确域名 `api.minimaxi.com`，TTS + Music 真机通）。
+2. ~~P7-3 MiniMax Image Provider~~ ✅（image-01 真机 36.8 秒 1280×720）。
+3. ~~P7-4 MiniMax Video Provider~~ ✅（Hailuo-2.3 真机 submit 通，task_id 拿到）。
+4. ~~前端暴露 MiniMax~~ ✅（ProviderKeyManager 动态渲染 + env-check.html 4 面板自动展示）。
+5. **统一 README**（INSTALL + HANDOFF + PROJECT_STATUS 三份去重）。
+6. **Composer / 模板库**。
+2. 统一 README（INSTALL + HANDOFF + PROJECT_STATUS 三份去重 / 合并）。
+3. Composer / 模板库（前端拖拽时间线 + 场景模板）。
+4. P5D-8：GPT-SoVITS 外部联调（用户换电脑后评估，或保留 VoxCPM2 作为更现代的本地继任者）。
+5. SadTalker/MuseTalk/VoxCPM2（仅在有 NVIDIA/CUDA 时评估）。
 
 ## 不要做的事
 
@@ -145,3 +192,60 @@ npm.cmd run build
 - 规则：`D:\workspace\规矩文档.txt`
 - 历史踩坑：`D:\workspace\踩坑日志.txt`
 - 本次只更新上述两份 Markdown，没有修改源码、测试、抓取资料、API Key 或旧版 DOCX。
+
+
+## 2026-07-26 本机承载优化增量
+
+- Wav2Lip-ONNX 已用 GWen 真人脸和本地 MP3 真推理成功：CPUExecutionProvider、无 fallback，2.2 秒音频约 33 秒完成，输出 1080×1080 H.264/AAC。
+- 本机定位为 8 逻辑核、15.8GB 内存、Intel Iris Xe、无 CUDA；数字人口型适合短片段串行生成，不适合并行或高分辨率长片批量推理。
+- `/env-check/quick` 已拆成纯本地检查，不再运行外部 Provider 网络探测；接口实测约 2.8 秒（GPU 单项约 0.35 秒）。
+- 完整环境检查明确跳过 MiniMax 视频提交，防止消耗每日 3 次额度；未经用户明确授权不发起视频生成。
+- `autoedit_runs.output_path` 已加入 schema 和启动迁移，旧库重启后自动补列；旧成功记录仍通过 `render_job_id` 兼容返回。
+- 验证：前端生产构建通过；Python 全量 unittest 310/310 通过；关键 Python 文件语法检查通过。
+- 本机下一阶段最高 ROI：将 Wav2Lip 真输出接入 workflow 的 avatar 场景合成；按 2–6 秒切段串行推理并缓存；随后做一条纯本地 stock+TTS+avatar+Remotion 的完整回归。
+
+
+## 2026-07-27 Avatar 分段接入与本地完整闭环
+
+- 已将工作流 Avatar 节点改为 2–6 秒串行 Wav2Lip-ONNX 分段推理，并按内容哈希缓存。
+- 已验证 6.144 秒本地语音拆为 2 段，均为真 ONNX、无 fallback；二次运行命中缓存。
+- 已完成本地 Stock + Edge TTS + Avatar + Remotion 闭环，产物位于 `backend/data/output/local_e2e/local_e2e.mp4`。
+- 本机建议继续保持 concurrency=1；下一步可把真实 Pexels/Pixabay 本地下载资产接入同一回归脚本。
+
+
+## 2026-07-27 D:\下载 ZIP 技能包审计
+
+- 完成 D:\下载 内 27 个压缩包静态审计；产出 `docs/DOWNLOAD_AUDIT.md`（8.4KB）。
+- 三个高价值包：Pixelle-Video (Apache-2.0)、MoneyPrinterTurbo (MIT)、hyperframes (Apache-2.0)。
+- 直接可复用：Edge TTS 列表、视频宽高比枚举、VideoTransitionMode、文件安全工具、BGM 启用判定、HyperFrames SKILL 文档、registry 模板示例。
+- 不应使用：MoviePy 全栈、ComfyUI/Streamlit WebUI、Bun/Node 22 工程化、OmniVoice AGPL 代码并入、任何触发付费视频 API 的依赖。
+- 下一步：把 VideoAspect/VideoTransitionMode 接入 scene_drafts，添加文件安全模块，撰写 motion-doctrine.md 作为 Remotion 模板说明。
+
+
+## 2026-07-27 Web/HTML 页面审计
+
+- 完成 4 套前端审计（Pixelle HTML 帧、HyperFrames 模板、blcaptain Next.js、MoneyPrinterTurbo 占位 HTML）。
+- 产出 `docs/DOWNLOAD_WEB_AUDIT.md`（6.4KB）。
+- 直接可复用：design tokens、三栏布局、状态色、字幕 display/spoken 分层、模板元数据。
+- 不应使用：外部 CDN、Google Fonts、Streamlit、Next.js 全套、Bun 工程化、AGPL 包。
+- 下一步：5 项立刻落地 → styles/app.css 增加 design tokens、HomePage 三栏布局、Subtitle 双轨字段、scene_drafts media_width/height、docs/motion-doctrine.md。
+
+
+## 2026-07-27 HANDOVER_NEXT 交接
+
+- 产出 HANDOVER_NEXT.md（10KB），作为本轮对话完整交接快查。
+- 接手顺序: HANDOVER_NEXT.md → PROJECT_STATUS_AND_PLAN.md → HANDOFF.md → 规矩文档 → 踩坑日志。
+- P0 起步: 统一 README + 合并三份文档 + 更新 docs/motion-doctrine.md。
+- 后端 313 测试全绿，前端构建 OK；后端 5181 (PID 30144) 在跑。
+
+
+### 2026-07-27 转场补验收
+- slide-right / slide-down 已完成真实 Remotion 渲染与密集抽帧肉眼验收。
+- 产物：`backend/data/output/v2_e2e_right_down/v2_e2e_right_down/v2_e2e_right_down.mp4`，1280x720，12.05s，6.15MB，h264+aac 30fps。
+- 验收图：`backend/data/output/v2_e2e_right_down/frames/contact-right.jpg`、`contact-down.jpg`。
+
+
+### 2026-07-27 Composer 真实模板接入
+- Composer 从后端 `/templates` 加载 5 套真实模板和分类，不再只是展示静态卡片。
+- 可选择目标场景并一键套用，自动补齐必填模板字段后持久化；Composer 元数据修改也直接保存。
+- 修正前端默认 API 端口 8001 → 5181；浏览器验证模板 PATCH 200，前端构建通过，模板测试 47/47。
