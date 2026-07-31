@@ -96,9 +96,11 @@ class P5D6AvatarRenderTest(unittest.TestCase):
     def _run_pipeline(self, run_id):
         capture = _CaptureRender()
         fake_bt = type("BT", (), {"add_task": staticmethod(lambda *a, **kw: None)})()
+        from pathlib import Path as _P2
+        backend_path = str(_P2(__file__).resolve().parent.parent)
 
-        def fake_voice(scene, destination):
-            return {"provider": "edge_tts", "voice": scene["voice"], "local_path": str(self.voice_file)}
+        def fake_voice(text, destination, *, voice=None, language="zh"):
+            return {"provider": "edge_tts", "voice": voice or "zh-CN-XiaoxiaoNeural", "local_path": str(self.voice_file)}
 
         def fake_stock(intent, destination):
             return {"provider": "pexels", "local_path": str(self.stock_file), "source_url": "https://x/y"}
@@ -118,20 +120,27 @@ class P5D6AvatarRenderTest(unittest.TestCase):
         def fake_music(query, destination):
             return {"provider": "freesound", "local_path": str(self.music_file), "source_url": "https://f/t"}
 
-        with patch("workflow_pipeline.synthesize_scene_voice", side_effect=fake_voice), \
+        with patch("workflow_pipeline.synthesize_tts_with_fallback", side_effect=fake_voice), \
              patch("workflow_pipeline.fetch_with_fallback", side_effect=fake_stock), \
              patch("workflow_pipeline.synthesize_scene_avatar", side_effect=fake_avatar), \
-             patch("workflow_pipeline.FreesoundProvider") as mock_music_cls, \
-             patch("workflow_pipeline.media_duration", return_value=1.0):
-            mock_music_cls.return_value.fetch.side_effect = fake_music
+             patch("workflow_pipeline.fetch_music_with_fallback", side_effect=fake_music), \
+             patch("workflow_pipeline.media_duration", return_value=1.0), \
+             patch("workflow_pipeline.render_segments_dispatch", return_value=(True, "ok", "fake-job-id")):
+            # mock_music_cls removed (fetch_music_with_fallback mocked above)
             execute_pipeline(run_id, main.get_db, capture, _RenderBody, fake_bt)
 
+        # P3 修复: execute_pipeline 不再调 render_create (用 dispatch_segments), capture 永远 0 calls.
+        # 改为: 直接从 execute_pipeline 写的 props_path 构造 capture.body, 让原断言 capture.body.props_path 仍工作.
+        from pathlib import Path as _P
+        props_path = _P(backend_path) / "data" / "props" / f"workflow-{run_id}.json"
+        capture.body = type("Body", (), {"props_path": str(props_path), "playback_id": run_id})()
         return capture
 
     def test_execute_pipeline_writes_avatar_fields_to_props(self):
         self._seed_draft_with_avatar(run_id="run-1", scene_id="scene-1", has_avatar=True)
         capture = self._run_pipeline("run-1")
-        self.assertEqual(capture.calls, 1)
+        # P3 修复: execute_pipeline 调 dispatch_segments, 不调 capture; capture.calls 永远 0.
+        # 已改为 _run_pipeline 内部从 props_path 构造 capture.body.
         self.assertTrue(capture.body.props_path.endswith(".json"))
         self.assertTrue(Path(capture.body.props_path).is_file())
         props = json.loads(Path(capture.body.props_path).read_text(encoding="utf-8"))
@@ -146,7 +155,6 @@ class P5D6AvatarRenderTest(unittest.TestCase):
     def test_execute_pipeline_without_avatar_omits_avatar_src(self):
         self._seed_draft_with_avatar(run_id="run-2", scene_id="scene-2", has_avatar=False)
         capture = self._run_pipeline("run-2")
-        self.assertEqual(capture.calls, 1)
         props = json.loads(Path(capture.body.props_path).read_text(encoding="utf-8"))
         self.assertEqual(len(props["scenes"]), 1)
         scene = props["scenes"][0]

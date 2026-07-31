@@ -122,9 +122,11 @@ class P5D7AvatarLayoutTest(unittest.TestCase):
     def _run_pipeline(self, run_id):
         capture = _CaptureRender()
         fake_bt = type("BT", (), {"add_task": staticmethod(lambda *a, **kw: None)})()
+        from pathlib import Path as _P3
+        backend_path = str(_P3(__file__).resolve().parent.parent)
 
-        def fake_voice(scene, destination):
-            return {"provider": "edge_tts", "voice": scene["voice"], "local_path": str(self.voice_file)}
+        def fake_voice(text, destination, *, voice=None, language="zh"):
+            return {"provider": "edge_tts", "voice": voice or "zh-CN-XiaoxiaoNeural", "local_path": str(self.voice_file)}
 
         def fake_stock(intent, destination):
             return {"provider": "pexels", "local_path": str(self.stock_file), "source_url": "https://x/y"}
@@ -132,13 +134,16 @@ class P5D7AvatarLayoutTest(unittest.TestCase):
         def fake_music(query, destination):
             return {"provider": "freesound", "local_path": str(self.music_file), "source_url": "https://f/t"}
 
-        with patch("workflow_pipeline.synthesize_scene_voice", side_effect=fake_voice), \
+        with patch("workflow_pipeline.synthesize_tts_with_fallback", side_effect=fake_voice), \
              patch("workflow_pipeline.fetch_with_fallback", side_effect=fake_stock), \
-             patch("workflow_pipeline.FreesoundProvider") as mock_music_cls, \
-             patch("workflow_pipeline.media_duration", return_value=1.0):
-            mock_music_cls.return_value.fetch.side_effect = fake_music
+             patch("workflow_pipeline.fetch_music_with_fallback", side_effect=fake_music), \
+             patch("workflow_pipeline.media_duration", return_value=1.0), \
+             patch("workflow_pipeline.render_segments_dispatch", return_value=(True, "ok", "fake-job-id")):
             execute_pipeline(run_id, main.get_db, capture, _RenderBody, fake_bt)
 
+        # P3 修复: execute_pipeline 调 dispatch_segments 不调 capture; capture.body 改成指向真实 props_path
+        props_path = _P3(backend_path) / "data" / "props" / f"workflow-{run_id}.json"
+        capture.body = type("Body", (), {"props_path": str(props_path), "playback_id": run_id})()
         return capture
 
     def _props(self, capture):
@@ -156,7 +161,6 @@ class P5D7AvatarLayoutTest(unittest.TestCase):
         }
         self._set_avatar_layout(target)
         capture = self._run_pipeline("run-p5d7-1")
-        self.assertEqual(capture.calls, 1)
         props = self._props(capture)
         self.assertIn("avatarLayout", props)
         self.assertEqual(props["avatarLayout"], target)

@@ -1,0 +1,13 @@
+test_fetch_background_music (tests.providers.test_real_provider_matrix.TestFreesoundProvider.test_fetch_background_music) ... ok
+test_fetch_landscape_video (tests.providers.test_real_provider_matrix.TestPexelsProvider.test_fetch_landscape_video) ... ok
+test_fetch_landscape_video (tests.providers.test_real_provider_matrix.TestPixabayProvider.test_fetch_landscape_video) ... ok
+test_fetch_with_fallback_returns_first_success (tests.providers.test_real_provider_matrix.TestStockFallback.test_fetch_with_fallback_returns_first_success) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 45.827s
+
+OK
+[FREESOUND] 1771.7KB
+[PEXELS] 5847.2KB 16.7s h264 1280x720
+[PIXABAY] 13051.8KB 16.0s h264 2560x1440
+[STOCK-FB] used=pexels

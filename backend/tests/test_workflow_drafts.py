@@ -12,7 +12,7 @@ from workflow_drafts import DraftCreateBody, ReorderBody, SceneCreateBody, Scene
 
 class WorkflowDraftsTest(unittest.TestCase):
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_dir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.original_db_path = main.config["DB_PATH"]
         main.config["DB_PATH"] = str(Path(self.temp_dir.name) / "app.db")
         main.init_db()
@@ -23,19 +23,35 @@ class WorkflowDraftsTest(unittest.TestCase):
             for method in (getattr(route, "methods", None) or [])
         }
 
+        import auth_router
+        self._orig_secret = auth_router.JWT_SECRET
+        auth_router.JWT_SECRET = "test-workflow-drafts-" + Path(self.temp_dir.name).name
+        self.tok = auth_router._make_token("user-workflow", "user")
+
+        class _FakeRequest:
+            def __init__(self, token):
+                self.headers = {"Authorization": "Bearer " + token}
+        self._FakeRequest = _FakeRequest
+
     def tearDown(self):
         main.config["DB_PATH"] = self.original_db_path
+        import auth_router
+        auth_router.JWT_SECRET = self._orig_secret
         self.temp_dir.cleanup()
 
     def create_draft(self):
         script = "第一段介绍产品。第二段说明场景草稿。第三段强调确认后才渲染。"
-        return self.routes[("POST", "/workflow-drafts")](DraftCreateBody(source_script=script, title="节省算力"))
+        return self.routes[("POST", "/workflow-drafts")](
+            DraftCreateBody(source_script=script, title="节省算力"),
+            request=self._FakeRequest(self.tok),
+        )
 
     def test_create_returns_editable_scenes_without_expensive_jobs(self):
         result = self.create_draft()
         self.assertEqual(result["status"], "draft")
         self.assertEqual(len(result["scenes"]), 3)
         self.assertTrue(all(scene["voice"] == DEFAULT_VOICE for scene in result["scenes"]))
+        self.assertTrue(all(scene["camera_motion"] == "zoom-in" for scene in result["scenes"]))
         connection = sqlite3.connect(main.config["DB_PATH"])
         self.assertEqual(connection.execute("SELECT COUNT(*) FROM render_jobs").fetchone()[0], 0)
         self.assertEqual(connection.execute("SELECT COUNT(*) FROM media_assets").fetchone()[0], 0)
@@ -49,10 +65,12 @@ class WorkflowDraftsTest(unittest.TestCase):
         updated = self.routes[("PATCH", "/workflow-drafts/{draft_id}/scenes/{scene_id}")](
             draft_id,
             first_scene["id"],
-            ScenePatchBody(title="开场", duration_seconds=5.5, voice="zh-CN-YunxiNeural"),
+            ScenePatchBody(title="开场", duration_seconds=5.5, voice="zh-CN-YunxiNeural", camera_motion="pan-left"),
+            request=self._FakeRequest(self.tok),
         )
         self.assertEqual(updated["scenes"][0]["title"], "开场")
         self.assertEqual(updated["scenes"][0]["voice"], "zh-CN-YunxiNeural")
+        self.assertEqual(updated["scenes"][0]["camera_motion"], "pan-left")
         self.assertEqual(updated["version"], 2)
 
         added = self.routes[("POST", "/workflow-drafts/{draft_id}/scenes")](
@@ -63,6 +81,7 @@ class WorkflowDraftsTest(unittest.TestCase):
                 visual_intent="品牌收尾",
                 voice="zh-CN-XiaoyiNeural",
             ),
+            request=self._FakeRequest(self.tok),
         )
         self.assertEqual(added["scenes"][-1]["voice"], "zh-CN-XiaoyiNeural")
 
@@ -70,10 +89,11 @@ class WorkflowDraftsTest(unittest.TestCase):
         reordered = self.routes[("POST", "/workflow-drafts/{draft_id}/reorder")](
             draft_id,
             ReorderBody(scene_ids=reversed_ids),
+            request=self._FakeRequest(self.tok),
         )
         self.assertEqual([scene["id"] for scene in reordered["scenes"]], reversed_ids)
-        confirmed = self.routes[("POST", "/workflow-drafts/{draft_id}/confirm")](draft_id)
-        confirmed_again = self.routes[("POST", "/workflow-drafts/{draft_id}/confirm")](draft_id)
+        confirmed = self.routes[("POST", "/workflow-drafts/{draft_id}/confirm")](draft_id, request=self._FakeRequest(self.tok))
+        confirmed_again = self.routes[("POST", "/workflow-drafts/{draft_id}/confirm")](draft_id, request=self._FakeRequest(self.tok))
         self.assertEqual(confirmed["status"], "confirmed")
         self.assertEqual(confirmed, confirmed_again)
         with self.assertRaises(HTTPException) as context:
@@ -81,6 +101,7 @@ class WorkflowDraftsTest(unittest.TestCase):
                 draft_id,
                 reversed_ids[0],
                 ScenePatchBody(title="不应成功"),
+                request=self._FakeRequest(self.tok),
             )
         self.assertEqual(context.exception.status_code, 409)
 
@@ -91,10 +112,11 @@ class WorkflowDraftsTest(unittest.TestCase):
             created["id"],
             first_scene["id"],
             ScenePatchBody(voice="en-US-JennyNeural"),
+            request=self._FakeRequest(self.tok),
         )
         self.assertEqual(updated["scenes"][0]["voice"], "en-US-JennyNeural")
         with self.assertRaises(HTTPException) as context:
-            self.routes[("POST", "/workflow-drafts/{draft_id}/confirm")](created["id"])
+            self.routes[("POST", "/workflow-drafts/{draft_id}/confirm")](created["id"], request=self._FakeRequest(self.tok))
         self.assertEqual(context.exception.status_code, 422)
         self.assertIn("zh-CN", context.exception.detail)
 
@@ -126,6 +148,8 @@ class WorkflowDraftsTest(unittest.TestCase):
         connection.close()
         self.assertIn("voice", columns)
         self.assertIn("avatar", columns)
+        self.assertIn("stock_url", columns)
+        self.assertIn("camera_motion", columns)
 
     def test_avatar_field_round_trip(self):
         created = self.create_draft()
@@ -137,16 +161,18 @@ class WorkflowDraftsTest(unittest.TestCase):
             created["id"],
             first_scene["id"],
             ScenePatchBody(avatar="avatar:12345678-aaaa-bbbb-cccc-dddddddddddd"),
+            request=self._FakeRequest(self.tok),
         )
         self.assertEqual(updated["scenes"][0]["avatar"], "avatar:12345678-aaaa-bbbb-cccc-dddddddddddd")
 
-        fetched = self.routes[("GET", "/workflow-drafts/{draft_id}")](created["id"])
+        fetched = self.routes[("GET", "/workflow-drafts/{draft_id}")](created["id"], request=self._FakeRequest(self.tok))
         self.assertEqual(fetched["scenes"][0]["avatar"], "avatar:12345678-aaaa-bbbb-cccc-dddddddddddd")
 
         cleared = self.routes[("PATCH", "/workflow-drafts/{draft_id}/scenes/{scene_id}")](
             created["id"],
             first_scene["id"],
             ScenePatchBody(avatar=None),
+            request=self._FakeRequest(self.tok),
         )
         self.assertIsNone(cleared["scenes"][0]["avatar"])
 

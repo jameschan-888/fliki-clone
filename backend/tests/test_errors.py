@@ -1,92 +1,165 @@
+"""rev24 阶段 D D3: test_errors.py 重写测当前 errors.py API."""
 import unittest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from errors import (
-    LingjianError,
-    ErrorResult,
-    MOCK_PROVIDER_BLOCKS_RELEASE,
-    to_http_exception,
+    ERR_BAD_REQUEST,
+    ERR_INVALID_CREDENTIALS,
+    ERR_MISSING_TOKEN,
+    ERR_TOKEN_EXPIRED,
+    ERR_ADMIN_ONLY,
+    ERR_FORBIDDEN,
+    ERR_NOT_FOUND,
+    ERR_USER_NOT_FOUND,
+    ERR_RESOURCE_NOT_FOUND,
+    ERR_CONFLICT,
+    ERR_EMAIL_EXISTS,
+    ERR_ALREADY_EXISTS,
+    ERR_INVALID_STATE,
+    ERR_VALIDATION_ERROR,
+    ERR_RATE_LIMITED,
+    ERR_INTERNAL_ERROR,
+    ERR_PROVIDER_DOWN,
+    ERR_SERVICE_UNAVAILABLE,
+    ERR_UNKNOWN,
+    DEFAULT_ERROR_CODE_BY_STATUS,
+    make_error_response,
+    normalize_http_exception_detail,
     register_error_handlers,
 )
 
 
-class LingjianErrorTest(unittest.TestCase):
-    def test_to_result_carries_all_fields(self):
-        exc = LingjianError(
-            error_code=MOCK_PROVIDER_BLOCKS_RELEASE,
-            message_zh="Mock provider 不能 release",
-            hint="在 .env 替换为真实 API Key",
-            details={"category": "tts", "provider": "edge_tts"},
-            status_code=409,
+class ErrorsConstantsTest(unittest.TestCase):
+    """D2-1 错误码常量应全 snake_case + 18 个."""
+
+    def test_all_error_codes_are_snake_case_strings(self):
+        names = [
+            ERR_BAD_REQUEST, ERR_INVALID_CREDENTIALS, ERR_MISSING_TOKEN, ERR_TOKEN_EXPIRED,
+            ERR_ADMIN_ONLY, ERR_FORBIDDEN, ERR_NOT_FOUND, ERR_USER_NOT_FOUND,
+            ERR_RESOURCE_NOT_FOUND, ERR_CONFLICT, ERR_EMAIL_EXISTS,
+            ERR_ALREADY_EXISTS, ERR_INVALID_STATE, ERR_VALIDATION_ERROR,
+            ERR_RATE_LIMITED, ERR_INTERNAL_ERROR, ERR_PROVIDER_DOWN,
+            ERR_SERVICE_UNAVAILABLE, ERR_UNKNOWN,
+        ]
+        for code in names:
+            self.assertIsInstance(code, str)
+            self.assertTrue(code.replace("_", "").isalnum(),
+                            "must be snake_case alnum: " + code)
+        self.assertEqual(len(names), 19)
+
+    def test_default_code_by_status_keys(self):
+        """DEFAULT_ERROR_CODE_BY_STATUS 应覆盖 400/401/403/404/409/422/429/500/502/503."""
+        for status in (400, 401, 403, 404, 409, 422, 429, 500, 502, 503):
+            self.assertIn(status, DEFAULT_ERROR_CODE_BY_STATUS)
+            self.assertIsInstance(DEFAULT_ERROR_CODE_BY_STATUS[status], str)
+
+
+class MakeErrorResponseTest(unittest.TestCase):
+    def test_full_args(self):
+        body = make_error_response(
+            409, ERR_CONFLICT, "email 已存在", "换邮箱", {"email": "x@y.z"}
         )
-        result = exc.to_result()
-        self.assertIsInstance(result, ErrorResult)
-        self.assertEqual(result.error_code, MOCK_PROVIDER_BLOCKS_RELEASE)
-        self.assertEqual(result.message_zh, "Mock provider 不能 release")
-        self.assertEqual(result.hint, "在 .env 替换为真实 API Key")
-        self.assertEqual(result.details["provider"], "edge_tts")
+        self.assertEqual(body["error_code"], ERR_CONFLICT)
+        self.assertEqual(body["message"], "email 已存在")
+        self.assertEqual(body["hint"], "换邮箱")
+        self.assertEqual(body["details"], {"email": "x@y.z"})
+        self.assertEqual(body["status"], 409)
 
-    def test_default_status_and_details(self):
-        exc = LingjianError("X", "msg")
-        self.assertEqual(exc.status_code, 400)
-        self.assertEqual(exc.details, {})
+    def test_minimal_args(self):
+        body = make_error_response(404)
+        self.assertEqual(body["error_code"], ERR_NOT_FOUND)
+        self.assertEqual(body["message"], "")
+        self.assertEqual(body["hint"], "")
+        self.assertEqual(body["details"], {})
+        self.assertEqual(body["status"], 404)
 
-    def test_to_http_exception_wraps_dict_detail(self):
-        exc = LingjianError("E1", "中文消息", hint="hint", details={"a": 1}, status_code=422)
-        http_exc = to_http_exception(exc)
-        self.assertEqual(http_exc.status_code, 422)
-        self.assertIn("error_code", http_exc.detail)
-        self.assertEqual(http_exc.detail["message_zh"], "中文消息")
+    def test_unknown_status_uses_unknown_code(self):
+        body = make_error_response(418)
+        self.assertEqual(body["error_code"], ERR_UNKNOWN)
+
+
+class NormalizeHttpExceptionDetailTest(unittest.TestCase):
+    def test_dict_passthrough(self):
+        d = {"error_code": ERR_VALIDATION_ERROR, "message": "x", "hint": "y", "details": {"a": 1}, "status": 422}
+        out = normalize_http_exception_detail(d)
+        self.assertEqual(out["error_code"], ERR_VALIDATION_ERROR)
+        self.assertEqual(out["message"], "x")
+        self.assertEqual(out["details"], {"a": 1})
+
+    def test_dict_partial_filled(self):
+        out = normalize_http_exception_detail({"message": "hi"})
+        self.assertEqual(out["error_code"], "")
+        self.assertEqual(out["message"], "hi")
+        self.assertEqual(out["details"], {})
+
+    def test_string_wraps_to_message(self):
+        out = normalize_http_exception_detail("not found")
+        self.assertEqual(out["error_code"], "")
+        self.assertEqual(out["message"], "not found")
+
+    def test_none_returns_empty(self):
+        out = normalize_http_exception_detail(None)
+        self.assertEqual(out["message"], "")
+
+    def test_non_str_non_dict_stringified(self):
+        out = normalize_http_exception_detail(42)
+        self.assertEqual(out["message"], "42")
 
 
 class RegisterErrorHandlersTest(unittest.TestCase):
-    def setUp(self):
-        self.app = FastAPI()
-        register_error_handlers(self.app)
-        self.client = TestClient(self.app, raise_server_exceptions=False)
+    """注册 3 个 handler, 验证真实 HTTPException 走统一格式."""
 
-        @self.app.get("/lingjian")
-        def _lingjian():
-            raise LingjianError(
-                "PROVIDER_AUTH_FAILED",
-                "Provider 鉴权失败",
-                hint="检查 API Key",
-                details={"provider": "pexels"},
-                status_code=401,
+    def _make_app(self):
+        app = FastAPI()
+        register_error_handlers(app)
+
+        @app.get("/raise-http")
+        def _raise_http():
+            raise HTTPException(status_code=409, detail="email 已存在")
+
+        @app.get("/raise-dict")
+        def _raise_dict():
+            raise HTTPException(
+                status_code=422,
+                detail={"error_code": ERR_VALIDATION_ERROR, "message": "x", "hint": "y", "details": {"a": 1}},
             )
 
-        @self.app.get("/legacy")
-        def _legacy():
-            from fastapi import HTTPException
-            raise HTTPException(status_code=404, detail="not found string")
+        @app.get("/raise-unhandled")
+        def _raise_unhandled():
+            raise RuntimeError("boom")
 
-        @self.app.get("/boom")
-        def _boom():
-            raise RuntimeError("oops")
+        return app
 
-    def test_lingjian_handler_returns_unified_body(self):
-        response = self.client.get("/lingjian")
-        self.assertEqual(response.status_code, 401)
-        body = response.json()
-        self.assertEqual(body["error_code"], "PROVIDER_AUTH_FAILED")
-        self.assertEqual(body["message"], "Provider 鉴权失败")
-        self.assertEqual(body["hint"], "检查 API Key")
-        self.assertEqual(body["details"]["provider"], "pexels")
+    def test_http_exception_string_detail(self):
+        app = self._make_app()
+        client = TestClient(app)
+        r = client.get("/raise-http")
+        self.assertEqual(r.status_code, 409)
+        body = r.json()
+        self.assertEqual(body["error_code"], ERR_CONFLICT)
+        self.assertEqual(body["message"], "email 已存在")
+        self.assertEqual(body["status"], 409)
 
-    def test_legacy_http_exception_wraps_string_detail(self):
-        response = self.client.get("/legacy")
-        self.assertEqual(response.status_code, 404)
-        body = response.json()
-        self.assertEqual(body["error_code"], "NOT_FOUND")
-        self.assertEqual(body["message"], "not found string")
+    def test_http_exception_dict_detail_passthrough(self):
+        app = self._make_app()
+        client = TestClient(app)
+        r = client.get("/raise-dict")
+        self.assertEqual(r.status_code, 422)
+        body = r.json()
+        self.assertEqual(body["error_code"], ERR_VALIDATION_ERROR)
+        self.assertEqual(body["details"], {"a": 1})
 
-    def test_unhandled_exception_returns_unknown_error(self):
-        response = self.client.get("/boom")
-        self.assertEqual(response.status_code, 500)
-        body = response.json()
-        self.assertEqual(body["error_code"], "UNKNOWN_ERROR")
-        self.assertIn("oops", body["message"])
+    def test_unhandled_exception_returns_500(self):
+        app = self._make_app()
+        client = TestClient(app, raise_server_exceptions=False)
+        r = client.get("/raise-unhandled")
+        self.assertEqual(r.status_code, 500)
+        body = r.json()
+        self.assertEqual(body["error_code"], ERR_INTERNAL_ERROR)
+        # 不应泄露 stack 信息
+        self.assertNotIn("traceback", body)
+        self.assertNotIn("RuntimeError", str(body.get("message", "")))
 
 
 if __name__ == "__main__":
