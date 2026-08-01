@@ -14,11 +14,25 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+import sqlite3
+from db.connection import get_db
+
+def _resolve_con(con):
+    """FastAPI injects con via Depends(get_db); direct calls (tests) pass Depends object.
+    Detect & resolve via main.get_db() first (legacy test mock) then db.connection.get_db().
+    """
+    if hasattr(con, "execute") and hasattr(con, "close"):
+        return con
+    try:
+        import main as _main
+        return _main.get_db()
+    except Exception:
+        from db.connection import get_db as _gdb
+        return _gdb()
 from fastapi.responses import FileResponse
 
 from config import config
-from db.connection import get_db
 from models.render import RenderCancelBody, RenderCreateBody
 import main  # used at call time so test patches on main.terminate_process_tree apply
 from workers.render_manager import (
@@ -33,7 +47,7 @@ router = APIRouter(tags=["render"])
 
 
 @router.get("/render.latest")
-def render_latest(playback_id: str, request: Request = None):
+def render_latest(playback_id: str, request: Request = None, con: sqlite3.Connection = Depends(get_db)):
     """Latest + last-success render job for a playback_id; authed user only."""
     from auth_router import get_user_id_from_request as _uid
 
@@ -42,7 +56,7 @@ def render_latest(playback_id: str, request: Request = None):
     if not user_id:
         return empty
 
-    con = get_db()
+    con = _resolve_con(con)
     try:
         recent = con.execute(
             "SELECT * FROM render_jobs WHERE playback_id=? AND user_id=? "
@@ -67,11 +81,12 @@ def render_latest(playback_id: str, request: Request = None):
 
         return {"renderRecent": to_payload(recent), "renderSuccess": to_payload(success)}
     finally:
-        con.close()
-
-
+        try:
+            con.close()
+        except Exception:
+            pass
 @router.get("/render-jobs")
-def render_jobs_list(request: Request = None, page: int = 0, limit: int = 50, status: str | None = None):
+def render_jobs_list(request: Request = None, page: int = 0, limit: int = 50, status: str | None = None, con: sqlite3.Connection = Depends(get_db)):
     """List render_jobs with backward-compatible pagination + user_id isolation.
 
     ?page=0 or no page  -> plain list (legacy / frontend callers)
@@ -87,9 +102,8 @@ def render_jobs_list(request: Request = None, page: int = 0, limit: int = 50, st
     if status:
         where = where + " AND status = ?"
         params.append(status)
-    con = None
+    con = _resolve_con(con)
     try:
-        con = get_db()
         if not page or page <= 0:
             rows = con.execute(
                 "SELECT * FROM render_jobs" + where + " ORDER BY created_at DESC LIMIT ?",
@@ -114,15 +128,12 @@ def render_jobs_list(request: Request = None, page: int = 0, limit: int = 50, st
             "has_more": (offset + len(items)) < total,
         }
     finally:
-        if con is not None:
-            try:
-                con.close()
-            except Exception:
-                pass
-
-
+        try:
+            con.close()
+        except Exception:
+            pass
 @router.get("/render-jobs/{job_id}")
-def render_job_detail(job_id: str, request: Request = None):
+def render_job_detail(job_id: str, request: Request = None, con: sqlite3.Connection = Depends(get_db)):
     """rev24 阶段 C P2-A: 按 job_id 查详情, 跨用户 404 (防枚举)."""
     user_id = None
     if request is not None:
@@ -131,9 +142,9 @@ def render_job_detail(job_id: str, request: Request = None):
             user_id = _g(request)
         except Exception:
             pass
-    conn = get_db()
+    con = _resolve_con(con)
     try:
-        job = conn.execute(
+        job = con.execute(
             "SELECT * FROM render_jobs WHERE _id=?",
             (job_id,),
         ).fetchone()
@@ -143,11 +154,13 @@ def render_job_detail(job_id: str, request: Request = None):
             raise HTTPException(status_code=404, detail="Render job not found")
         return dict(job)
     finally:
-        conn.close()
-
-
+        try:
+            con.close()
+        except Exception:
+            pass
 @router.post("/render.create")
-def render_create(body: RenderCreateBody, background_tasks: BackgroundTasks, request: Request = None):
+@router.post("/render.create")
+def render_create(body: RenderCreateBody, background_tasks: BackgroundTasks, request: Request = None, con: sqlite3.Connection = Depends(get_db)):
     """POST /render.create: enqueue a render job, spawn run_render_job via background task.
 
     user_id (optional) is bound from JWT; playback_id and config come from body.
@@ -160,26 +173,23 @@ def render_create(body: RenderCreateBody, background_tasks: BackgroundTasks, req
             user_id = _g(request)
         except Exception:
             pass
-    conn = get_db()
-    conn.execute(
+    con = _resolve_con(con)
+    con.execute(
         "INSERT INTO render_jobs (_id, playback_id, status, progress, resolution, extension, renderer, engine, user_id, created_at) " +
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (job_id, body.playback_id, "queued", 0,
          body.resolution, body.extension, body.renderer, body.engine, user_id,
          time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
     )
-    conn.commit()
-    conn.close()
+    con.commit()
     props_path = Path(body.props_path) if body.props_path else (Path(config["DATA_DIR"]) / "props" / (body.playback_id + ".json"))
     props_path.parent.mkdir(parents=True, exist_ok=True)
     if not props_path.exists():
         props_path.write_text("{}", encoding="utf-8")
     background_tasks.add_task(run_render_job, job_id, str(props_path), body.resolution, body.extension, body.engine, body.renderer)
     return {"jobId": job_id, "status": "queued"}
-
-
 @router.get("/render/{filename}")
-def render_video(filename: str, request: Request = None):
+def render_video(filename: str, request: Request = None, con: sqlite3.Connection = Depends(get_db)):
     """rev24 阶段 C P2-A: 鉴权 render 视频流, 跨用户/匿名 404 防枚举."""
     user_id = None
     if request is not None:
@@ -190,9 +200,9 @@ def render_video(filename: str, request: Request = None):
             pass
     if not user_id:
         raise HTTPException(status_code=401, detail={"error_code": "MISSING_TOKEN", "message": "missing/invalid token", "hint": "/auth/login 或 /auth/register"})
-    conn = get_db()
+    con = _resolve_con(con)
     try:
-        job = conn.execute(
+        job = con.execute(
             "SELECT user_id FROM render_jobs WHERE file=?",
             (filename,),
         ).fetchone()
@@ -203,11 +213,12 @@ def render_video(filename: str, request: Request = None):
             raise HTTPException(status_code=404, detail="Render file not found")
         return FileResponse(str(file_path))
     finally:
-        conn.close()
-
-
+        try:
+            con.close()
+        except Exception:
+            pass
 @router.post("/render.cancel")
-def render_cancel(body: RenderCancelBody, request: Request = None):
+def render_cancel(body: RenderCancelBody, request: Request = None, con: sqlite3.Connection = Depends(get_db)):
     """POST /render.cancel: cancel a queued/processing job; terminate process tree if registered."""
     user_id = None
     if request is not None:
@@ -216,19 +227,16 @@ def render_cancel(body: RenderCancelBody, request: Request = None):
             user_id = _g(request)
         except Exception:
             pass
-    conn = get_db()
-    job = conn.execute(
+    con = _resolve_con(con)
+    job = con.execute(
         "SELECT status, user_id FROM render_jobs WHERE _id=?",
         (body.job_id,),
     ).fetchone()
     if not job:
-        conn.close()
         raise HTTPException(status_code=404, detail="Render job not found")
     if job["user_id"] is not None and user_id != job["user_id"]:
-        conn.close()
         raise HTTPException(status_code=404, detail="Render job not found")
-    cancelled = mark_render_cancelled(conn, body.job_id)
-    conn.close()
+    cancelled = mark_render_cancelled(con, body.job_id)
     if not cancelled:
         return {
             "jobId": body.job_id,

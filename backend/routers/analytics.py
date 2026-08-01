@@ -6,13 +6,27 @@ characters endpoint + providers endpoint + _emit_tenant_metrics) 集中搬到本
 所有 inline 使用的 @app.get 改为 @router.get, router mount 时用普通 include_router
 (无 prefix).
 """
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
+import sqlite3
+from db.connection import get_db
+
+def _resolve_con(con):
+    """FastAPI injects con via Depends(get_db); direct calls (tests) pass Depends object.
+    Detect & resolve via main.get_db() first (legacy test mock) then db.connection.get_db().
+    """
+    if hasattr(con, "execute") and hasattr(con, "close"):
+        return con
+    try:
+        import main as _main
+        return _main.get_db()
+    except Exception:
+        from db.connection import get_db as _gdb
+        return _gdb()
 from fastapi.responses import PlainTextResponse
 import hashlib
 import json
 from pydantic import BaseModel, Field
 
-from db.connection import get_db
 from config import DEFAULT_PROVIDERS
 
 router = APIRouter(tags=["analytics"])
@@ -119,7 +133,7 @@ def _safe_count(con, sql, params=()):
 
 
 @router.get("/metrics")
-def metrics():
+def metrics(con: sqlite3.Connection = Depends(get_db)):
     """Prometheus-compatible metrics endpoint.
 
     Counters (Gauge-based for point-in-time):
@@ -131,9 +145,8 @@ def metrics():
     Plus user/tenant dimensional metrics via _emit_user_metrics / _emit_tenant_metrics.
     """
     out = []
-    con = None
+    con = _resolve_con(con)
     try:
-        con = get_db()
         # render_jobs by status
         try:
             for status, cnt in con.execute(
@@ -186,11 +199,10 @@ def metrics():
         body = "\n".join(out) + "\n"
         return PlainTextResponse(body, media_type="text/plain; version=0.0.4; charset=utf-8")
     finally:
-        if con is not None:
-            try:
-                con.close()
-            except Exception:
-                pass
+        try:
+            con.close()
+        except Exception:
+            pass
 
 
 @router.get("/characters")
