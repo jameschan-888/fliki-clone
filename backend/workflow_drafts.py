@@ -227,18 +227,14 @@ def create_router(get_db):
     def create_draft(body: DraftCreateBody, request: Request = None):
         from auth_router import get_user_id_from_request as _uid
         user_id = _uid(request)
-        connection = get_db()
-        draft_id, now = uuid.uuid4().hex, utc_now()
-        scenes = split_script(body.source_script)
-        try:
+        with get_db() as connection:
+            draft_id, now = uuid.uuid4().hex, utc_now()
+            scenes = split_script(body.source_script)
             connection.execute("INSERT INTO workflow_drafts (id, title, source_script, language, status, version, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, 'draft', 1, ?, ?, ?)", (draft_id, body.title or "未命名视频", body.source_script.strip(), body.language, now, now, user_id))
             for scene in scenes:
                 connection.execute("INSERT INTO scene_drafts (id, workflow_draft_id, position, title, narration, visual_intent, subtitle, duration_seconds, voice, avatar, video_aspect, video_transition_mode, media_width, media_height, subtitle_display, subtitle_spoken, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (scene["id"], draft_id, scene["position"], scene["title"], scene["narration"], scene["visual_intent"], scene["subtitle"], scene["duration_seconds"], scene.get("voice") or DEFAULT_VOICE, scene.get("avatar"), scene.get("video_aspect") or "16:9", scene.get("video_transition_mode") or "fade", scene.get("media_width") or 1280, scene.get("media_height") or 720, scene.get("subtitle_display") or scene.get("subtitle") or scene["subtitle"], scene.get("subtitle_spoken") or scene.get("narration") or scene["narration"], now, now))
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     # rev24 stage C #8: 按 user_id 过滤的 drafts 列表端点; 匿名 token 返回空数组
     @router.get("")
     def list_drafts(request: Request = None, page: int = 0, limit: int = 50, status: str | None = None):
@@ -252,8 +248,7 @@ def create_router(get_db):
         user_id = _uid(request)
         if not user_id:
             return [] if page <= 0 else {"items": [], "total": 0, "page": page, "limit": limit, "has_more": False}
-        connection = get_db()
-        try:
+        with get_db() as connection:
             clauses = ["user_id = ?"]
             params: list = [user_id]
             if status:
@@ -285,23 +280,15 @@ def create_router(get_db):
                 "limit": capped_limit,
                 "has_more": offset + len(items) < total,
             }
-        finally:
-            connection.close()
-
     @router.get("/{draft_id}")
     def get_draft(draft_id: str, request: Request = None):
-        connection = get_db()
-        _require_draft_owner(connection, draft_id, request)
-        try:
+        with get_db() as connection:
+            _require_draft_owner(connection, draft_id, request)
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.patch("/{draft_id}/scenes/{scene_id}")
     def update_scene(draft_id: str, scene_id: str, body: ScenePatchBody, request: Request = None):
-        connection = get_db()
-        _require_draft_owner(connection, draft_id, request)
-        try:
+        with get_db() as connection:
+            _require_draft_owner(connection, draft_id, request)
             require_editable(connection, draft_id)
             if connection.execute("SELECT id FROM scene_drafts WHERE id=? AND workflow_draft_id=?", (scene_id, draft_id)).fetchone() is None:
                 raise HTTPException(status_code=404, detail="Scene draft not found")
@@ -319,14 +306,10 @@ def create_router(get_db):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.post("/{draft_id}/scenes")
     def add_scene(draft_id: str, body: SceneCreateBody, request: Request = None):
-        connection = get_db()
-        _require_draft_owner(connection, draft_id, request)
-        try:
+        with get_db() as connection:
+            _require_draft_owner(connection, draft_id, request)
             require_editable(connection, draft_id)
             if body.template_id:
                 _validate_template_fields(connection, body.template_id, body.template_fields or {})
@@ -339,14 +322,10 @@ def create_router(get_db):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.delete("/{draft_id}/scenes/{scene_id}")
     def delete_scene(draft_id: str, scene_id: str, request: Request = None):
-        connection = get_db()
-        _require_draft_owner(connection, draft_id, request)
-        try:
+        with get_db() as connection:
+            _require_draft_owner(connection, draft_id, request)
             require_editable(connection, draft_id)
             if connection.execute("SELECT COUNT(*) FROM scene_drafts WHERE workflow_draft_id=?", (draft_id,)).fetchone()[0] <= 1:
                 raise HTTPException(status_code=409, detail="A draft must contain at least one scene")
@@ -358,14 +337,10 @@ def create_router(get_db):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.post("/{draft_id}/reorder")
     def reorder_scenes(draft_id: str, body: ReorderBody, request: Request = None):
-        connection = get_db()
-        _require_draft_owner(connection, draft_id, request)
-        try:
+        with get_db() as connection:
+            _require_draft_owner(connection, draft_id, request)
             require_editable(connection, draft_id)
             current_ids = [row["id"] for row in connection.execute("SELECT id FROM scene_drafts WHERE workflow_draft_id=? ORDER BY position", (draft_id,)).fetchall()]
             if len(body.scene_ids) != len(set(body.scene_ids)) or set(body.scene_ids) != set(current_ids):
@@ -377,14 +352,10 @@ def create_router(get_db):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.post("/{draft_id}/confirm")
     def confirm_draft(draft_id: str, request: Request = None):
-        connection = get_db()
-        _require_draft_owner(connection, draft_id, request)
-        try:
+        with get_db() as connection:
+            _require_draft_owner(connection, draft_id, request)
             payload = draft_payload(connection, draft_id)
             if payload["status"] == "confirmed":
                 return payload
@@ -428,7 +399,4 @@ def create_router(get_db):
             connection.execute("UPDATE workflow_drafts SET status='confirmed', confirmed_snapshot_json=?, confirmed_at=?, updated_at=? WHERE id=? AND status='draft'", (json.dumps(payload, ensure_ascii=False), confirmed_at, confirmed_at, draft_id))
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     return router

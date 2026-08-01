@@ -97,153 +97,145 @@ def run_render_job(job_id: str, props_path: str, resolution: str, extension: str
       5) iterate stdout, apply_worker_progress on each line
       6) wait() + final state update: success (file/thumbnail populated), failed (tail of stderr)
     """
-    conn = get_db()
-    worker_process = None
-    timeout_timer = None
-    timed_out = threading.Event()
-    worker_output = []
-    try:
-        job = conn.execute(
-            "SELECT status FROM render_jobs WHERE _id=?",
-            (job_id,),
-        ).fetchone()
-        if not job or job["status"] != "queued":
-            return
-        conn.execute(
-            "UPDATE render_jobs SET status=?, progress=0 WHERE _id=? AND status='queued'",
-            ("processing", job_id),
-        )
-        conn.commit()
-
-        # rev18 stage C: cloud renderer branch (mock or real provider)
-        if renderer == "cloud":
-            from workers.cloud_renderer import run_cloud_render_job
-            cloud_stop = threading.Event()
-
-            def _cloud_progress(pct):
-                try:
-                    conn.execute("UPDATE render_jobs SET progress=? WHERE _id=?", (pct, job_id))
-                    conn.commit()
-                except Exception:
-                    pass
-
-            ok2, msg2, output_path_c, started_at_c, finished_at_c = run_cloud_render_job(
-                job_id, str(props_path), config["OUTPUT_DIR"], resolution,
-                on_progress=_cloud_progress, stop_event=cloud_stop,
-            )
-            file_rel = None
-            try:
-                file_rel = str(Path(output_path_c).relative_to(Path(config["OUTPUT_DIR"])))
-            except Exception:
-                file_rel = output_path_c
+    with get_db() as conn:
+        worker_process = None
+        timeout_timer = None
+        timed_out = threading.Event()
+        worker_output = []
+        try:
+            job = conn.execute(
+                "SELECT status FROM render_jobs WHERE _id=?",
+                (job_id,),
+            ).fetchone()
+            if not job or job["status"] != "queued":
+                return
             conn.execute(
-                "UPDATE render_jobs SET status=?, progress=?, file=?, message=?, finished_at=? WHERE _id=?",
-                ("success" if ok2 else "failed", 100 if ok2 else 0, file_rel if ok2 else None, msg2, finished_at_c, job_id),
+                "UPDATE render_jobs SET status=?, progress=0 WHERE _id=? AND status='queued'",
+                ("processing", job_id),
             )
             conn.commit()
-            return
 
-        popen_options = {
-            "stdout": subprocess.PIPE,
-            "stderr": subprocess.STDOUT,
-            "text": True,
-            "encoding": "utf-8",
-            "errors": "replace",
-            "bufsize": 1,
-        }
-        if platform.system() == "Windows":
-            popen_options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-        else:
-            popen_options["start_new_session"] = True
+            # rev18 stage C: cloud renderer branch (mock or real provider)
+            if renderer == "cloud":
+                from workers.cloud_renderer import run_cloud_render_job
+                cloud_stop = threading.Event()
 
-        worker_process = subprocess.Popen(
-            ["python", str(WORKER_SCRIPT), "--job-id", job_id,
-             "--props", str(props_path), "--resolution", resolution,
-             "--extension", extension, "--output-dir", config["OUTPUT_DIR"]],
-            **popen_options,
-        )
-        with ACTIVE_RENDER_LOCK:
-            ACTIVE_RENDER_PROCESSES[job_id] = worker_process
+                def _cloud_progress(pct):
+                    try:
+                        conn.execute("UPDATE render_jobs SET progress=? WHERE _id=?", (pct, job_id))
+                        conn.commit()
+                    except Exception:
+                        pass
 
-        current = conn.execute(
-            "SELECT status FROM render_jobs WHERE _id=?",
-            (job_id,),
-        ).fetchone()
-        if not current or current["status"] != "processing":
-            terminate_process_tree(worker_process)
-            return
+                ok2, msg2, output_path_c, started_at_c, finished_at_c = run_cloud_render_job(
+                    job_id, str(props_path), config["OUTPUT_DIR"], resolution,
+                    on_progress=_cloud_progress, stop_event=cloud_stop,
+                )
+                file_rel = None
+                try:
+                    file_rel = str(Path(output_path_c).relative_to(Path(config["OUTPUT_DIR"])))
+                except Exception:
+                    file_rel = output_path_c
+                conn.execute(
+                    "UPDATE render_jobs SET status=?, progress=?, file=?, message=?, finished_at=? WHERE _id=?",
+                    ("success" if ok2 else "failed", 100 if ok2 else 0, file_rel if ok2 else None, msg2, finished_at_c, job_id),
+                )
+                conn.commit()
+                return
 
-        timeout_timer = threading.Timer(
-            config["RENDER_TIMEOUT_SECONDS"],
-            expire_render_process,
-            args=(worker_process, timed_out),
-        )
-        timeout_timer.daemon = True
-        timeout_timer.start()
+            popen_options = {
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.STDOUT,
+                "text": True,
+                "encoding": "utf-8",
+                "errors": "replace",
+                "bufsize": 1,
+            }
+            if platform.system() == "Windows":
+                popen_options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                popen_options["start_new_session"] = True
 
-        if worker_process.stdout is None:
-            raise RuntimeError("Render worker stdout pipe was not created")
-        for output_line in worker_process.stdout:
-            worker_output.append(output_line)
-            worker_output = worker_output[-200:]
-            apply_worker_progress(conn, job_id, output_line)
-        return_code = worker_process.wait()
-
-        current = conn.execute(
-            "SELECT status, message FROM render_jobs WHERE _id=?",
-            (job_id,),
-        ).fetchone()
-        if current and current["status"] == "failed" and current["message"] == "Cancelled by user":
-            return
-
-        finished_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        if timed_out.is_set():
-            conn.execute(
-                "UPDATE render_jobs SET status='failed', message=?, finished_at=? WHERE _id=?",
-                (
-                    f"Render timed out after {config['RENDER_TIMEOUT_SECONDS']} seconds",
-                    finished_at,
-                    job_id,
-                ),
+            worker_process = subprocess.Popen(
+                ["python", str(WORKER_SCRIPT), "--job-id", job_id,
+                 "--props", str(props_path), "--resolution", resolution,
+                 "--extension", extension, "--output-dir", config["OUTPUT_DIR"]],
+                **popen_options,
             )
-        elif return_code == 0:
-            out_dir = Path(config["OUTPUT_DIR"]) / job_id
-            out_dir.mkdir(parents=True, exist_ok=True)
-            conn.execute(
-                "UPDATE render_jobs SET status=?, progress=100, message=NULL, "
-                "file=?, thumbnail=?, thumbnail_preview=?, media_generated_id=?, finished_at=? WHERE _id=?",
-                (
-                    "success",
-                    f"{job_id}/{job_id}.{extension}",
-                    f"{job_id}/{job_id}_thumb.jpg",
-                    f"{job_id}/{job_id}_thumbPreview.jpg",
-                    job_id,
-                    finished_at,
-                    job_id,
-                ),
-            )
-        else:
-            conn.execute(
-                "UPDATE render_jobs SET status='failed', message=?, finished_at=? WHERE _id=?",
-                ("".join(worker_output)[-2000:], finished_at, job_id),
-            )
-        conn.commit()
-    except Exception as error:
-        conn.execute(
-            "UPDATE render_jobs SET status='failed', message=?, finished_at=? "
-            "WHERE _id=? AND status IN ('queued', 'processing')",
-            (
-                str(error)[:2000],
-                time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                job_id,
-            ),
-        )
-        conn.commit()
-    finally:
-        if timeout_timer:
-            timeout_timer.cancel()
-        if worker_process:
             with ACTIVE_RENDER_LOCK:
-                if ACTIVE_RENDER_PROCESSES.get(job_id) is worker_process:
-                    ACTIVE_RENDER_PROCESSES.pop(job_id, None)
-        conn.close()
+                ACTIVE_RENDER_PROCESSES[job_id] = worker_process
+
+            current = conn.execute(
+                "SELECT status FROM render_jobs WHERE _id=?",
+                (job_id,),
+            ).fetchone()
+            if not current or current["status"] != "processing":
+                terminate_process_tree(worker_process)
+                return
+
+            timeout_timer = threading.Timer(
+                config["RENDER_TIMEOUT_SECONDS"],
+                expire_render_process,
+                args=(worker_process, timed_out),
+            )
+            timeout_timer.daemon = True
+            timeout_timer.start()
+
+            if worker_process.stdout is None:
+                raise RuntimeError("Render worker stdout pipe was not created")
+            for output_line in worker_process.stdout:
+                worker_output.append(output_line)
+                worker_output = worker_output[-200:]
+                apply_worker_progress(conn, job_id, output_line)
+            return_code = worker_process.wait()
+
+            current = conn.execute(
+                "SELECT status, message FROM render_jobs WHERE _id=?",
+                (job_id,),
+            ).fetchone()
+            if current and current["status"] == "failed" and current["message"] == "Cancelled by user":
+                return
+
+            finished_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            if timed_out.is_set():
+                conn.execute(
+                    "UPDATE render_jobs SET status='failed', message=?, finished_at=? WHERE _id=?",
+                    (
+                        f"Render timed out after {config['RENDER_TIMEOUT_SECONDS']} seconds",
+                        finished_at,
+                        job_id,
+                    ),
+                )
+            elif return_code == 0:
+                out_dir = Path(config["OUTPUT_DIR"]) / job_id
+                out_dir.mkdir(parents=True, exist_ok=True)
+                conn.execute(
+                    "UPDATE render_jobs SET status=?, progress=100, message=NULL, "
+                    "file=?, thumbnail=?, thumbnail_preview=?, media_generated_id=?, finished_at=? WHERE _id=?",
+                    (
+                        "success",
+                        f"{job_id}/{job_id}.{extension}",
+                        f"{job_id}/{job_id}_thumb.jpg",
+                        f"{job_id}/{job_id}_thumbPreview.jpg",
+                        job_id,
+                        finished_at,
+                        job_id,
+                    ),
+                )
+            else:
+                conn.execute(
+                    "UPDATE render_jobs SET status='failed', message=?, finished_at=? WHERE _id=?",
+                    ("".join(worker_output)[-2000:], finished_at, job_id),
+                )
+            conn.commit()
+        except Exception as error:
+            conn.execute(
+                "UPDATE render_jobs SET status='failed', message=?, finished_at=? "
+                "WHERE _id=? AND status IN ('queued', 'processing')",
+                (
+                    str(error)[:2000],
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    job_id,
+                ),
+            )
+            conn.commit()

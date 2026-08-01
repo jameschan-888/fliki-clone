@@ -79,8 +79,7 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
 
     @router.get("")
     def list_clones(enabled: bool | None = Query(default=None)):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_runtime_providers(connection)
             if enabled is None:
                 rows = connection.execute(
@@ -92,9 +91,6 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                     (1 if enabled else 0,),
                 ).fetchall()
             return [row_payload(row) for row in rows]
-        finally:
-            connection.close()
-
     @router.post("")
     async def create_clone(
         cloned_name: str = Form(..., max_length=120),
@@ -133,8 +129,7 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
             dest.unlink(missing_ok=True)
             raise HTTPException(status_code=422, detail="Reference audio too small (<1KB); upload a longer sample")
 
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_runtime_providers(connection)
             connection.execute(
                 "INSERT INTO voice_clones (id, uuid, cloned_name, ref_audio_path, ref_text, sample_text, language, enabled, created_at) "
@@ -155,26 +150,18 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                 "SELECT * FROM voice_clones WHERE uuid=?", (new_uuid,)
             ).fetchone()
             return row_payload(row)
-        finally:
-            connection.close()
-
     @router.get("/{voice_uuid}")
     def get_clone(voice_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute(
                 "SELECT * FROM voice_clones WHERE uuid=?", (voice_uuid,)
             ).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Voice clone not found")
             return row_payload(row)
-        finally:
-            connection.close()
-
     @router.delete("/{voice_uuid}")
     def delete_clone(voice_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute(
                 "SELECT * FROM voice_clones WHERE uuid=?", (voice_uuid,)
             ).fetchone()
@@ -192,13 +179,9 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
             connection.execute("DELETE FROM voice_clones WHERE uuid=?", (voice_uuid,))
             connection.commit()
             return {"deleted": True, "uuid": voice_uuid}
-        finally:
-            connection.close()
-
     @router.post("/{voice_uuid}/preview")
     def preview_clone(voice_uuid: str, text: str | None = None):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute(
                 "SELECT * FROM voice_clones WHERE uuid=? AND enabled=1", (voice_uuid,)
             ).fetchone()
@@ -225,27 +208,12 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                 "bytes": result["bytes"],
                 "text": target_text,
             }
-        finally:
-            connection.close()
-
     @router.get("/provider/health")
     def provider_health():
-        connection = get_db()
-        try:
-            provider, cfg = resolve_provider(connection)
-            return {"configured": True, **provider.healthcheck(), "model": cfg.get("model")}
-        except HTTPException:
-            raise
-        finally:
-            connection.close()
-        import sys; print("PROV_HEALTH called", file=sys.stderr, flush=True)
-        connection = get_db()
-        try:
-            provider, cfg = resolve_provider(connection)
-            return {"configured": True, **provider.healthcheck(), "model": cfg.get("model")}
-        except HTTPException:
-            raise
-        finally:
-            connection.close()
-
+        with get_db() as connection:
+            try:
+                provider, cfg = resolve_provider(connection)
+                return {"configured": True, **provider.healthcheck(), "model": cfg.get("model")}
+            except HTTPException:
+                raise
     return router

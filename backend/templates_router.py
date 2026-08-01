@@ -131,8 +131,7 @@ def create_router(get_db):
 
     @router.get("")
     def list_templates(category: str | None = None, enabled_only: bool = True, include_config: bool = False):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_templates(connection)
             clauses = []
             params = []
@@ -146,25 +145,17 @@ def create_router(get_db):
                 f"SELECT * FROM templates{where} ORDER BY category, name", params
             ).fetchall()
             return [_template_payload(row, include_config=include_config) for row in rows]
-        finally:
-            connection.close()
-
     @router.get("/categories")
     def list_categories():
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_templates(connection)
             rows = connection.execute(
                 "SELECT category, COUNT(*) AS count FROM templates WHERE enabled=1 GROUP BY category ORDER BY category"
             ).fetchall()
             return [{"category": r["category"], "count": r["count"]} for r in rows]
-        finally:
-            connection.close()
-
     @router.get("/{template_id}")
     def get_template(template_id: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_templates(connection)
             row = connection.execute(
                 "SELECT * FROM templates WHERE id=?", (template_id,)
@@ -172,14 +163,10 @@ def create_router(get_db):
             if row is None:
                 raise HTTPException(status_code=404, detail="Template not found")
             return _template_payload(row, include_config=True)
-        finally:
-            connection.close()
-
     @router.post("/{template_id}/preview")
     def preview_template(template_id: str, body: TemplatePreviewBody):
         """Build the resolved template plan used by Remotion without starting a render job."""
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_templates(connection)
             row = connection.execute(
                 "SELECT * FROM templates WHERE id=? AND enabled=1", (template_id,)
@@ -209,14 +196,10 @@ def create_router(get_db):
                 "preview": True,
                 "merged_fields": merged_fields,
             }
-        finally:
-            connection.close()
-
     @router.post("/{template_id}/validate")
     def validate_fields(template_id: str, payload: dict):
         """校验用户填的字段, 返回合并后的完整字段 + 错误列表. 不写库."""
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_templates(connection)
             row = connection.execute(
                 "SELECT * FROM templates WHERE id=?", (template_id,)
@@ -232,13 +215,9 @@ def create_router(get_db):
                 "errors": errors,
                 "merged_fields": merged,
             }
-        finally:
-            connection.close()
-
     @router.post("")
     def create_template(body: TemplateCreateBody):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             cur = connection.execute("SELECT id FROM templates WHERE id=?", (body.id,))
             if cur.fetchone() is not None:
                 raise HTTPException(status_code=409, detail="Template id already exists")
@@ -253,9 +232,6 @@ def create_router(get_db):
             connection.commit()
             row = connection.execute("SELECT * FROM templates WHERE id=?", (body.id,)).fetchone()
             return _template_payload(row, include_config=True)
-        finally:
-            connection.close()
-
     @router.post("/from-draft/{draft_id}", status_code=201)
     def copy_draft_to_template(
         draft_id: str,
@@ -279,8 +255,7 @@ def create_router(get_db):
         user_id = _uid(request)
         if not user_id:
             raise HTTPException(status_code=401, detail="未登录或登录已过期，请重新登录")
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_templates(connection)
             draft = connection.execute(
                 "SELECT id, user_id FROM workflow_drafts WHERE id=?",
@@ -365,13 +340,9 @@ def create_router(get_db):
                 "template_id": source_id,
             }
             return payload
-        finally:
-            connection.close()
-
     @router.delete("/{template_id}")
     def delete_template(template_id: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_templates(connection)
             row = connection.execute("SELECT builtin FROM templates WHERE id=?", (template_id,)).fetchone()
             if row is None:
@@ -381,7 +352,4 @@ def create_router(get_db):
             connection.execute("DELETE FROM templates WHERE id=?", (template_id,))
             connection.commit()
             return {"deleted": True, "id": template_id}
-        finally:
-            connection.close()
-
     return router

@@ -34,15 +34,10 @@ def eval_alerts(request: Request):
     """rev24 阶段 D P1-B: evaluate all rules, fire webhook for triggered ones (auth required)."""
     _require_user_id(request)
     from alerts import eval_rules
-    con = get_db()
-    try:
+    with get_db() as con:
         results = eval_rules(con)
         triggered = [r for r in results if r.get("triggered")]
         return {"evaluated": len(results), "triggered": len(triggered), "results": results}
-    finally:
-        con.close()
-
-
 @router.post("/reset-throttle")
 def reset_alert_throttle(request: Request):
     """rev24 阶段 D P1-B: reset alert throttle (auth required). For testing / manual recovery."""

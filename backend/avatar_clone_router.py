@@ -110,8 +110,7 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
 
     @router.get("")
     def list_clones(enabled: bool | None = Query(default=None)):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_runtime_providers(connection)
             if enabled is None:
                 rows = connection.execute(
@@ -123,9 +122,6 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
                     (1 if enabled else 0,),
                 ).fetchall()
             return [row_payload(row) for row in rows]
-        finally:
-            connection.close()
-
     @router.post("")
     async def create_clone(
         avatar_name: str = Form(..., max_length=120),
@@ -188,8 +184,7 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
                     out.write(chunk)
             audio_dest_path = str(audio_dest)
 
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_runtime_providers(connection)
             connection.execute(
                 "INSERT INTO avatar_clones (id, uuid, avatar_name, ref_face_path, ref_audio_path, default_audio_path, language, permission_note, enabled, created_at) "
@@ -209,24 +204,16 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
             connection.commit()
             row = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (new_uuid,)).fetchone()
             return row_payload(row)
-        finally:
-            connection.close()
-
     @router.get("/{avatar_uuid}")
     def get_clone(avatar_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Avatar clone not found")
             return row_payload(row)
-        finally:
-            connection.close()
-
     @router.delete("/{avatar_uuid}")
     def delete_clone(avatar_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Avatar clone not found")
@@ -245,13 +232,9 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
             connection.execute("DELETE FROM avatar_clones WHERE uuid=?", (avatar_uuid,))
             connection.commit()
             return {"deleted": True, "uuid": avatar_uuid}
-        finally:
-            connection.close()
-
     @router.post("/{avatar_uuid}/synthesize")
     def synthesize(avatar_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute("SELECT * FROM avatar_clones WHERE uuid=? AND enabled=1", (avatar_uuid,)).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Active avatar clone not found")
@@ -291,9 +274,6 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
                 "output_url": f"/avatar-clones/{avatar_uuid}/output",
                 "bytes": output.stat().st_size,
             }
-        finally:
-            connection.close()
-
     @router.get("/{avatar_uuid}/output")
     def get_output(avatar_uuid: str):
         path = output_root / f"{avatar_uuid}.mp4"
@@ -319,8 +299,7 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
 
     @router.put("/{avatar_uuid}/ref-face")
     async def replace_ref_face(avatar_uuid: str, ref_face: UploadFile = File(...)):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute("SELECT uuid, ref_face_path FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Avatar clone not found")
@@ -351,13 +330,9 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
             connection.commit()
             updated = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             return row_payload(updated)
-        finally:
-            connection.close()
-
     @router.put("/{avatar_uuid}/ref-audio")
     async def replace_ref_audio(avatar_uuid: str, ref_audio: UploadFile = File(...)):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute("SELECT uuid, ref_audio_path, default_audio_path FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Avatar clone not found")
@@ -388,13 +363,9 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
             connection.commit()
             updated = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             return row_payload(updated)
-        finally:
-            connection.close()
-
     @router.patch("/{avatar_uuid}/meta")
     def update_meta(avatar_uuid: str, body: dict):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="Avatar clone not found")
@@ -429,13 +400,9 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
             connection.commit()
             updated = connection.execute("SELECT * FROM avatar_clones WHERE uuid=?", (avatar_uuid,)).fetchone()
             return row_payload(updated)
-        finally:
-            connection.close()
-
     @router.get("/{avatar_uuid}/ref-face")
     def get_ref_face(avatar_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute(
                 "SELECT ref_face_path FROM avatar_clones WHERE uuid=?",
                 (avatar_uuid,),
@@ -448,27 +415,21 @@ def create_router(get_db, ref_face_dir: str | None = None, audio_dir: str | None
             from fastapi.responses import FileResponse
             media_type = "image/jpeg" if path.suffix.lower() in {".jpg", ".jpeg"} else f"image/{path.suffix.lower().lstrip('.') or 'png'}"
             return FileResponse(str(path), media_type=media_type)
-        finally:
-            connection.close()
-
     @router.get("/provider/health")
     def provider_health():
-        connection = get_db()
-        try:
-            cfg = fetch_provider_config(connection)
-            if not cfg["configured"]:
-                raise HTTPException(status_code=422, detail="Wav2Lip provider not configured")
-            provider = build_wav2lip_provider(
-                model_path=cfg["model_path"],
-                auto_download=cfg["auto_download"],
-                ffmpeg_binary=cfg["ffmpeg_binary"],
-                max_dimension=cfg["max_dimension"],
-                fps=cfg["fps"],
-            )
-            return {"configured": True, **provider.healthcheck()}
-        except HTTPException:
-            raise
-        finally:
-            connection.close()
-
+        with get_db() as connection:
+            try:
+                cfg = fetch_provider_config(connection)
+                if not cfg["configured"]:
+                    raise HTTPException(status_code=422, detail="Wav2Lip provider not configured")
+                provider = build_wav2lip_provider(
+                    model_path=cfg["model_path"],
+                    auto_download=cfg["auto_download"],
+                    ffmpeg_binary=cfg["ffmpeg_binary"],
+                    max_dimension=cfg["max_dimension"],
+                    fps=cfg["fps"],
+                )
+                return {"configured": True, **provider.healthcheck()}
+            except HTTPException:
+                raise
     return router

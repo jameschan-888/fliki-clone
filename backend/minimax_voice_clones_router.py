@@ -91,8 +91,7 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
 
     @router.get("")
     def list_clones(enabled: bool | None = Query(default=None)):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             if enabled is None:
                 rows = connection.execute(
                     "SELECT * FROM minimax_voice_clones ORDER BY created_at DESC"
@@ -103,9 +102,6 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                     (1 if enabled else 0,),
                 ).fetchall()
             return [row_payload(row) for row in rows]
-        finally:
-            connection.close()
-
     @router.post("")
     async def create_clone(
         cloned_name: str = Form(..., max_length=120),
@@ -151,8 +147,7 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
             dest.unlink(missing_ok=True)
             raise HTTPException(status_code=500, detail=f"Cannot read ref_audio: {exc}") from exc
 
-        connection = get_db()
-        try:
+        with get_db() as connection:
             provider, cfg = resolve_provider(connection)
             # 同 sha256 已有 → 直接返回旧记录 (避免重复调用 MiniMax clone)
             existing = _voice_exists(connection, sha256_hex)
@@ -199,26 +194,18 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                 "SELECT * FROM minimax_voice_clones WHERE uuid=?", (new_uuid,)
             ).fetchone()
             return {"duplicate": False, "voice": row_payload(row)}
-        finally:
-            connection.close()
-
     @router.get("/{voice_uuid}")
     def get_clone(voice_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute(
                 "SELECT * FROM minimax_voice_clones WHERE uuid=?", (voice_uuid,)
             ).fetchone()
             if row is None:
                 raise HTTPException(status_code=404, detail="MiniMax voice clone not found")
             return row_payload(row)
-        finally:
-            connection.close()
-
     @router.delete("/{voice_uuid}")
     def delete_clone(voice_uuid: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute(
                 "SELECT * FROM minimax_voice_clones WHERE uuid=?", (voice_uuid,)
             ).fetchone()
@@ -237,13 +224,9 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
             )
             connection.commit()
             return {"deleted": True, "uuid": voice_uuid}
-        finally:
-            connection.close()
-
     @router.post("/{voice_uuid}/preview")
     def preview_clone(voice_uuid: str, text: str | None = None):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             row = connection.execute(
                 "SELECT * FROM minimax_voice_clones WHERE uuid=? AND enabled=1",
                 (voice_uuid,),
@@ -272,13 +255,9 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                 "bytes": result["bytes"],
                 "text": target_text,
             }
-        finally:
-            connection.close()
-
     @router.get("/provider/health")
     def provider_health():
-        connection = get_db()
-        try:
+        with get_db() as connection:
             cfg = fetch_minimax_config(connection)
             api_key = os.getenv("MINIMAX_API_KEY", "").strip()
             return {
@@ -290,7 +269,4 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                 "base_url": cfg.get("base_url"),
                 "api_key_present": bool(api_key),
             }
-        finally:
-            connection.close()
-
     return router

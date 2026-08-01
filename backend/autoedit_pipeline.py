@@ -328,114 +328,110 @@ def _node_compose(conn, run_id, segments, segment_videos, music_path, work_dir, 
 # ============ pipeline ============
 
 def execute_pipeline(run_id, get_db):
-    conn = get_db()
-    try:
-        conn.executescript("""
-        CREATE TABLE IF NOT EXISTS autoedit_runs (
-          id TEXT PRIMARY KEY, autoedit_draft_id TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'queued', progress INTEGER NOT NULL DEFAULT 0,
-          render_job_id TEXT, message TEXT,
-          created_at TEXT NOT NULL, updated_at TEXT NOT NULL, finished_at TEXT
-        );
-        CREATE TABLE IF NOT EXISTS autoedit_nodes (
-          id TEXT PRIMARY KEY, autoedit_run_id TEXT NOT NULL, segment_id TEXT, node_type TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'queued', progress INTEGER NOT NULL DEFAULT 0, provider TEXT,
-          attempt INTEGER NOT NULL DEFAULT 1, input_json TEXT, result_json TEXT, message TEXT,
-          created_at TEXT NOT NULL, updated_at TEXT NOT NULL, finished_at TEXT
-        );
-        """)
+    with get_db() as conn:
+        try:
+            conn.executescript("""
+            CREATE TABLE IF NOT EXISTS autoedit_runs (
+              id TEXT PRIMARY KEY, autoedit_draft_id TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'queued', progress INTEGER NOT NULL DEFAULT 0,
+              render_job_id TEXT, message TEXT,
+              created_at TEXT NOT NULL, updated_at TEXT NOT NULL, finished_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS autoedit_nodes (
+              id TEXT PRIMARY KEY, autoedit_run_id TEXT NOT NULL, segment_id TEXT, node_type TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'queued', progress INTEGER NOT NULL DEFAULT 0, provider TEXT,
+              attempt INTEGER NOT NULL DEFAULT 1, input_json TEXT, result_json TEXT, message TEXT,
+              created_at TEXT NOT NULL, updated_at TEXT NOT NULL, finished_at TEXT
+            );
+            """)
 
-        run = conn.execute("SELECT * FROM autoedit_runs WHERE id=?", (run_id,)).fetchone()
-        if run is None:
-            raise RuntimeError(f"Run {run_id} not found")
+            run = conn.execute("SELECT * FROM autoedit_runs WHERE id=?", (run_id,)).fetchone()
+            if run is None:
+                raise RuntimeError(f"Run {run_id} not found")
 
-        conn.execute(
-            "UPDATE autoedit_runs SET status='generating_assets', progress=5, updated_at=? WHERE id=?",
-            (_now(), run_id),
-        )
-        conn.commit()
-
-        draft = conn.execute(
-            "SELECT * FROM autoedit_drafts WHERE id=?", (run["autoedit_draft_id"],)
-        ).fetchone()
-        if draft is None:
-            raise RuntimeError("Draft not found")
-
-        upload = conn.execute(
-            "SELECT * FROM autoedit_uploads WHERE id=?", (draft["upload_id"],)
-        ).fetchone()
-        if upload is None:
-            raise RuntimeError("Upload not found")
-
-        segments = [
-            dict(s) for s in conn.execute(
-                "SELECT * FROM autoedit_segments WHERE autoedit_draft_id=? AND kind != 'drop' ORDER BY position",
-                (draft["id"],),
-            ).fetchall()
-        ]
-        if not segments:
-            raise RuntimeError("No kept segments to render")
-
-        run_dir = Path(__file__).parent / "data" / "output" / run_id
-        _ensure_dir(run_dir)
-        upload_path = Path(upload["stored_path"])
-
-        segment_videos = []
-        for idx, seg in enumerate(segments):
-            seg_dir = run_dir / f"segment-{idx:03d}-{seg['id'][:8]}"
-            _ensure_dir(seg_dir)
-
-            # TTS
-            voice_result = _node_tts(conn, run_id, seg, seg_dir)
-            voice_path = seg_dir / "voice.mp3" if voice_result.get("local_path") else None
-
-            # B-roll (可选, MVP 默认走 none)
-            broll_result = _node_broll(conn, run_id, seg, seg_dir, upload["duration_seconds"])
-            broll_path = seg_dir / "broll.mp4" if broll_result.get("local_path") else None
-
-            # 裁剪 + 字幕 + 旁白
-            cut_result = _node_cut_segment(
-                conn, run_id, seg, upload_path, voice_path, broll_path, seg_dir, upload["duration_seconds"]
-            )
-            segment_videos.append({
-                "segment_id": seg["id"],
-                "local_path": cut_result["local_path"],
-                "duration": cut_result["duration_seconds"],
-            })
-
-            progress = 5 + int(75 * (idx + 1) / len(segments))
             conn.execute(
-                "UPDATE autoedit_runs SET progress=?, updated_at=? WHERE id=?",
-                (progress, _now(), run_id),
+                "UPDATE autoedit_runs SET status='generating_assets', progress=5, updated_at=? WHERE id=?",
+                (_now(), run_id),
             )
             conn.commit()
 
-        # 音乐节点
-        music_dir = run_dir / "music"
-        _ensure_dir(music_dir)
-        music_result = _node_music(conn, run_id, music_dir)
-        music_path = music_dir / "music.mp3" if music_result.get("local_path") else None
+            draft = conn.execute(
+                "SELECT * FROM autoedit_drafts WHERE id=?", (run["autoedit_draft_id"],)
+            ).fetchone()
+            if draft is None:
+                raise RuntimeError("Draft not found")
 
-        # 拼接
-        final_path = run_dir / f"{run_id}.mp4"
-        compose_result = _node_compose(conn, run_id, segments, segment_videos, music_path, run_dir, final_path)
+            upload = conn.execute(
+                "SELECT * FROM autoedit_uploads WHERE id=?", (draft["upload_id"],)
+            ).fetchone()
+            if upload is None:
+                raise RuntimeError("Upload not found")
 
-        conn.execute(
-            "UPDATE autoedit_runs SET status='success', progress=100, message=NULL, "
-            "output_path=?, render_job_id=NULL, updated_at=?, finished_at=? WHERE id=?",
-            (str(final_path), _now(), _now(), run_id),
-        )
-        conn.commit()
-    except Exception as e:
-        conn.execute(
-            "UPDATE autoedit_runs SET status='failed', message=?, updated_at=?, finished_at=? WHERE id=?",
-            (str(e)[:2000], _now(), _now(), run_id),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+            segments = [
+                dict(s) for s in conn.execute(
+                    "SELECT * FROM autoedit_segments WHERE autoedit_draft_id=? AND kind != 'drop' ORDER BY position",
+                    (draft["id"],),
+                ).fetchall()
+            ]
+            if not segments:
+                raise RuntimeError("No kept segments to render")
 
+            run_dir = Path(__file__).parent / "data" / "output" / run_id
+            _ensure_dir(run_dir)
+            upload_path = Path(upload["stored_path"])
 
+            segment_videos = []
+            for idx, seg in enumerate(segments):
+                seg_dir = run_dir / f"segment-{idx:03d}-{seg['id'][:8]}"
+                _ensure_dir(seg_dir)
+
+                # TTS
+                voice_result = _node_tts(conn, run_id, seg, seg_dir)
+                voice_path = seg_dir / "voice.mp3" if voice_result.get("local_path") else None
+
+                # B-roll (可选, MVP 默认走 none)
+                broll_result = _node_broll(conn, run_id, seg, seg_dir, upload["duration_seconds"])
+                broll_path = seg_dir / "broll.mp4" if broll_result.get("local_path") else None
+
+                # 裁剪 + 字幕 + 旁白
+                cut_result = _node_cut_segment(
+                    conn, run_id, seg, upload_path, voice_path, broll_path, seg_dir, upload["duration_seconds"]
+                )
+                segment_videos.append({
+                    "segment_id": seg["id"],
+                    "local_path": cut_result["local_path"],
+                    "duration": cut_result["duration_seconds"],
+                })
+
+                progress = 5 + int(75 * (idx + 1) / len(segments))
+                conn.execute(
+                    "UPDATE autoedit_runs SET progress=?, updated_at=? WHERE id=?",
+                    (progress, _now(), run_id),
+                )
+                conn.commit()
+
+            # 音乐节点
+            music_dir = run_dir / "music"
+            _ensure_dir(music_dir)
+            music_result = _node_music(conn, run_id, music_dir)
+            music_path = music_dir / "music.mp3" if music_result.get("local_path") else None
+
+            # 拼接
+            final_path = run_dir / f"{run_id}.mp4"
+            compose_result = _node_compose(conn, run_id, segments, segment_videos, music_path, run_dir, final_path)
+
+            conn.execute(
+                "UPDATE autoedit_runs SET status='success', progress=100, message=NULL, "
+                "output_path=?, render_job_id=NULL, updated_at=?, finished_at=? WHERE id=?",
+                (str(final_path), _now(), _now(), run_id),
+            )
+            conn.commit()
+        except Exception as e:
+            conn.execute(
+                "UPDATE autoedit_runs SET status='failed', message=?, updated_at=?, finished_at=? WHERE id=?",
+                (str(e)[:2000], _now(), _now(), run_id),
+            )
+            conn.commit()
 # ============ router ============
 
 def create_router(get_db):
@@ -443,8 +439,7 @@ def create_router(get_db):
 
     @router.post("/from-draft/{draft_id}")
     def create_run(draft_id: str, background_tasks: BackgroundTasks):
-        conn = get_db()
-        try:
+        with get_db() as conn:
             draft = conn.execute(
                 "SELECT status FROM autoedit_drafts WHERE id=?", (draft_id,)
             ).fetchone()
@@ -472,21 +467,13 @@ def create_router(get_db):
             conn.commit()
             background_tasks.add_task(execute_pipeline, run_id, get_db)
             return _run_payload(conn, run_id)
-        finally:
-            conn.close()
-
     @router.get("/{run_id}")
     def get_run(run_id: str):
-        conn = get_db()
-        try:
+        with get_db() as conn:
             return _run_payload(conn, run_id)
-        finally:
-            conn.close()
-
     @router.post("/{run_id}/retry")
     def retry_run(run_id: str, background_tasks: BackgroundTasks):
-        conn = get_db()
-        try:
+        with get_db() as conn:
             run = conn.execute(
                 "SELECT * FROM autoedit_runs WHERE id=?", (run_id,)
             ).fetchone()
@@ -503,7 +490,4 @@ def create_router(get_db):
             conn.commit()
             background_tasks.add_task(execute_pipeline, run_id, get_db)
             return _run_payload(conn, run_id)
-        finally:
-            conn.close()
-
     return router

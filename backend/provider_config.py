@@ -184,21 +184,16 @@ def create_router(get_db):
 
     @router.get("")
     def list_configs(category: str | None = None):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_runtime_providers(connection)
             if category:
                 rows = connection.execute("SELECT * FROM provider_configs WHERE category=? ORDER BY priority,name", (category,)).fetchall()
             else:
                 rows = connection.execute("SELECT * FROM provider_configs ORDER BY category,priority,name").fetchall()
             return [provider_payload(row) for row in rows]
-        finally:
-            connection.close()
-
     @router.put("/{category}/{name}")
     def update_config(category: str, name: str, body: ProviderUpdateBody):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_runtime_providers(connection)
             row = connection.execute("SELECT * FROM provider_configs WHERE category=? AND name=?", (category, name)).fetchone()
             if row is None:
@@ -231,14 +226,10 @@ def create_router(get_db):
             connection.execute("UPDATE provider_configs SET enabled=?,is_default=?,priority=?,config_json=? WHERE id=?", (enabled, is_default, priority, json.dumps(config), row["id"]))
             connection.commit()
             return provider_payload(connection.execute("SELECT * FROM provider_configs WHERE id=?", (row["id"],)).fetchone())
-        finally:
-            connection.close()
-
     @router.delete("/{category}/{name}/secret")
     def delete_secret(category: str, name: str):
         # P5E: 从 .env 清除 managed key, 同步清空当前进程环境.
-        connection = get_db()
-        try:
+        with get_db() as connection:
             seed_runtime_providers(connection)
             row = connection.execute(
                 "SELECT * FROM provider_configs WHERE category=? AND name=?",
@@ -264,7 +255,4 @@ def create_router(get_db):
                 "env_name": env_name,
                 "removed": removed,
             }
-        finally:
-            connection.close()
-
     return router

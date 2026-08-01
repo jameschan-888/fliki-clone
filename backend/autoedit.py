@@ -331,8 +331,7 @@ def create_router(get_db, render_create, render_body_class, max_upload_bytes):
                     stored_path.unlink(missing_ok=True)
                     raise HTTPException(status_code=413, detail=f"Upload exceeds {max_upload_bytes} bytes")
                 out.write(chunk)
-        connection = get_db()
-        try:
+        with get_db() as connection:
             connection.executescript(SCHEMA_SQL)
             ensure_revisions_table(connection)
             meta = run_ffprobe(str(stored_path))
@@ -342,13 +341,9 @@ def create_router(get_db, render_create, render_body_class, max_upload_bytes):
             )
             connection.commit()
             return {"id": upload_id, "filename": file.filename, "size_bytes": written, **meta}
-        finally:
-            connection.close()
-
     @router.post("/uploads/{upload_id}/drafts")
     def create_draft(upload_id: str, language: str = "zh-CN"):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             connection.executescript(SCHEMA_SQL)
             ensure_revisions_table(connection)
             upload = connection.execute("SELECT * FROM autoedit_uploads WHERE id=?", (upload_id,)).fetchone()
@@ -374,22 +369,14 @@ def create_router(get_db, render_create, render_body_class, max_upload_bytes):
                 )
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.get("/drafts/{draft_id}")
     def get_draft(draft_id: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             ensure_revisions_table(connection)
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.patch("/drafts/{draft_id}/segments/{segment_id}")
     def update_segment(draft_id: str, segment_id: str, body: SegmentPatchBody):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             ensure_revisions_table(connection)
             require_editable(connection, draft_id)
             if connection.execute("SELECT id FROM autoedit_segments WHERE id=? AND autoedit_draft_id=?", (segment_id, draft_id)).fetchone() is None:
@@ -406,13 +393,9 @@ def create_router(get_db, render_create, render_body_class, max_upload_bytes):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.post("/drafts/{draft_id}/reorder")
     def reorder_segments(draft_id: str, body: ReorderBody):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             ensure_revisions_table(connection)
             require_editable(connection, draft_id)
             current = [row["id"] for row in connection.execute("SELECT id FROM autoedit_segments WHERE autoedit_draft_id=? ORDER BY position", (draft_id,)).fetchall()]
@@ -425,13 +408,9 @@ def create_router(get_db, render_create, render_body_class, max_upload_bytes):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.delete("/drafts/{draft_id}/segments/{segment_id}")
     def delete_segment(draft_id: str, segment_id: str):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             ensure_revisions_table(connection)
             require_editable(connection, draft_id)
             if connection.execute("SELECT COUNT(*) FROM autoedit_segments WHERE autoedit_draft_id=?", (draft_id,)).fetchone()[0] <= 1:
@@ -443,13 +422,9 @@ def create_router(get_db, render_create, render_body_class, max_upload_bytes):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     @router.post("/drafts/{draft_id}/confirm")
     def confirm_draft(draft_id: str, body: ConfirmBody | None = None):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             ensure_revisions_table(connection)
             payload = draft_payload(connection, draft_id)
             if payload["status"] == "confirmed":
@@ -465,7 +440,4 @@ def create_router(get_db, render_create, render_body_class, max_upload_bytes):
             )
             connection.commit()
             return draft_payload(connection, draft_id)
-        finally:
-            connection.close()
-
     return router

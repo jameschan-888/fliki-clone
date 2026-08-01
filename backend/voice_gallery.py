@@ -86,37 +86,26 @@ def create_router(get_db, preview_dir=None):
             term = f"%{search.strip()}%"
             parameters.extend([term, term, term])
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
-        connection = get_db()
-        try:
+        with get_db() as connection:
             rows = connection.execute(
                 f"SELECT * FROM edge_voices{where} ORDER BY Locale, FriendlyName, ShortName",
                 parameters,
             ).fetchall()
             return [voice_payload(row) for row in rows]
-        finally:
-            connection.close()
-
     @router.get("/locales")
     def list_locales():
-        connection = get_db()
-        try:
+        with get_db() as connection:
             rows = connection.execute(
                 "SELECT Locale AS locale, COUNT(*) AS count FROM edge_voices "
                 "GROUP BY Locale ORDER BY Locale"
             ).fetchall()
             return [dict(row) for row in rows]
-        finally:
-            connection.close()
-
     @router.get("/{short_name}/preview")
     def preview_voice(short_name: str, text: str = Query(default="你好世界", min_length=1, max_length=200)):
-        connection = get_db()
-        try:
+        with get_db() as connection:
             voice = connection.execute(
                 "SELECT ShortName FROM edge_voices WHERE ShortName = ?", (short_name,)
             ).fetchone()
-        finally:
-            connection.close()
         if voice is None:
             raise HTTPException(status_code=404, detail="Voice not found")
         normalized_text = text.strip()[:200]
@@ -138,14 +127,11 @@ def create_router(get_db, preview_dir=None):
 
     @router.post("/refresh")
     def refresh():
-        connection = get_db()
-        try:
-            count = refresh_voices(connection)
-            return {"count": count, "fetched_at": now_epoch()}
-        except Exception as exc:
-            connection.rollback()
-            raise HTTPException(status_code=502, detail=f"Unable to refresh Edge voices: {exc}") from exc
-        finally:
-            connection.close()
-
+        with get_db() as connection:
+            try:
+                count = refresh_voices(connection)
+                return {"count": count, "fetched_at": now_epoch()}
+            except Exception as exc:
+                connection.rollback()
+                raise HTTPException(status_code=502, detail=f"Unable to refresh Edge voices: {exc}") from exc
     return router

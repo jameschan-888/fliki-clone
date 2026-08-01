@@ -294,8 +294,8 @@ def enrich_voice_with_cadence(tts_result):
 
 
 def execute_pipeline(run_id,get_db,render_create,render_body_class,background_tasks,preview=False):
-    connection=get_db();run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
-    try:
+    with get_db() as connection:
+        run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
         connection.execute("UPDATE workflow_runs SET status='generating_assets',progress=5,updated_at=? WHERE id=?",(now(),run_id));connection.commit()
         draft=connection.execute("SELECT * FROM workflow_drafts WHERE id=?",(run["workflow_draft_id"],)).fetchone()
         scenes=connection.execute("SELECT * FROM scene_drafts WHERE workflow_draft_id=? ORDER BY position",(draft["id"],)).fetchall()
@@ -374,9 +374,6 @@ def execute_pipeline(run_id,get_db,render_create,render_body_class,background_ta
             connection.execute("UPDATE workflow_nodes SET status='failed',message=?,finished_at=?,updated_at=? WHERE id=?", (dispatch_msg[:2000] if dispatch_msg else "dispatch failed", now(), now(), render_node["id"]))
             connection.commit()
             raise RuntimeError("render_segments_dispatch failed: " + (dispatch_msg or ""))
-    finally:connection.close()
-
-
 def sync_render(connection,run):
     if run["status"]!="rendering" or not run["render_job_id"]:return
     render=connection.execute("SELECT * FROM render_jobs WHERE _id=?",(run["render_job_id"],)).fetchone()
@@ -391,8 +388,7 @@ def sync_render(connection,run):
 
 
 def rerender_existing(run_id, get_db, render_create, render_body_class, background_tasks):
-    connection = get_db()
-    try:
+    with get_db() as connection:
         run = connection.execute("SELECT * FROM workflow_runs WHERE id=?", (run_id,)).fetchone()
         if run is None:
             raise HTTPException(status_code=404, detail="Workflow run not found")
@@ -433,21 +429,17 @@ def rerender_existing(run_id, get_db, render_create, render_body_class, backgrou
             render_body_class(playback_id=f"workflow-{run_id}", props_path=str(props_path), resolution="720p"),
             background_tasks,
         )
-        connection = get_db()
-        connection.execute(
-            "UPDATE workflow_runs SET render_job_id=?, progress=75, updated_at=? WHERE id=?",
-            (response["jobId"], now(), run_id),
-        )
-        connection.execute(
-            "UPDATE workflow_nodes SET result_json=? WHERE id=?",
-            (json.dumps(response, ensure_ascii=False), render_node["id"]),
-        )
-        connection.commit()
-        return run_payload(connection, run_id)
-    finally:
-        connection.close()
-
-
+        with get_db() as connection:
+            connection.execute(
+                "UPDATE workflow_runs SET render_job_id=?, progress=75, updated_at=? WHERE id=?",
+                (response["jobId"], now(), run_id),
+            )
+            connection.execute(
+                "UPDATE workflow_nodes SET result_json=? WHERE id=?",
+                (json.dumps(response, ensure_ascii=False), render_node["id"]),
+            )
+            connection.commit()
+            return run_payload(connection, run_id)
 def create_router(get_db, render_create, render_body_class):
     from auth_router import get_user_id_from_request as _uid_of_request
     router=APIRouter(prefix="/workflow-runs",tags=["workflow-runs"])
@@ -463,8 +455,7 @@ def create_router(get_db, render_create, render_body_class):
         user_id = _uid(request)
         if not user_id:
             return [] if page <= 0 else {"items": [], "total": 0, "page": page, "limit": limit, "has_more": False}
-        connection = get_db()
-        try:
+        with get_db() as connection:
             clauses = ["user_id = ?"]
             params: list = [user_id]
             if status:
@@ -495,14 +486,11 @@ def create_router(get_db, render_create, render_body_class):
                 "limit": capped_limit,
                 "has_more": (offset + len(items)) < total,
             }
-        finally:
-            connection.close()
     @router.post("/from-draft/{draft_id}")
     def create_run(draft_id:str,background_tasks:BackgroundTasks,request:Request = None,preview:bool=False,force:bool=False):
         from auth_router import get_user_id_from_request as _uid
         user_id = _uid(request)
-        connection=get_db()
-        try:
+        with get_db() as connection:
             if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
             draft=connection.execute("SELECT status, user_id FROM workflow_drafts WHERE id=?",(draft_id,)).fetchone()
             if draft is None or draft["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow draft not found")
@@ -512,38 +500,31 @@ def create_router(get_db, render_create, render_body_class):
             run_id=uuid.uuid4().hex;timestamp=now();connection.execute("INSERT INTO workflow_runs (id,workflow_draft_id,status,progress,created_at,updated_at,user_id) VALUES (?,?,'queued',0,?,?,?)",(run_id,draft_id,timestamp,timestamp,user_id));connection.commit()
             background_tasks.add_task(execute_pipeline,run_id,get_db,render_create,render_body_class,background_tasks,preview)
             return run_payload(connection,run_id)
-        finally:connection.close()
     @router.get("/{run_id}")
     def get_run(run_id:str,request:Request = None):
-        connection=get_db()
-        try:
+        with get_db() as connection:
             user_id = _uid_of_request(request)
             if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
             run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
             if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
             sync_render(connection,run)
             return run_payload(connection,run_id)
-        finally:connection.close()
     @router.post("/{run_id}/retry")
     def retry_run(run_id:str,background_tasks:BackgroundTasks,preview:bool=False,request:Request = None):
-        connection=get_db()
-        try:
+        with get_db() as connection:
             user_id = _uid_of_request(request)
             if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
             run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
             if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
             if run["status"]!="failed":raise HTTPException(status_code=409,detail="Only failed runs can be retried")
             connection.execute("UPDATE workflow_runs SET status='queued',message=NULL,updated_at=?,finished_at=NULL WHERE id=?",(now(),run_id));connection.commit();background_tasks.add_task(execute_pipeline,run_id,get_db,render_create,render_body_class,background_tasks);return run_payload(connection,run_id)
-        finally:connection.close()
     @router.post("/{run_id}/rerender")
     def rerender_run(run_id:str,background_tasks:BackgroundTasks,request:Request = None):
         user_id = _uid_of_request(request)
         if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
-        connection=get_db()
-        try:
+        with get_db() as connection:
             run=connection.execute("SELECT user_id FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
             if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
-        finally:connection.close()
         return rerender_existing(run_id, get_db, render_create, render_body_class, background_tasks)
     return router
 
