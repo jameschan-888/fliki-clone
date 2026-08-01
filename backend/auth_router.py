@@ -17,6 +17,7 @@ Design: minimal but functional. Real production needs:
 - email verification flow
 """
 import sys
+import sqlite3
 import hashlib
 import hmac
 import json
@@ -25,7 +26,21 @@ import secrets
 import time
 import uuid
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from db.connection import get_db
+def _resolve_con(con):
+    """FastAPI injects con via Depends(get_db); direct calls (tests) pass Depends object.
+    Detect & resolve to a real sqlite3.Connection by calling get_db() ourselves.
+    Tests mock main.get_db (legacy pattern); fall back to it before going to db.connection.
+    """
+    if hasattr(con, "execute") and hasattr(con, "close"):
+        return con
+    try:
+        import main as _main
+        return _main.get_db()
+    except Exception:
+        from db.connection import get_db as _gdb
+        return _gdb()
 from rate_limit import SlidingWindowLimiter
 from pydantic import BaseModel, EmailStr, Field
 
@@ -343,7 +358,8 @@ class LoginBody(BaseModel):
 
 
 @router.post("/register")
-def register(body: RegisterBody, request: Request):
+def register(body: RegisterBody, request: Request, con: sqlite3.Connection = Depends(get_db)):
+    con = _resolve_con(con)
     # rev35: 端点限速前置 (角色白名单前, 避免 403/409/429 探测区分).
     _enforce_rate_limit(_REGISTER_LIMITER, _client_ip(request) + "|" + body.email.lower().strip())
     _enforce_rate_limit(_REGISTER_LIMITER, _client_ip(request))
@@ -355,8 +371,6 @@ def register(body: RegisterBody, request: Request):
                 "message": "公开注册不能创建管理员账号",
             },
         )
-    from main import get_db  # late import to avoid circular
-    con = get_db()
     try:
         normalized_email = body.email.lower().strip()
         existing = con.execute("SELECT id FROM users WHERE email=?", (normalized_email,)).fetchone()
@@ -379,11 +393,10 @@ def register(body: RegisterBody, request: Request):
 
 
 @router.post("/login")
-def login(body: LoginBody, request: Request):
+def login(body: LoginBody, request: Request, con: sqlite3.Connection = Depends(get_db)):
+    con = _resolve_con(con)
     _enforce_rate_limit(_LOGIN_LIMITER, _client_ip(request) + "|" + body.email.lower().strip())
     _enforce_rate_limit(_LOGIN_LIMITER, _client_ip(request))
-    from main import get_db
-    con = get_db()
     try:
         row = con.execute("SELECT id, email, password_salt, password_hash, role FROM users WHERE email=?", (body.email.lower().strip(),)).fetchone()
         if not row:
@@ -406,12 +419,11 @@ def login(body: LoginBody, request: Request):
 
 
 @router.get("/me")
-def me(request: Request):
+def me(request: Request, con: sqlite3.Connection = Depends(get_db)):
+    con = _resolve_con(con)
     uid = get_user_id_from_request(request)
     if not uid:
         raise HTTPException(status_code=401, detail={"error_code": "MISSING_TOKEN", "message": "missing/invalid token"})
-    from main import get_db
-    con = get_db()
     try:
         row = con.execute("SELECT id, email, role, created_at FROM users WHERE id=?", (uid,)).fetchone()
         if not row:
@@ -427,10 +439,9 @@ class RefreshBody(BaseModel):
 
 
 @router.post("/refresh")
-def refresh(request: Request, body: RefreshBody | None = None):
+def refresh(request: Request, body: RefreshBody | None = None, con: sqlite3.Connection = Depends(get_db)):
+    con = _resolve_con(con)
     # rev34 P1: 优先 body.refresh_token (rotation), 否则 Authorization Bearer access_token (rev33 P1-B grace).
-    from main import get_db
-    con = get_db()
     try:
         if body and body.refresh_token:
             return _rotate_refresh_token(con, body.refresh_token)
@@ -463,10 +474,9 @@ class LogoutBody(BaseModel):
 
 
 @router.post("/logout")
-def logout(body: LogoutBody):
+def logout(body: LogoutBody, con: sqlite3.Connection = Depends(get_db)):
+    con = _resolve_con(con)
     # rev34 P1: 撤销 refresh_token (单设备退出). 失败返回 204 (幂等).
-    from main import get_db
-    con = get_db()
     try:
         hash_id = _hash_refresh_token(body.refresh_token)
         _revoke_refresh_token(con, hash_id)
@@ -475,12 +485,11 @@ def logout(body: LogoutBody):
         con.close()
 
 @router.get("/users")
-def list_users(request: Request):
+def list_users(request: Request, con: sqlite3.Connection = Depends(get_db)):
+    con = _resolve_con(con)
     uid = get_user_id_from_request(request)
     if not uid:
         raise HTTPException(status_code=401, detail={"error_code": "MISSING_TOKEN"})
-    from main import get_db
-    con = get_db()
     try:
         actor = con.execute("SELECT role FROM users WHERE id=?", (uid,)).fetchone()
         if not actor or actor[0] != "admin":
@@ -492,9 +501,11 @@ def list_users(request: Request):
 
 
 # DB schema (idempotent create on import)
-def ensure_users_table():
-    from main import get_db
-    con = get_db()
+def ensure_users_table(con=None):
+    own = con is None
+    if own:
+        from db.connection import get_db
+        con = get_db()
     try:
         con.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -524,4 +535,5 @@ def ensure_users_table():
         con.execute("CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id, created_at DESC)")
         con.commit()
     finally:
-        con.close()
+        if own:
+            con.close()
