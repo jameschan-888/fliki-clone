@@ -1,4 +1,5 @@
 import type { RenderLatest, SceneDraft, WorkflowDraft, WorkflowRun } from "../types/draft";
+import { getToken, recoverSession } from "./auth";
 
 export const API = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5181").replace(/\/$/, "");
 
@@ -51,13 +52,24 @@ export function formatApiError(error: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit & { __retried?: boolean }): Promise<T> {
   const headers: Record<string, string> = { ...(init?.headers as Record<string, string> | undefined) };
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   if (!isFormData && init?.body && typeof init.body === "string" && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
+  const cached = getToken();
+  if (cached && !headers["Authorization"]) {
+    headers["Authorization"] = "Bearer " + cached;
+  }
   const r = await fetch(API + path, { ...init, headers });
+  if (r.status === 401 && !init?.__retried) {
+    const refreshed = await recoverSession();
+    if (refreshed) {
+      const retryHeaders: Record<string, string> = { ...headers, Authorization: "Bearer " + refreshed };
+      return request<T>(path, { ...init, headers: retryHeaders, __retried: true });
+    }
+  }
   if (!r.ok) {
     const body = await r.json().catch(() => null);
     const enriched: ApiError = {
