@@ -26,9 +26,29 @@ import time
 import uuid
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from rate_limit import SlidingWindowLimiter
 from pydantic import BaseModel, EmailStr, Field
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+_LOGIN_LIMITER = SlidingWindowLimiter(max_hits=5, window_seconds=60.0)
+_REGISTER_LIMITER = SlidingWindowLimiter(max_hits=5, window_seconds=60.0)
+
+def _client_ip(request: Request) -> str:
+    if request.client is None:
+        return "unknown"
+    return request.client.host or "unknown"
+
+def _enforce_rate_limit(limiter: SlidingWindowLimiter, key: str) -> None:
+    blocked, _ = limiter.hit(key)
+    if blocked:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error_code": "RATE_LIMITED",
+                "message": "请求过于频繁，请稍后再试",
+                "hint": "Per-IP/email 5 requests/minute; 等待 1 分钟后重试",
+            },
+        )
 
 JWT_SECRET = os.environ.get("FLIKI_JWT_SECRET", "fliki-dev-secret-CHANGE-IN-PROD")
 JWT_TTL_SECONDS = 60 * 60 * 24 * 7  # 7 days
@@ -324,6 +344,9 @@ class LoginBody(BaseModel):
 
 @router.post("/register")
 def register(body: RegisterBody, request: Request):
+    # rev35: 端点限速前置 (角色白名单前, 避免 403/409/429 探测区分).
+    _enforce_rate_limit(_REGISTER_LIMITER, _client_ip(request) + "|" + body.email.lower().strip())
+    _enforce_rate_limit(_REGISTER_LIMITER, _client_ip(request))
     if body.role != "user":
         raise HTTPException(
             status_code=403,
@@ -356,7 +379,9 @@ def register(body: RegisterBody, request: Request):
 
 
 @router.post("/login")
-def login(body: LoginBody):
+def login(body: LoginBody, request: Request):
+    _enforce_rate_limit(_LOGIN_LIMITER, _client_ip(request) + "|" + body.email.lower().strip())
+    _enforce_rate_limit(_LOGIN_LIMITER, _client_ip(request))
     from main import get_db
     con = get_db()
     try:
