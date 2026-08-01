@@ -38,7 +38,7 @@ class CharactersEndpointTest(unittest.TestCase):
                 conn.commit()
                 conn.close()
 
-                list_characters = getattr(main, "list_characters", None)
+                from routers.analytics import list_characters
                 self.assertIsNotNone(list_characters)
                 result = list_characters(gender="female", limit=10)
                 self.assertEqual(
