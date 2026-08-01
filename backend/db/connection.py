@@ -12,16 +12,29 @@ from pathlib import Path
 
 from config import config
 
+from contextlib import contextmanager
+
+@contextmanager
 def get_db():
-    conn = sqlite3.connect(config["DB_PATH"])
+    """DB connection context manager. FastAPI Depends(get_db) auto-closes.
+
+    Used as:
+    - FastAPI endpoint: Depends(get_db) — FastAPI auto-closes
+    - Python code: with get_db() as conn: — contextlib closes on exit
+    - Direct call: con = next(get_db()) — yields connection, then closes
+    """
+    conn = sqlite3.connect(config["DB_PATH"], check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    conn.execute("PRAGMA busy_timeout = 5000")
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 def init_db():
     schema = Path(__file__).parent / "schema.sql"
-    conn = get_db()
-    try:
+    with get_db() as conn:
         conn.executescript(schema.read_text(encoding="utf-8"))
         migrated = False
         for table, col_defs in (
@@ -69,5 +82,3 @@ def init_db():
         if migrated:
             conn.commit()
         return migrated
-    finally:
-        conn.close()

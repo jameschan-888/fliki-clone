@@ -28,8 +28,7 @@ def create_router(get_db):
             disk_free_gb = round(du.free / 1e9, 2)
         except Exception:
             disk_free_gb = None
-        conn = get_db()
-        try:
+        with get_db() as conn:
             counts = {
                 "users": conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"],
                 "workflow_drafts": conn.execute("SELECT COUNT(*) AS c FROM workflow_drafts").fetchone()["c"],
@@ -45,8 +44,6 @@ def create_router(get_db):
                     "SELECT COUNT(*) AS c FROM workflow_runs WHERE status = 'failed'"
                 ).fetchone()["c"],
             }
-        finally:
-            conn.close()
         return {
             "ts": int(time.time()),
             "disk_free_gb": disk_free_gb,
@@ -60,8 +57,7 @@ def create_router(get_db):
 
         未登录 (user_id IS NULL) 的归属到 'anonymous' bucket, 兼容 P0-3 user_id 隔离之前的旧数据.
         """
-        conn = get_db()
-        try:
+        with get_db() as conn:
             rows = conn.execute("""
                 SELECT
                     COALESCE(user_id, 'anonymous') AS user_id,
@@ -81,8 +77,6 @@ def create_router(get_db):
                 GROUP BY COALESCE(user_id, 'anonymous')
                 ORDER BY runs_total DESC
             """).fetchall()
-        finally:
-            conn.close()
         # 合并两份聚合 (同一 user_id 必出现)
         agg = {}
         for r in rows:
@@ -118,8 +112,7 @@ def create_router(get_db):
 
         若该 user_id 从未创建任何草稿或跑任务, 返 404.
         """
-        conn = get_db()
-        try:
+        with get_db() as conn:
             drafts = conn.execute(
                 "SELECT id, title, status, updated_at FROM workflow_drafts WHERE user_id = ? ORDER BY updated_at DESC LIMIT 20",
                 (user_id,),
@@ -128,8 +121,6 @@ def create_router(get_db):
                 "SELECT id, workflow_draft_id, status, progress, created_at FROM workflow_runs WHERE user_id = ? ORDER BY created_at DESC LIMIT 20",
                 (user_id,),
             ).fetchall()
-        finally:
-            conn.close()
         if not drafts and not runs:
             raise HTTPException(status_code=404, detail=f"User {user_id!r} has no activity")
         return {

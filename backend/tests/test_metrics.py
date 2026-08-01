@@ -86,8 +86,7 @@ class MetricsPerUserContract(_MetricsBase):
         self.assertEqual(payload["users"], [])
 
     def test_per_user_shape_when_present(self):
-        conn = main.get_db()
-        try:
+        with main.get_db() as conn:
             # 注入 1 个 user_id + 2 草稿 (1 confirmed) + 1 run (failed)
             conn.execute(
                 "INSERT INTO users (id, email, password_salt, password_hash, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -106,8 +105,6 @@ class MetricsPerUserContract(_MetricsBase):
                 ("r-1", "d-1", "failed", 50, "u-metrics-1"),
             )
             conn.commit()
-        finally:
-            conn.close()
         status, payload = self.call("GET", "/metrics/users")
         self.assertEqual(status, 200)
         self.assertEqual(payload["total_users"], 1)
@@ -124,8 +121,7 @@ class MetricsUserDetailContract(_MetricsBase):
         self.assertEqual(status, 404)
 
     def test_user_detail_shape(self):
-        conn = main.get_db()
-        try:
+        with main.get_db() as conn:
             conn.execute(
                 "INSERT INTO users (id, email, password_salt, password_hash, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 ("u-detail-1", "d1@example.com", "salt", "hash", "user", 1, 1),
@@ -135,8 +131,6 @@ class MetricsUserDetailContract(_MetricsBase):
                 ("d-detail-1", "D", "src", "zh-CN", "draft", 1, "u-detail-1"),
             )
             conn.commit()
-        finally:
-            conn.close()
         status, payload = self.call("GET", "/metrics/users/{user_id}", user_id="u-detail-1")
         self.assertEqual(status, 200)
         _check_schema(payload, {"user_id": "string", "drafts": "list", "runs": "list"})

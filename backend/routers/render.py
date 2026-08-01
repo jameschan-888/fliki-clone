@@ -18,19 +18,48 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 import sqlite3
 from db.connection import get_db
 
+class _ConnWrapper:
+    """Proxies sqlite3.Connection but wraps .close() to also exit the
+    contextmanager generator. sqlite3.Connection.close is read-only so we
+    cannot monkey-patch conn.close directly; instead we proxy the whole
+    connection via __getattr__.
+    """
+    def __init__(self, conn, gen):
+        self._conn = conn
+        self._gen = gen
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+    def close(self):
+        try:
+            self._conn.close()
+        finally:
+            try:
+                self._gen.__exit__(None, None, None)
+            except Exception:
+                pass
+
 def _resolve_con(con):
     """FastAPI injects con via Depends(get_db); direct calls (tests) pass Depends object.
-    Detect & resolve via main.get_db() first (legacy test mock) then db.connection.get_db().
+    Detect & resolve: real Connection returned as-is; Depends enters a fresh contextmanager
+    and wraps the conn so caller-side close() also exits the generator (prevents SQLite
+    connection leak in tests, since sqlite3.Connection.close cannot be monkey-patched).
+    Mock compat: legacy tests mock main.get_db (return_value=conn); honor that first.
     """
     if hasattr(con, "execute") and hasattr(con, "close"):
         return con
     try:
         import main as _main
-        return _main.get_db()
+        _candidate = _main.get_db()
+        if hasattr(_candidate, "execute") and hasattr(_candidate, "close"):
+            return _candidate
+        if hasattr(_candidate, "__enter__"):
+            return _ConnWrapper(_candidate.__enter__(), _candidate)
     except Exception:
-        from db.connection import get_db as _gdb
-        return _gdb()
-from fastapi.responses import FileResponse
+        pass
+    from db.connection import get_db as _gdb
+    _gen = _gdb()
+    _conn = _gen.__enter__()
+    return _ConnWrapper(_conn, _gen)
 
 from config import config
 from models.render import RenderCancelBody, RenderCreateBody

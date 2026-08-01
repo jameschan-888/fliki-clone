@@ -1,7 +1,7 @@
 """Fliki 还原后端 - FastAPI 主入口"""
 import hashlib, json, os, platform, re, signal, sqlite3, threading, time, uuid, subprocess
 from pathlib import Path
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -80,12 +80,9 @@ async def lifespan(app):
         print("[auth] users table init warning:", e)
     if init_db():
         print("[database] Added scene_drafts.voice compatibility column")
-    connection = get_db()
-    try:
+    with closing(get_db()) as connection:
         seed_runtime_providers(connection)
         ensure_voices(connection)
-    finally:
-        connection.close()
     run_startup_diagnostic_background()
     yield
     # shutdown: 当前无 cleanup, 留 hook 位置
