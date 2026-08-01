@@ -14,9 +14,6 @@ from request_context import install_request_context
 
 from errors import make_error_response, normalize_http_exception_detail, DEFAULT_ERROR_CODE_BY_STATUS, ERR_VALIDATION_ERROR, ERR_INTERNAL_ERROR, ERR_UNKNOWN
 from config import config, DEFAULT_PROVIDERS
-from db.connection import get_db, init_db
-from routers.startup import router as startup_router, run_startup_diagnostic_background
-from routers.alerts import router as alerts_router
 from workflow_drafts import create_router as create_workflow_drafts_router
 from provider_config import create_router as create_provider_config_router, seed_runtime_providers, hydrate_env_from_disk
 from workflow_pipeline import create_router as create_workflow_pipeline_router
@@ -34,6 +31,11 @@ from metrics_router import create_router as create_metrics_router
 
 
 START_TIME = time.time()# ===== DB =====
+def get_db():
+    conn = sqlite3.connect(config["DB_PATH"])
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
 
 hydrate_env_from_disk()
 
@@ -49,6 +51,87 @@ except RuntimeError as _jwt_exc:
     raise
 
 
+def init_db():
+    schema = Path(__file__).parent / "db" / "schema.sql"
+    conn = get_db()
+    try:
+        conn.executescript(schema.read_text(encoding="utf-8"))
+        migrated = False
+        for table, col_defs in (
+            ("scene_drafts", (("voice", "TEXT NOT NULL DEFAULT 'zh-CN-XiaoxiaoNeural'"),
+                              ("avatar", "TEXT"),
+                              ("avatar_layout", "TEXT"),
+                              ("template_id", "TEXT"),
+                              ("template_fields", "TEXT"),
+                              ("stock_url", "TEXT"),
+                              ("camera_motion", "TEXT NOT NULL DEFAULT 'zoom-in'"),
+                              ("video_aspect", "TEXT NOT NULL DEFAULT '16:9'"),
+                              ("video_transition_mode", "TEXT NOT NULL DEFAULT 'fade'"),
+                              ("media_width", "INTEGER NOT NULL DEFAULT 1280"),
+                              ("media_height", "INTEGER NOT NULL DEFAULT 720"),
+                              ("subtitle_display", "TEXT"),
+                              ("subtitle_spoken", "TEXT"))),
+        ):
+            tcols = {row["name"] for row in conn.execute("PRAGMA table_info(" + table + ")").fetchall()}
+            if not tcols:
+                continue
+            for col, decl in col_defs:
+                if col not in tcols:
+                    conn.execute("ALTER TABLE " + table + " ADD COLUMN " + col + " " + decl)
+                    migrated = True
+        # rev24 stage C #8: multi-tenant FK
+        for table in ("workflow_drafts", "workflow_runs", "render_jobs"):
+            tcols = {row["name"] for row in conn.execute("PRAGMA table_info(" + table + ")").fetchall()}
+            if not tcols:
+                continue
+            if "user_id" not in tcols:
+                conn.execute("ALTER TABLE " + table + " ADD COLUMN user_id TEXT")
+                migrated = True
+            if "user_id" in tcols:
+                # rev24 stage C #8: indexes for user_id
+                for idx_sql in (
+                    "CREATE INDEX IF NOT EXISTS idx_workflow_drafts_user ON workflow_drafts(user_id, updated_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_workflow_runs_user ON workflow_runs(user_id, created_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS idx_render_jobs_user ON render_jobs(user_id, created_at DESC)",
+                ):
+                    pass  # placeholder; actual indexes are table-specific
+                # create table-specific index only
+                if table == "workflow_drafts":
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_workflow_drafts_user ON workflow_drafts(user_id, updated_at DESC)")
+                elif table == "workflow_runs":
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_workflow_runs_user ON workflow_runs(user_id, created_at DESC)")
+                elif table == "render_jobs":
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_render_jobs_user ON render_jobs(user_id, created_at DESC)")
+        if migrated:
+            conn.commit()
+        return migrated
+    finally:
+        conn.close()
+
+_startup_diagnostic_status = {"state": "pending", "finished_at": None, "error": None}
+
+def _background_diagnostic():
+    try:
+        report = write_startup_diagnostic()
+        _startup_diagnostic_status["state"] = "ready" if not (report or {}).get("error") else "error"
+        _startup_diagnostic_status["error"] = (report or {}).get("error")
+    except Exception as error:
+        _startup_diagnostic_status["state"] = "error"
+        _startup_diagnostic_status["error"] = str(error)
+    finally:
+        _startup_diagnostic_status["finished_at"] = int(time.time())
+
+def write_startup_diagnostic():
+    try:
+        report = run_full_diagnostic()
+        report_path = Path(config["DATA_DIR"]) / "env-check.json"
+        report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        for warning in report.get("warnings", []):
+            print(f"[env-check] {warning.get('level', 'info').upper()}: {warning.get('msg', '')}")
+        return report
+    except Exception as error:
+        print(f"[env-check] WARNING: startup diagnostic failed: {error}")
+        return {"error": str(error)}
 # ===== App =====
 app = FastAPI(title="Fliki Clone API", version="0.1.0")
 
@@ -77,14 +160,12 @@ async def lifespan(app):
         ensure_voices(connection)
     finally:
         connection.close()
-    run_startup_diagnostic_background()
+    threading.Thread(target=_background_diagnostic, name="env-diagnostic", daemon=True).start()
     yield
     # shutdown: 当前无 cleanup, 留 hook 位置
 
 app.router.lifespan_context = lifespan
 
-app.include_router(startup_router)
-app.include_router(alerts_router)
 app.include_router(create_workflow_drafts_router(get_db))
 app.include_router(create_provider_config_router(get_db))
 VOICE_PREVIEW_DIR = Path(config["DATA_DIR"]) / "voice_previews"
@@ -147,6 +228,12 @@ def reset_alert_throttle(request: Request):
     return {"reset": True, "stats": _ALERT_MANAGER.stats()}
 
 
+
+@app.get("/startup-status")
+def startup_status():
+    return _startup_diagnostic_status
+
+@app.get("/health")
 def health():
     """rev24 阶段 D P1-C 收口: liveness + 资源健康 (cpu / disk / queue)."""
     import shutil
@@ -865,6 +952,13 @@ def render_cancel(body: RenderCancelBody, request: Request = None):
 @app.get("/providers")
 def list_providers():
     return DEFAULT_PROVIDERS
+
+@app.get("/")
+def root():
+    return {"api": "fliki-clone", "version": app.version, "endpoints": [
+        "/health", "/styles", "/media-samples",
+        "/render.latest", "/render.create", "/providers"
+    ]}
 
 def _emit_tenant_metrics(con, out):
     """rev24 阶段 D D1-1: tenant 维度 (user_id md5 哈希分 4 桶, 确定性).
