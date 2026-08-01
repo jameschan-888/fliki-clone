@@ -9,6 +9,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from secure_middleware import install_security_middleware
+from request_context import install_request_context
 
 from errors import make_error_response, normalize_http_exception_detail, DEFAULT_ERROR_CODE_BY_STATUS, ERR_VALIDATION_ERROR, ERR_INTERNAL_ERROR, ERR_UNKNOWN
 from config import config, DEFAULT_PROVIDERS
@@ -134,9 +136,8 @@ app = FastAPI(title="Fliki Clone API", version="0.1.0")
 
 
 
-app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
-)
+install_security_middleware(app)
+install_request_context(app)
 # 借鉴灵剪 packages/core/errors.py：统一 LingjianError + HTTPException 响应体。
 from errors import register_error_handlers  # noqa: E402
 register_error_handlers(app)
