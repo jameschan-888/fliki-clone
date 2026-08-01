@@ -4,6 +4,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -48,11 +49,15 @@ def _setup_db():
 
 
 def _make_client(db_path: str, ref_dir: str, preview_dir: str):
+    @contextmanager
     def _get_db():
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
     app = FastAPI()
     app.include_router(create_minimax_router(_get_db, ref_dir, preview_dir))
     return TestClient(app)
@@ -314,3 +319,4 @@ class MiniMaxTTSCacheWiringTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

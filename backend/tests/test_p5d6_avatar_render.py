@@ -53,45 +53,45 @@ class P5D6AvatarRenderTest(unittest.TestCase):
             pass
 
     def _seed_draft_with_avatar(self, run_id, scene_id, has_avatar):
-        conn = main.get_db()
-        ts = "2026-07-24T00:00:00+00:00"
-        avatar_value = f"avatar:{AVATAR_UUID}" if has_avatar else None
-        conn.execute(
-            "INSERT INTO workflow_drafts (id,title,source_script,language,status,version,created_at,updated_at,confirmed_at,confirmed_snapshot_json) "
-            "VALUES (?, ?, ?, ?, 'confirmed', 1, ?, ?, ?, ?)",
-            (
-                "draft",
-                "Avatar render",
-                "Script.",
-                "zh-CN",
-                ts,
-                ts,
-                ts,
-                json.dumps({
-                    "id": "draft",
-                    "title": "Avatar render",
-                    "language": "zh-CN",
-                    "status": "confirmed",
-                    "scenes": [{
-                        "id": scene_id, "position": 0, "title": "opening",
-                        "narration": "Hello", "visual_intent": "sky",
-                        "subtitle": "Hello", "duration_seconds": 3.0,
-                        "voice": "zh-CN-XiaoxiaoNeural", "avatar": avatar_value,
-                    }],
-                }, ensure_ascii=False),
-            ),
-        )
-        conn.execute(
-            "INSERT INTO scene_drafts (id,workflow_draft_id,position,title,narration,visual_intent,subtitle,duration_seconds,voice,avatar,created_at,updated_at) "
-            "VALUES (?, ?, 0, 'opening', 'Hello', 'sky', 'Hello', 3.0, 'zh-CN-XiaoxiaoNeural', ?, ?, ?)",
-            (scene_id, "draft", avatar_value, ts, ts),
-        )
-        conn.execute(
-            "INSERT INTO workflow_runs (id,workflow_draft_id,status,progress,created_at,updated_at) VALUES (?, 'draft', 'queued', 0, ?, ?)",
-            (run_id, ts, ts),
-        )
-        conn.commit()
-        conn.close()
+        with main.get_db() as conn:
+            ts = "2026-07-24T00:00:00+00:00"
+            avatar_value = f"avatar:{AVATAR_UUID}" if has_avatar else None
+            conn.execute(
+                "INSERT INTO workflow_drafts (id,title,source_script,language,status,version,created_at,updated_at,confirmed_at,confirmed_snapshot_json) "
+                "VALUES (?, ?, ?, ?, 'confirmed', 1, ?, ?, ?, ?)",
+                (
+                    "draft",
+                    "Avatar render",
+                    "Script.",
+                    "zh-CN",
+                    ts,
+                    ts,
+                    ts,
+                    json.dumps({
+                        "id": "draft",
+                        "title": "Avatar render",
+                        "language": "zh-CN",
+                        "status": "confirmed",
+                        "scenes": [{
+                            "id": scene_id, "position": 0, "title": "opening",
+                            "narration": "Hello", "visual_intent": "sky",
+                            "subtitle": "Hello", "duration_seconds": 3.0,
+                            "voice": "zh-CN-XiaoxiaoNeural", "avatar": avatar_value,
+                        }],
+                    }, ensure_ascii=False),
+                ),
+            )
+            conn.execute(
+                "INSERT INTO scene_drafts (id,workflow_draft_id,position,title,narration,visual_intent,subtitle,duration_seconds,voice,avatar,created_at,updated_at) "
+                "VALUES (?, ?, 0, 'opening', 'Hello', 'sky', 'Hello', 3.0, 'zh-CN-XiaoxiaoNeural', ?, ?, ?)",
+                (scene_id, "draft", avatar_value, ts, ts),
+            )
+            conn.execute(
+                "INSERT INTO workflow_runs (id,workflow_draft_id,status,progress,created_at,updated_at) VALUES (?, 'draft', 'queued', 0, ?, ?)",
+                (run_id, ts, ts),
+            )
+            conn.commit()
+            conn.close()
 
     def _run_pipeline(self, run_id):
         capture = _CaptureRender()
@@ -166,14 +166,14 @@ class P5D6AvatarRenderTest(unittest.TestCase):
     def test_avatar_node_reached_success_status(self):
         self._seed_draft_with_avatar(run_id="run-3", scene_id="scene-3", has_avatar=True)
         self._run_pipeline("run-3")
-        conn = main.get_db()
-        avatar_node = conn.execute(
-            "SELECT status, provider, message FROM workflow_nodes WHERE workflow_run_id=? AND node_type='avatar'",
-            ("run-3",),
-        ).fetchone()
-        self.assertIsNotNone(avatar_node)
-        self.assertEqual(avatar_node["status"], "success")
-        self.assertEqual(avatar_node["provider"], "wav2lip_onnx")
+        with main.get_db() as conn:
+            avatar_node = conn.execute(
+                "SELECT status, provider, message FROM workflow_nodes WHERE workflow_run_id=? AND node_type='avatar'",
+                ("run-3",),
+            ).fetchone()
+            self.assertIsNotNone(avatar_node)
+            self.assertEqual(avatar_node["status"], "success")
+            self.assertEqual(avatar_node["provider"], "wav2lip_onnx")
 
 
 if __name__ == "__main__":

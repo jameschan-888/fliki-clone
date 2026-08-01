@@ -6,6 +6,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -35,11 +36,15 @@ def _setup_db():
 
 
 def _make_client(db_path: str):
+    @contextmanager
     def _get_db():
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
     app = FastAPI()
     app.include_router(create_router(_get_db))
     return TestClient(app)
@@ -531,3 +536,4 @@ class SceneDraftsTemplateFieldsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -3,6 +3,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -45,11 +46,14 @@ class VoiceGalleryTest(unittest.TestCase):
         replace_voices(connection, SAMPLE_VOICES)
         connection.close()
 
+        @contextmanager
         def get_db():
             database = sqlite3.connect(self.db_path)
             database.row_factory = sqlite3.Row
-            return database
-
+            try:
+                yield database
+            finally:
+                database.close()
         app = FastAPI()
         self.preview_dir.mkdir(parents=True, exist_ok=True)
         app.mount("/voice-previews", StaticFiles(directory=str(self.preview_dir)), name="voice-previews")
@@ -100,3 +104,5 @@ class VoiceGalleryTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+

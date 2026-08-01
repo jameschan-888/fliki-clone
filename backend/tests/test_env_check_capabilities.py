@@ -113,12 +113,8 @@ class EnvCheckIntegrationTest(unittest.TestCase):
         main.config["DB_PATH"] = str(Path(self.temp_dir.name) / "app.db")
         main.init_db()
         from provider_config import seed_runtime_providers
-        conn = main.get_db()
-        try:
+        with main.get_db() as conn:
             seed_runtime_providers(conn)
-        finally:
-            conn.close()
-
     def tearDown(self):
         main.config["DB_PATH"] = self.original_db_path
         self.temp_dir.cleanup()

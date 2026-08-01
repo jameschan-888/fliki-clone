@@ -67,8 +67,7 @@ class ApiContractBase(unittest.TestCase):
         ensure_users_table()
         import time as _time
         import uuid as _uuid
-        con = main.get_db()
-        try:
+        with main.get_db() as con:
             self.user_id = _uuid.uuid4().hex
             salt, pw_hash = _hash_pw("test-pass-123")
             now = _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime())
@@ -77,8 +76,6 @@ class ApiContractBase(unittest.TestCase):
                 (self.user_id, "test@fliki.local", salt, pw_hash, "user", now, now),
             )
             con.commit()
-        finally:
-            con.close()
         self.token = _make_token(self.user_id, "user")
         self.routes = {}
         for route in main.app.routes:

@@ -46,10 +46,10 @@ class P5D7AvatarLayoutTest(unittest.TestCase):
         for p in (self.voice_file, self.stock_file, self.music_file):
             p.write_bytes(b"FAKE-" + p.suffix.encode("utf-8"))
         # seed provider row
-        conn = main.get_db()
-        from provider_config import seed_runtime_providers
-        seed_runtime_providers(conn)
-        conn.close()
+        with main.get_db() as conn:
+            from provider_config import seed_runtime_providers
+            seed_runtime_providers(conn)
+            conn.close()
 
     def tearDown(self):
         main.config["DB_PATH"] = self.original_db_path
@@ -59,65 +59,65 @@ class P5D7AvatarLayoutTest(unittest.TestCase):
             pass
 
     def _seed_draft(self, run_id):
-        conn = main.get_db()
-        ts = "2026-07-24T00:00:00+00:00"
-        conn.execute(
-            "INSERT INTO workflow_drafts (id,title,source_script,language,status,version,created_at,updated_at,confirmed_at,confirmed_snapshot_json) "
-            "VALUES (?, ?, ?, ?, 'confirmed', 1, ?, ?, ?, ?)",
-            (
-                "draft-p5d7", "Layout test", "Script.", "zh-CN",
-                ts, ts, ts,
-                json.dumps({
-                    "id": "draft-p5d7",
-                    "title": "Layout test",
-                    "language": "zh-CN",
-                    "status": "confirmed",
-                    "scenes": [{
-                        "id": SCENE_ID, "position": 0, "title": "opening",
-                        "narration": "Hello", "visual_intent": "sky",
-                        "subtitle": "Hello", "duration_seconds": 3.0,
-                        "voice": "zh-CN-XiaoxiaoNeural",
-                    }],
-                }, ensure_ascii=False),
-            ),
-        )
-        conn.execute(
-            "INSERT INTO scene_drafts (id,workflow_draft_id,position,title,narration,visual_intent,subtitle,duration_seconds,voice,created_at,updated_at) "
-            "VALUES (?, ?, 0, 'opening', 'Hello', 'sky', 'Hello', 3.0, 'zh-CN-XiaoxiaoNeural', ?, ?)",
-            (SCENE_ID, "draft-p5d7", ts, ts),
-        )
-        conn.execute(
-            "INSERT INTO workflow_runs (id,workflow_draft_id,status,progress,created_at,updated_at) VALUES (?, 'draft-p5d7', 'queued', 0, ?, ?)",
-            (run_id, ts, ts),
-        )
-        conn.commit()
-        conn.close()
+        with main.get_db() as conn:
+            ts = "2026-07-24T00:00:00+00:00"
+            conn.execute(
+                "INSERT INTO workflow_drafts (id,title,source_script,language,status,version,created_at,updated_at,confirmed_at,confirmed_snapshot_json) "
+                "VALUES (?, ?, ?, ?, 'confirmed', 1, ?, ?, ?, ?)",
+                (
+                    "draft-p5d7", "Layout test", "Script.", "zh-CN",
+                    ts, ts, ts,
+                    json.dumps({
+                        "id": "draft-p5d7",
+                        "title": "Layout test",
+                        "language": "zh-CN",
+                        "status": "confirmed",
+                        "scenes": [{
+                            "id": SCENE_ID, "position": 0, "title": "opening",
+                            "narration": "Hello", "visual_intent": "sky",
+                            "subtitle": "Hello", "duration_seconds": 3.0,
+                            "voice": "zh-CN-XiaoxiaoNeural",
+                        }],
+                    }, ensure_ascii=False),
+                ),
+            )
+            conn.execute(
+                "INSERT INTO scene_drafts (id,workflow_draft_id,position,title,narration,visual_intent,subtitle,duration_seconds,voice,created_at,updated_at) "
+                "VALUES (?, ?, 0, 'opening', 'Hello', 'sky', 'Hello', 3.0, 'zh-CN-XiaoxiaoNeural', ?, ?)",
+                (SCENE_ID, "draft-p5d7", ts, ts),
+            )
+            conn.execute(
+                "INSERT INTO workflow_runs (id,workflow_draft_id,status,progress,created_at,updated_at) VALUES (?, 'draft-p5d7', 'queued', 0, ?, ?)",
+                (run_id, ts, ts),
+            )
+            conn.commit()
+            conn.close()
 
     def _set_avatar_layout(self, layout_dict):
-        conn = main.get_db()
-        if layout_dict is None:
-            # strip avatar_layout key
-            row = conn.execute(
-                "SELECT config_json FROM provider_configs WHERE category='avatar' AND name='wav2lip_onnx'"
-            ).fetchone()
-            cfg = json.loads(row["config_json"])
-            cfg.pop("avatar_layout", None)
-            conn.execute(
-                "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
-                (json.dumps(cfg),),
-            )
-        else:
-            row = conn.execute(
-                "SELECT config_json FROM provider_configs WHERE category='avatar' AND name='wav2lip_onnx'"
-            ).fetchone()
-            cfg = json.loads(row["config_json"])
-            cfg["avatar_layout"] = layout_dict
-            conn.execute(
-                "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
-                (json.dumps(cfg),),
-            )
-        conn.commit()
-        conn.close()
+        with main.get_db() as conn:
+            if layout_dict is None:
+                # strip avatar_layout key
+                row = conn.execute(
+                    "SELECT config_json FROM provider_configs WHERE category='avatar' AND name='wav2lip_onnx'"
+                ).fetchone()
+                cfg = json.loads(row["config_json"])
+                cfg.pop("avatar_layout", None)
+                conn.execute(
+                    "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
+                    (json.dumps(cfg),),
+                )
+            else:
+                row = conn.execute(
+                    "SELECT config_json FROM provider_configs WHERE category='avatar' AND name='wav2lip_onnx'"
+                ).fetchone()
+                cfg = json.loads(row["config_json"])
+                cfg["avatar_layout"] = layout_dict
+                conn.execute(
+                    "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
+                    (json.dumps(cfg),),
+                )
+            conn.commit()
+            conn.close()
 
     def _run_pipeline(self, run_id):
         capture = _CaptureRender()
@@ -176,36 +176,36 @@ class P5D7AvatarLayoutTest(unittest.TestCase):
     def test_avatar_layout_non_dict_writes_none(self):
         self._seed_draft(run_id="run-p5d7-3")
         # inject non-dict avatar_layout
-        conn = main.get_db()
-        row = conn.execute(
-            "SELECT config_json FROM provider_configs WHERE category='avatar' AND name='wav2lip_onnx'"
-        ).fetchone()
-        cfg = json.loads(row["config_json"])
-        cfg["avatar_layout"] = "not-a-dict"
-        conn.execute(
-            "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
-            (json.dumps(cfg),),
-        )
-        conn.commit()
-        conn.close()
-        capture = self._run_pipeline("run-p5d7-3")
-        props = self._props(capture)
-        self.assertIn("avatarLayout", props)
-        self.assertIsNone(props["avatarLayout"])
+        with main.get_db() as conn:
+            row = conn.execute(
+                "SELECT config_json FROM provider_configs WHERE category='avatar' AND name='wav2lip_onnx'"
+            ).fetchone()
+            cfg = json.loads(row["config_json"])
+            cfg["avatar_layout"] = "not-a-dict"
+            conn.execute(
+                "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
+                (json.dumps(cfg),),
+            )
+            conn.commit()
+            conn.close()
+            capture = self._run_pipeline("run-p5d7-3")
+            props = self._props(capture)
+            self.assertIn("avatarLayout", props)
+            self.assertIsNone(props["avatarLayout"])
 
     def test_avatar_layout_corrupt_config_json_writes_none(self):
         self._seed_draft(run_id="run-p5d7-4")
-        conn = main.get_db()
-        conn.execute(
-            "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
-            ("{not valid json",),
-        )
-        conn.commit()
-        conn.close()
-        capture = self._run_pipeline("run-p5d7-4")
-        props = self._props(capture)
-        self.assertIn("avatarLayout", props)
-        self.assertIsNone(props["avatarLayout"])
+        with main.get_db() as conn:
+            conn.execute(
+                "UPDATE provider_configs SET config_json=? WHERE category='avatar' AND name='wav2lip_onnx'",
+                ("{not valid json",),
+            )
+            conn.commit()
+            conn.close()
+            capture = self._run_pipeline("run-p5d7-4")
+            props = self._props(capture)
+            self.assertIn("avatarLayout", props)
+            self.assertIsNone(props["avatarLayout"])
 
 
 if __name__ == "__main__":

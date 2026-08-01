@@ -21,8 +21,7 @@ class MockProviderGateTest(unittest.TestCase):
         main.init_db()
         # 重置 seed（init_db 不会重写，但我们要保证 mock seed 在）
         from provider_config import seed_runtime_providers
-        connection = main.get_db()
-        try:
+        with main.get_db() as connection:
             seed_runtime_providers(connection)
             # 把 tts 默认切到 mock，模拟"用 mock 配置去 confirm"
             connection.execute(
@@ -32,8 +31,6 @@ class MockProviderGateTest(unittest.TestCase):
                 "UPDATE provider_configs SET is_default=0 WHERE category='tts' AND name='edge_tts'"
             )
             connection.commit()
-        finally:
-            connection.close()
         self.routes = {
             (method, route.path): route.endpoint
             for route in main.app.routes
@@ -113,8 +110,7 @@ class MockProviderGateTest(unittest.TestCase):
         self.assertEqual(body["details"]["mock_providers"][0]["category"], "tts")
 
     def test_confirm_passes_when_all_defaults_are_real(self):
-        connection = main.get_db()
-        try:
+        with main.get_db() as connection:
             connection.execute(
                 "UPDATE provider_configs SET is_default=1 WHERE category='tts' AND name='edge_tts'"
             )
@@ -122,8 +118,6 @@ class MockProviderGateTest(unittest.TestCase):
                 "UPDATE provider_configs SET is_default=0 WHERE category='tts' AND name='mock'"
             )
             connection.commit()
-        finally:
-            connection.close()
         draft = self._create_draft()
         confirmed = self.routes[("POST", "/workflow-drafts/{draft_id}/confirm")](draft["id"], request=self._FakeRequest(self.tok))
         self.assertEqual(confirmed["status"], "confirmed")

@@ -171,7 +171,8 @@ class VoiceClonesTest(unittest.TestCase):
         os.environ["FLIKI_GPT_SOVITS_URL"] = "http://127.0.0.1:1"
         # Sanity: env override actually makes the resolver pick it up
         from voice_clone_router import fetch_provider_config
-        cfg = fetch_provider_config(main.get_db())
+        with main.get_db() as _conn:
+            cfg = fetch_provider_config(_conn)
         self.assertEqual(cfg["base_url"], "http://127.0.0.1:1")
         # The healthcheck itself reports offline (502 not reachable)
         r = client.get("/voice-clones/provider/health")
