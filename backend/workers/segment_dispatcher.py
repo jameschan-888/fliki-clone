@@ -1,5 +1,5 @@
 """Render segment parallel dispatcher (rev17)."""
-import importlib.util, json, os, shutil, subprocess, sys, time, uuid, threading
+import importlib.util, json, os, queue, shutil, subprocess, sys, time, uuid, threading
 from pathlib import Path
 
 SEGMENT_SCENES = max(1, int(os.environ.get("RENDER_SEGMENT_SCENES", "10")))  # rev17b: 10 场景/段, 30 场景视频 K=3
@@ -70,12 +70,19 @@ def make_thumbnails(final_mp4, run_dir):
     return thumb, preview
 
 
-def poll_segments(connection, run_id, segment_job_ids, segment_dir):
+def poll_segments(connection, run_id, segment_job_ids, segment_dir, worker_errors=None):
     deadline = time.time() + POLL_TIMEOUT
     segment_files = []
     for i in range(len(segment_job_ids)):
         segment_files.append(segment_dir / ("seg_" + str(i) + ".mp4"))
     while time.time() < deadline:
+        if worker_errors is not None:
+            try:
+                failed_job_id, error_message = worker_errors.get_nowait()
+            except queue.Empty:
+                pass
+            else:
+                return False, "segment worker " + failed_job_id + " crashed: " + error_message, []
         states = []
         for jid in segment_job_ids:
             row = connection.execute(
@@ -244,6 +251,7 @@ def dispatch_segments(connection, run_id, scenes, base_props, run_dir, resolutio
             max_concurrent = k
 
     _sem = threading.BoundedSemaphore(max_concurrent)
+    worker_errors = queue.SimpleQueue()
 
     def _run_seg(jid, pp):
         try:
@@ -253,6 +261,7 @@ def dispatch_segments(connection, run_id, scenes, base_props, run_dir, resolutio
             finally:
                 _sem.release()
         except Exception as e:
+            worker_errors.put((jid, str(e)))
             print("[seg-dispatcher] seg worker crashed:", jid, str(e))
 
     threads = []
@@ -261,7 +270,7 @@ def dispatch_segments(connection, run_id, scenes, base_props, run_dir, resolutio
         t.start()
         threads.append(t)
 
-    ok, msg, seg_files = poll_segments(connection, run_id, job_ids, seg_dir)
+    ok, msg, seg_files = poll_segments(connection, run_id, job_ids, seg_dir, worker_errors)
     if not ok:
         return False, msg, ""
     final_mp4 = run_dir / "concat.mp4"

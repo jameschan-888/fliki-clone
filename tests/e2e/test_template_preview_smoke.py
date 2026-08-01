@@ -91,7 +91,7 @@ def main():
     invalid_status, invalid = http(
         "POST",
         "/templates/intro_simple/preview",
-        {"fields": {}, "duration_seconds": 1.0},
+        {"fields": {"title": "   "}, "duration_seconds": 1.0},
     )
     assert invalid_status == 422, f"invalid fields should fail: {invalid_status} {invalid}"
     assert "title is required" in json.dumps(invalid, ensure_ascii=False), invalid

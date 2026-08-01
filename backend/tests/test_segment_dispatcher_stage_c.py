@@ -57,8 +57,7 @@ class DispatchSegmentsIntegrationTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.db_path = Path(self.tmp.name) / "app.db"
-        # check_same_thread=False so the worker threads can update rows
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("CREATE TABLE workflow_runs (id TEXT PRIMARY KEY, status TEXT, progress INTEGER, render_job_id TEXT, message TEXT, updated_at TEXT, finished_at TEXT)")
         self.conn.execute("CREATE TABLE render_jobs (_id TEXT PRIMARY KEY, playback_id TEXT, status TEXT, progress INTEGER, resolution TEXT, extension TEXT, renderer TEXT, engine TEXT, file TEXT, thumbnail TEXT, thumbnail_preview TEXT, media_generated_id TEXT, message TEXT, created_at TEXT, finished_at TEXT)")
@@ -90,11 +89,16 @@ class DispatchSegmentsIntegrationTest(unittest.TestCase):
         seg_path = self.run_dir / "segments" / ("seg_" + seg_idx + ".mp4")
         seg_path.parent.mkdir(parents=True, exist_ok=True)
         seg_path.write_bytes(b"FAKE")
-        self.conn.execute(
-            "UPDATE render_jobs SET status=?, progress=?, file=?, finished_at=? WHERE _id=?",
-            ("success", 100, "workflow/run/segments/" + seg_path.name, "2026-07-28T00:00:00Z", job_id),
-        )
-        self.conn.commit()
+        worker_connection = sqlite3.connect(self.db_path, timeout=5)
+        try:
+            worker_connection.execute("PRAGMA busy_timeout=5000")
+            worker_connection.execute(
+                "UPDATE render_jobs SET status=?, progress=?, file=?, finished_at=? WHERE _id=?",
+                ("success", 100, "workflow/run/segments/" + seg_path.name, "2026-07-28T00:00:00Z", job_id),
+            )
+            worker_connection.commit()
+        finally:
+            worker_connection.close()
 
     def _stub_main(self):
         class _M:
@@ -157,6 +161,28 @@ class DispatchSegmentsIntegrationTest(unittest.TestCase):
                     )
         self.assertTrue(ok, msg=msg)
         self.assertLessEqual(peak["n"], 2)
+
+    def test_worker_crash_returns_immediately_with_root_error(self):
+        scenes = self._seed_scenes(10)
+        rid = self._make_run_id()
+
+        class _M:
+            @staticmethod
+            def run_render_job(*_args):
+                raise RuntimeError("renderer exploded")
+
+        started = time.monotonic()
+        with patch.dict(os.environ, {"RENDER_SEGMENT_SCENES": "10", "RENDER_FORCE_CHROME_SLOT": "0"}), \
+             patch.object(sd, "_ensure_main_loaded", return_value=_M()), \
+             patch.object(sd, "POLL_TIMEOUT", 1), \
+             patch.object(sd, "POLL_INTERVAL", 0.01):
+            ok, msg, _ = sd.dispatch_segments(
+                self.conn, rid, scenes, {"scenes": scenes}, self.run_dir, "720p", renderer="cloud",
+            )
+
+        self.assertFalse(ok)
+        self.assertIn("renderer exploded", msg)
+        self.assertLess(time.monotonic() - started, 0.5)
 
 
 if __name__ == "__main__":
