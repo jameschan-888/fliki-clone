@@ -74,24 +74,24 @@ class RefreshEndpointRotationTest(unittest.TestCase):
         self.db.close()
 
     def _refresh(self, raw_token):
-        import main
+        from db import connection as _db_conn
         body = auth_router.RefreshBody(refresh_token=raw_token)
         request = mock.MagicMock()
         request.headers = {}
         wrapper = mock.MagicMock(wraps=self.db)
         wrapper.close = mock.MagicMock()
-        with mock.patch.object(main, "get_db", return_value=wrapper):
+        with mock.patch.object(_db_conn, "get_db", return_value=wrapper):
             return auth_router.refresh(request, body)
 
     def test_rotation_returns_new_tokens(self):
-        import main
+        from db import connection as _db_conn
         from fastapi import HTTPException
         body = auth_router.RefreshBody(refresh_token=self.raw_rt)
         req = mock.MagicMock()
         req.headers = {}
         wrapper = mock.MagicMock(wraps=self.db)
         wrapper.close = mock.MagicMock()
-        with mock.patch.object(main, "get_db", return_value=wrapper):
+        with mock.patch.object(_db_conn, "get_db", return_value=wrapper):
             result = auth_router.refresh(req, body)
         self.assertIn("token", result)
         self.assertIn("refresh_token", result)
@@ -100,7 +100,7 @@ class RefreshEndpointRotationTest(unittest.TestCase):
         self.assertIsNotNone(row[0])
 
     def test_revoked_rt_returns_401(self):
-        import main
+        from db import connection as _db_conn
         from fastapi import HTTPException
         auth_router._revoke_refresh_token(self.db, self.h_rt)
         body = auth_router.RefreshBody(refresh_token=self.raw_rt)
@@ -108,30 +108,30 @@ class RefreshEndpointRotationTest(unittest.TestCase):
         req.headers = {}
         wrapper = mock.MagicMock(wraps=self.db)
         wrapper.close = mock.MagicMock()
-        with mock.patch.object(main, "get_db", return_value=wrapper):
+        with mock.patch.object(_db_conn, "get_db", return_value=wrapper):
             with self.assertRaises(HTTPException) as ctx:
                 auth_router.refresh(req, body)
         self.assertEqual(ctx.exception.status_code, 401)
         self.assertEqual(ctx.exception.detail["error_code"], "REFRESH_REVOKED")
 
     def test_invalid_rt_returns_401(self):
-        import main
+        from db import connection as _db_conn
         from fastapi import HTTPException
         body = auth_router.RefreshBody(refresh_token="not-a-real-token-but-long-enough-padding")
         req = mock.MagicMock()
         req.headers = {}
-        with mock.patch.object(main, "get_db", return_value=self.db):
+        with mock.patch.object(_db_conn, "get_db", return_value=self.db):
             with self.assertRaises(HTTPException) as ctx:
                 auth_router.refresh(req, body)
         self.assertEqual(ctx.exception.status_code, 401)
         self.assertEqual(ctx.exception.detail["error_code"], "REFRESH_INVALID")
 
     def test_access_token_grace_path_still_works(self):
-        import main
+        from db import connection as _db_conn
         access_tok = auth_router._make_token("u-rot", "user")
         req = mock.MagicMock()
         req.headers = {"Authorization": "Bearer " + access_tok}
-        with mock.patch.object(main, "get_db", return_value=self.db):
+        with mock.patch.object(_db_conn, "get_db", return_value=self.db):
             result = auth_router.refresh(req, None)
         self.assertIn("token", result)
         self.assertNotIn("refresh_token", result)
@@ -184,11 +184,11 @@ class LogoutEndpointTest(unittest.TestCase):
         self.db.close()
 
     def test_logout_revokes_rt(self):
-        import main
+        from db import connection as _db_conn
         body = auth_router.LogoutBody(refresh_token=self.raw_rt)
         wrapper = mock.MagicMock(wraps=self.db)
         wrapper.close = mock.MagicMock()
-        with mock.patch.object(main, "get_db", return_value=wrapper):
+        with mock.patch.object(_db_conn, "get_db", return_value=wrapper):
             result = auth_router.logout(body)
         self.assertEqual(result, {"revoked": True})
         row = self.db.execute("SELECT revoked_at FROM refresh_tokens WHERE id=?", (self.h_rt,)).fetchone()
@@ -206,14 +206,14 @@ class PublicRegistrationSecurityTest(unittest.TestCase):
         self.db.close()
 
     def test_public_register_rejects_admin_role(self):
-        import main
+        from db import connection as _db_conn
         from fastapi import HTTPException
 
         body = auth_router.RegisterBody(email="attacker@example.com", password="strong-password", role="admin")
         request = mock.MagicMock()
         wrapper = mock.MagicMock(wraps=self.db)
         wrapper.close = mock.MagicMock()
-        with mock.patch.object(main, "get_db", return_value=wrapper):
+        with mock.patch.object(_db_conn, "get_db", return_value=wrapper):
             with self.assertRaises(HTTPException) as ctx:
                 auth_router.register(body, request)
 
@@ -222,7 +222,7 @@ class PublicRegistrationSecurityTest(unittest.TestCase):
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM users").fetchone()[0], 0)
 
     def test_register_duplicate_email_is_case_insensitive(self):
-        import main
+        from db import connection as _db_conn
         from fastapi import HTTPException
 
         self.db.execute(
@@ -238,7 +238,7 @@ class PublicRegistrationSecurityTest(unittest.TestCase):
         request = mock.MagicMock()
         wrapper = mock.MagicMock(wraps=self.db)
         wrapper.close = mock.MagicMock()
-        with mock.patch.object(main, "get_db", return_value=wrapper):
+        with mock.patch.object(_db_conn, "get_db", return_value=wrapper):
             with self.assertRaises(HTTPException) as ctx:
                 auth_router.register(body, request)
 

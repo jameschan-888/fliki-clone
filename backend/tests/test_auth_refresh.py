@@ -84,10 +84,10 @@ class RefreshEndpointTest(unittest.TestCase):
         self.db.close()
 
     def test_valid_token_returns_new_token(self):
-        import main
+        from db import connection as _db_conn
         tok = auth_router._make_token("u-x", "user")
         req = _FakeRequest(tok)
-        with mock.patch.object(main, "get_db", return_value=self.db):
+        with mock.patch.object(_db_conn, "get_db", return_value=self.db):
             from fastapi import HTTPException
             # 直接调路由函数 (FastAPI Depends 解析会有问题, 直接 invoke 即可)
             result = auth_router.refresh(req)
@@ -97,9 +97,9 @@ class RefreshEndpointTest(unittest.TestCase):
         self.assertIsNotNone(auth_router._decode_token(result["token"]))
 
     def test_missing_bearer_returns_401(self):
-        import main
+        from db import connection as _db_conn
         req = _FakeRequest(None)
-        with mock.patch.object(main, "get_db", return_value=self.db):
+        with mock.patch.object(_db_conn, "get_db", return_value=self.db):
             from fastapi import HTTPException
             with self.assertRaises(HTTPException) as ctx:
                 auth_router.refresh(req)
@@ -107,10 +107,10 @@ class RefreshEndpointTest(unittest.TestCase):
         self.assertEqual(ctx.exception.detail["error_code"], "MISSING_TOKEN")
 
     def test_unknown_user_returns_401(self):
-        import main
+        from db import connection as _db_conn
         tok = auth_router._make_token("u-deleted", "user")
         req = _FakeRequest(tok)
-        with mock.patch.object(main, "get_db", return_value=self.db):
+        with mock.patch.object(_db_conn, "get_db", return_value=self.db):
             from fastapi import HTTPException
             with self.assertRaises(HTTPException) as ctx:
                 auth_router.refresh(req)
