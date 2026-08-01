@@ -29,7 +29,8 @@ from templates_router import create_router as create_templates_router
 from minimax_voice_clones_router import create_router as create_minimax_voice_clones_router
 from metrics_router import create_router as create_metrics_router
 
-# ===== DB =====
+
+START_TIME = time.time()# ===== DB =====
 def get_db():
     conn = sqlite3.connect(config["DB_PATH"])
     conn.row_factory = sqlite3.Row
@@ -253,13 +254,27 @@ def health():
         queued = int(stats.get("queued", 0))
     except Exception:
         pass
+    # rev34 P1: version + uptime + env-check cache hit metrics
+    try:
+        from env_check import _FULL_DIAG_CACHE
+        _cached_ts = _FULL_DIAG_CACHE.get("ts", 0) or 0
+        cache_age = round(time.time() - _cached_ts, 1) if _cached_ts > 0 else None
+        cached = bool(_FULL_DIAG_CACHE.get("result"))
+    except Exception:
+        cache_age = None
+        cached = False
+    import platform
     return {
         "status": "ok",
         "ts": int(time.time()),
+        "version": getattr(__import__("__main__"), "__version__", "0.0.0"),
+        "python_version": platform.python_version(),
+        "uptime_seconds": int(time.time() - START_TIME),
         "cpu_count": os.cpu_count(),
         "disk_free_gb": disk_free_gb,
         "disk_total_gb": disk_total_gb,
         "render_queue": {"queued": queued, "active": active},
+        "env_check_cache": {"cached": cached, "age_seconds": cache_age},
     }
 class StyleOut(BaseModel):
     model_config = {"populate_by_name": True}
@@ -535,6 +550,43 @@ def render_jobs_list(request: Request = None, page: int = 0, limit: int = 50, st
             except Exception:
                 pass
 
+
+
+@app.get("/render.latest")
+def render_latest(playback_id: str, request: Request = None):
+    from auth_router import get_user_id_from_request as _uid
+
+    empty = {"renderRecent": None, "renderSuccess": None}
+    user_id = _uid(request)
+    if not user_id:
+        return empty
+
+    con = get_db()
+    try:
+        recent = con.execute(
+            "SELECT * FROM render_jobs WHERE playback_id=? AND user_id=? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (playback_id, user_id),
+        ).fetchone()
+        success = con.execute(
+            "SELECT * FROM render_jobs WHERE playback_id=? AND user_id=? AND status='success' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (playback_id, user_id),
+        ).fetchone()
+
+        def to_payload(row):
+            if row is None:
+                return None
+            file_name = row["file"]
+            return {
+                "status": row["status"],
+                "progress": int(row["progress"] or 0),
+                "mediaGeneratedId": {"file": file_name} if file_name else None,
+            }
+
+        return {"renderRecent": to_payload(recent), "renderSuccess": to_payload(success)}
+    finally:
+        con.close()
 
 
 
