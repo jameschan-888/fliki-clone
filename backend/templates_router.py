@@ -278,7 +278,7 @@ def create_router(get_db):
         from auth_router import get_user_id_from_request as _uid
         user_id = _uid(request)
         if not user_id:
-            raise HTTPException(status_code=401, detail="Authentication required")
+            raise HTTPException(status_code=401, detail="未登录或登录已过期，请重新登录")
         connection = get_db()
         try:
             seed_templates(connection)

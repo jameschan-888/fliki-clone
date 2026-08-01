@@ -1,4 +1,5 @@
 import json, os, time
+from concurrent.futures import ThreadPoolExecutor
 import httpx
 """环境诊断: 检测本机能力"""
 import json, os, platform, shutil, subprocess, sys
@@ -11,6 +12,14 @@ def _safe_run(cmd, timeout=3):
         if result.returncode != 0: return None
         return (result.stdout or b"").decode("utf-8", errors="replace").strip()
     except Exception: return None
+
+# rev33: 完整诊断缓存 (30s TTL), 避免每次刷新卡 minimax probes 60s+
+_FULL_DIAG_CACHE = {"ts": 0.0, "result": None}
+_FULL_DIAG_TTL_SEC = 30.0
+
+# rev33: 完整诊断缓存 (30s TTL), 避免每次刷新卡 minimax probes
+_FULL_DIAG_CACHE = {"ts": 0.0, "result": None}
+_FULL_DIAG_TTL_SEC = 30.0
 
 def _safe_import(module_name):
     try:
@@ -296,8 +305,22 @@ def run_quick_diagnostic():
 
 
 def run_full_diagnostic():
-    gpu = check_gpu()
-    pytorch = check_pytorch()
+    # rev33: 30s TTL 缓存; 频繁刷新场景秒回
+    _now = time.time()
+    if _FULL_DIAG_CACHE["result"] is not None and (_now - _FULL_DIAG_CACHE["ts"]) < _FULL_DIAG_TTL_SEC:
+        cached = _FULL_DIAG_CACHE["result"]
+        return dict(cached, from_cache=True)
+    # rev33: 并发跑 4 个本地 check (gpu + pytorch + stock providers + python packages)
+    # 总耗时从 ~30s 降到 ~max(check_python_packages=17s)
+    with ThreadPoolExecutor(max_workers=4) as _ex:
+        _f_gpu = _ex.submit(check_gpu)
+        _f_pt = _ex.submit(check_pytorch)
+        _f_stock = _ex.submit(check_stock_providers)
+        _f_pkgs = _ex.submit(check_python_packages)
+        gpu = _f_gpu.result(timeout=30)
+        pytorch = _f_pt.result(timeout=30)
+        stock_external = _f_stock.result(timeout=30)
+        python_packages = _f_pkgs.result(timeout=30)
     provider_configs = []
     try:
         import sqlite3
@@ -314,31 +337,44 @@ def run_full_diagnostic():
         provider_configs = []
     gpt_info = check_gpt_sovits()
     wav_info = check_wav2lip_onnx()
-    external = check_stock_providers()
-    # P7-1..P7-4: MiniMax 全模态 provider 健康度 (TTS/Music/Image/Video)
-    # 注意: 只在有 MINIMAX_API_KEY 时才查, 避免无 key 时 401 噪音.
-    if os.getenv("MINIMAX_API_KEY"):
-        try:
-            external["minimax_tts"] = check_minimax_tts(api_key=os.getenv("MINIMAX_API_KEY"), base_url="https://api.minimaxi.com")
-        except Exception as exc:
-            external["minimax_tts"] = {"provider": "minimax_tts", "ok": False, "error": str(exc)}
-        try:
-            external["minimax_music"] = check_minimax_music(api_key=os.getenv("MINIMAX_API_KEY"), base_url="https://api.minimaxi.com")
-        except Exception as exc:
-            external["minimax_music"] = {"provider": "minimax_music", "ok": False, "error": str(exc)}
-        try:
-            external["minimax_image"] = check_minimax_image(api_key=os.getenv("MINIMAX_API_KEY"), base_url="https://api.minimaxi.com")
-        except Exception as exc:
-            external["minimax_image"] = {"provider": "minimax_image", "ok": False, "error": str(exc)}
-        external["minimax_video"] = {
-            "provider": "minimax_video",
-            "ok": None,
-            "skipped": True,
-            "error": None,
-            "reason": "视频生成额度受限，环境检查禁止自动提交生成任务",
-        }
+    # rev33: P7-1..P7-4 MiniMax 全模态 provider 健康度 (TTS/Music/Image/Video) 并发 probe,
+    # 注意: 只在有 MINIMAX_API_KEY 时才查, 避免无 key 时 401 噪音. 4 个 probe 并发,
+    # 总耗时从 ~108s 串行降到 ~max(单 probe timeout). 失败用 try/except 包成错误 dict.
+    # stock_external 已在上面 concurrent 段跑过, 此处不再重复
+    # 合并 stock_external (concurrent 已跑) 进 external, 然后并发加 minimax probes
+    external = stock_external
+    api_key = os.getenv("MINIMAX_API_KEY")
+    base_url = "https://api.minimaxi.com"
+    if api_key:
+        def _probe(fn_name):
+            try:
+                return fn_name.replace("check_minimax_", ""), globals()[fn_name](api_key=api_key, base_url=base_url)
+            except Exception as exc:
+                short = fn_name.replace("check_minimax_", "")
+                return short, {"provider": short, "ok": False, "error": str(exc)}
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            futures = [ex.submit(_probe, n) for n in ("check_minimax_tts", "check_minimax_music", "check_minimax_image", "check_minimax_video")]
+            for fut in futures:
+                try:
+                    name, payload = fut.result(timeout=70)
+                except Exception as exc:
+                    name, payload = "minimax_unknown", {"provider": "minimax_unknown", "ok": False, "error": str(exc)}
+                external[name] = payload
+        # minimax_video 保留 skipped 标记 (视频生成额度限制, 仅 healthcheck 不实际生成)
+        if external.get("minimax_video", {}).get("ok") is True:
+            external["minimax_video"]["skipped"] = True
+            external["minimax_video"]["reason"] = "视频生成额度受限，环境检查禁止自动提交生成任务"
+        elif "minimax_video" not in external:
+            external["minimax_video"] = {
+                "provider": "minimax_video",
+                "ok": None,
+                "skipped": True,
+                "error": None,
+                "reason": "视频生成额度受限，环境检查禁止自动提交生成任务",
+            }
     capability_groups = build_capability_groups(provider_configs, ffmpeg_available=check_ffmpeg().get("available", False), gpt_sovits_info=gpt_info, wav2lip_info=wav_info, capabilities=check_render_capability(gpu, pytorch))
-    report = {"timestamp": datetime.now(timezone.utc).isoformat(), "python": check_python(), "node": check_node(), "ffmpeg": check_ffmpeg(), "ffprobe": check_ffprobe(), "cpu": check_cpu(), "memory": check_memory(), "disk": check_disk(), "gpu": gpu, "pytorch": pytorch, "python_packages": check_python_packages(), "workspace": check_workspace(), "gpt_sovits": gpt_info, "wav2lip_onnx": wav_info, "external_providers": external, "capabilities": check_render_capability(gpu, pytorch), "capability_groups": capability_groups}
+    # external 已在 minimax 段合并 stock_external, 不再重复赋值
+    report = {"timestamp": datetime.now(timezone.utc).isoformat(), "python": check_python(), "node": check_node(), "ffmpeg": check_ffmpeg(), "ffprobe": check_ffprobe(), "cpu": check_cpu(), "memory": check_memory(), "disk": check_disk(), "gpu": gpu, "pytorch": pytorch, "python_packages": python_packages, "workspace": check_workspace(), "gpt_sovits": gpt_info, "wav2lip_onnx": wav_info, "external_providers": external, "capabilities": check_render_capability(gpu, pytorch), "capability_groups": capability_groups}
     warnings = []
     if not gpu.get("available"):
         warnings.append({"level": "info", "msg": "未检测到 GPU, SadTalker/MuseTalk 不可用, 建议 Wav2Lip-ONNX"})
@@ -351,7 +387,10 @@ def run_full_diagnostic():
     if not pytorch.get("installed"):
         warnings.append({"level": "info", "msg": "PyTorch 未安装, 数字人和声音克隆不可用"})
     report["warnings"] = warnings
-    return report
+    # rev33: 写缓存供下次刷新秒回 (30s TTL)
+    _FULL_DIAG_CACHE["result"] = report
+    _FULL_DIAG_CACHE["ts"] = time.time()
+    return dict(report, from_cache=False)
 
 if __name__ == "__main__":
     print(json.dumps(run_full_diagnostic(), ensure_ascii=False, indent=2))

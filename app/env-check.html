@@ -54,8 +54,32 @@ function el(t, c, h) { const e = document.createElement(t); if (c) e.className =
 function item(k, v, kls) { return el("div", "item", '<div class="k">' + k + '</div><div class="v ' + (kls||"") + '">' + v + '</div>'); }
 async function load() {
   try {
-    const r = await fetch(API + "/env-check");
-    const d = await r.json();
+    // rev32: 先 quick 立刻显示 capabilities, 再后台 full 填充详细
+    let d;
+    try {
+      const qr = await fetch(API + "/env-check/quick");
+      if (qr.ok) {
+        d = await qr.json();
+        document.getElementById("apiStatus").textContent = "· OK (quick)";
+        const cb = document.getElementById("caps");
+        Object.entries(d.capabilities||{}).forEach(function(e){
+          const k=e[0], v=e[1];
+          const c=el("div","cap"+(v?" ok":""));
+          c.innerHTML='<div class="name">'+(v?"✅":"❌")+' '+(capNames[k]||k)+'</div><div class="reason">'+(capReasons[k]||"")+'</div>';
+          cb.appendChild(c);
+        });
+      }
+    } catch(_){ }
+    const controller = new AbortController();
+    const timer = setTimeout(function(){ controller.abort(); }, 8000);
+    const r = await fetch(API + "/env-check", { signal: controller.signal }).catch(function(){ return {ok:false, status:0}; });
+    clearTimeout(timer);
+    if (r && r.ok) {
+      d = await r.json();
+    } else {
+      document.getElementById("raw").textContent = "完整诊断超时 (8s). 已加载 quick 概览. 重试请刷新.";
+      if (!d) return;
+    }
     document.getElementById("apiStatus").textContent = "· " + (r.ok ? "OK" : "FAIL");
     document.getElementById("raw").textContent = JSON.stringify(d, null, 2);
     const cb = document.getElementById("caps");

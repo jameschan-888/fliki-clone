@@ -194,9 +194,10 @@ class TemplateRouterTest(unittest.TestCase):
         self.assertEqual(body["merged_fields"]["title"], "测试标题")
 
     def test_validate_fields_missing_required(self):
+        # rev33: 模板 default 修了, 改测 "用户传空字符串覆盖 default" 触发 required 校验
         r = self.client.post(
             "/templates/intro_simple/validate",
-            json={"fields": {}},
+            json={"fields": {"title": " "}},
         )
         self.assertEqual(r.status_code, 200)
         body = r.json()
@@ -238,9 +239,10 @@ class TemplateRouterTest(unittest.TestCase):
         self.assertEqual(body["merged_fields"]["logo_text"], "BRAND")
 
     def test_preview_rejects_invalid_fields(self):
+        # rev33: 模板 default 修了, 改测 "用户传空字符串覆盖 default" 触发 required 422
         response = self.client.post(
             "/templates/intro_simple/preview",
-            json={"fields": {}, "duration_seconds": 1},
+            json={"fields": {"title": " "}, "duration_seconds": 1},
         )
         self.assertEqual(response.status_code, 422)
         detail = response.json()["detail"]

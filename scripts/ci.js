@@ -1,12 +1,23 @@
 const { spawnSync } = require("child_process");
 const path = require("path");
-const fs = require("fs");
 
 const ROOT = "D:\\workspace\\Fliki视频制作还原";
 process.chdir(ROOT);
 
+const argumentsList = process.argv.slice(2);
+const allowedArguments = new Set(["--full", "--offline", "--online", "--list"]);
+const unknownArguments = argumentsList.filter((argument) => !allowedArguments.has(argument));
+const modeFlags = argumentsList.filter((argument) => argument === "--full" || argument === "--offline" || argument === "--online");
+if (unknownArguments.length || modeFlags.length > 1) {
+  console.error("Usage: node scripts/ci.js [--full|--offline|--online] [--list]");
+  if (unknownArguments.length) console.error("Unknown arguments:", unknownArguments.join(", "));
+  process.exit(2);
+}
+const mode = modeFlags.length ? modeFlags[0].slice(2) : "full";
+const listOnly = argumentsList.includes("--list");
+
 // 在 Windows 上, npm/npx/.cmd 必须走 cmd.exe, python.exe 直接 spawn
-function run(cmd, args, cwd, timeoutMs) {
+function run(cmd, args, cwd, timeoutMs, extraEnv) {
   const isWin = process.platform === "win32";
   const needsShell = isWin && (cmd === "npm" || cmd === "npx" || cmd.endsWith(".cmd") || cmd.endsWith(".bat"));
   return spawnSync(cmd, args, {
@@ -14,10 +25,11 @@ function run(cmd, args, cwd, timeoutMs) {
     shell: needsShell,
     stdio: "inherit",
     timeout: timeoutMs || 600_000,
+    env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
   });
 }
 
-const phases = [
+const allPhases = [
   {
     name: "路由挂载检查 (check_routes.py)",
     cmd: "python",
@@ -40,10 +52,12 @@ const phases = [
     allowFail: false,
   },
   {
-    name: "Provider 联调测试 (联网, 失败可跳过)",
+    name: "Provider 联调测试 (联网)",
     cmd: "python",
     args: ["-m", "unittest", "tests.providers.test_real_provider_matrix"],
     cwd: path.join(ROOT, "backend"),
+    kind: "network",
+    timeoutMs: 300_000,
     allowFail: true,
   },
   {
@@ -78,6 +92,35 @@ const phases = [
   },
 ];
 
+const phases = mode === "offline"
+  ? allPhases.filter((phase) => phase.kind !== "network")
+  : mode === "online"
+    ? allPhases.filter((phase) => phase.kind === "network")
+    : allPhases;
+
+function effectiveAllowFail(phase) {
+  return Boolean(phase.allowFail && mode === "full");
+}
+
+function phaseEnvironment(phase) {
+  if (phase.kind === "network" && mode === "online") {
+    return { FLIKI_PROVIDER_MATRIX_STRICT: "1" };
+  }
+  return undefined;
+}
+
+if (listOnly) {
+  console.log("[ci] mode=" + mode + " phases=" + phases.length);
+  phases.forEach((phase, index) => {
+    const kind = phase.kind || "local";
+    const timeoutSeconds = Math.round((phase.timeoutMs || 600_000) / 1000);
+    console.log((index + 1) + ". [" + kind + "] strict=" + (!effectiveAllowFail(phase)) + " timeout=" + timeoutSeconds + "s " + phase.name);
+  });
+  process.exit(0);
+}
+
+console.log("[ci] mode=" + mode + " phases=" + phases.length);
+
 function runSetup(setupPath, cwd, timeoutMs) {
   if (!setupPath) return { status: 0 };
   return spawnSync('node', [setupPath], { cwd, stdio: 'inherit', timeout: timeoutMs || 60_000 });
@@ -95,20 +138,20 @@ for (const phase of phases) {
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
       if (setupResult.error) console.error("[SETUP ERR]", setupResult.error.message);
       console.error("[SETUP FAIL]", phase.setup);
-      results.push({ name: phase.name, passed: false, elapsed, allowFail: phase.allowFail });
+      results.push({ name: phase.name, passed: false, elapsed, allowFail: effectiveAllowFail(phase) });
       console.log(`[${elapsed}s] FAIL - ${phase.name} (setup)`);
       continue;
     }
   }
 
-  const result = run(phase.cmd, phase.args, phase.cwd, 600_000);
+  const result = run(phase.cmd, phase.args, phase.cwd, phase.timeoutMs || 600_000, phaseEnvironment(phase));
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   const passed = result.status === 0;
   if (!passed) {
     if (result.error) console.error("[ERR]", result.error.message);
     if (result.stderr) console.error("[STDERR]", String(result.stderr).slice(0, 500));
   }
-  results.push({ name: phase.name, passed, elapsed, allowFail: phase.allowFail });
+  results.push({ name: phase.name, passed, elapsed, allowFail: effectiveAllowFail(phase) });
   console.log(`[${elapsed}s] ${passed ? "OK" : "FAIL"} - ${phase.name}`);
 }
 
@@ -121,5 +164,5 @@ for (const r of results) {
   if (!expected) allOk = false;
 }
 const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-console.log(`\n总耗时: ${totalElapsed}s`);
+console.log(`\n模式: ${mode}  总耗时: ${totalElapsed}s`);
 process.exit(allOk ? 0 : 1);

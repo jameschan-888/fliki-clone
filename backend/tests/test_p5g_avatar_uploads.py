@@ -156,7 +156,8 @@ class P5GAvatarUpdateTest(unittest.TestCase):
 
 class P5GUploadsTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(self.tmp.cleanup)
         self.upload_dir = Path(self.tmp.name) / "uploads"
         self.upload_dir.mkdir(parents=True, exist_ok=True)
 
@@ -166,6 +167,7 @@ class P5GUploadsTest(unittest.TestCase):
         from auth_router import _make_token, _hash_pw, ensure_users_table
         # 用 in-memory db 避免 Windows 文件句柄延迟 (WinError 32)
         self.db = sqlite3.connect(":memory:", check_same_thread=False)
+        self.addCleanup(self.db.close)
         self.db.executescript(Path(ROOT, "db", "schema.sql").read_text(encoding="utf-8"))
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT \"user\", created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"
@@ -184,13 +186,7 @@ class P5GUploadsTest(unittest.TestCase):
         app = FastAPI()
         app.include_router(create_uploads_router(str(self.upload_dir)))
         self.client = TestClient(app)
-
-    def tearDown(self):
-        try:
-            self.db.close()
-        except Exception:
-            pass
-        # Windows 下 sqlite3 文件句柄延迟释放, 不主动 cleanup 让 OS 回收; 测试结果不变
+        self.addCleanup(self.client.close)
 
 
     def test_upload_and_get(self):

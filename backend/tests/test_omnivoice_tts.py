@@ -208,12 +208,16 @@ def test_fallback_chain_omnivoice_success():
 def test_build_omnivoice_provider_from_env():
     """环境变量驱动的工厂."""
     import os
-    os.environ["OMNIVOICE_BASE_URL"] = "http://test:3900"
-    os.environ["OMNIVOICE_API_KEY"] = "test-key-123"
-    provider = build_omnivoice_provider()
+    with patch.dict(os.environ, {
+        "OMNIVOICE_BASE_URL": "http://test:3900",
+        "OMNIVOICE_API_KEY": "test-key-123",
+        "OMNIVOICE_MODEL": "kittentts",
+    }):
+        provider = build_omnivoice_provider()
     assert provider.base_url == "http://test:3900"
     assert provider.api_key == "test-key-123"
-    print(f"  env factory OK: {provider.base_url} key={'set' if provider.api_key else 'none'}")
+    assert provider.model == "kittentts"
+    print(f"  env factory OK: {provider.base_url} model={provider.model} key={'set' if provider.api_key else 'none'}")
 
 
 if __name__ == "__main__":

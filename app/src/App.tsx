@@ -28,6 +28,7 @@ import {
 } from "./api/drafts";
 import { formatApiError } from "./api/drafts";
 import type { TemplateMeta } from "./api/drafts";
+import { ensureSession } from "./api/auth";
 import { Composer, computeTemplateCompletion, findNextIncompleteScene } from "./components/editor/Composer";
 import { getTemplateCatalogSnapshot, loadTemplateCatalogWithRetry, subscribeTemplateCache } from "./api/templateCache";
 
@@ -105,6 +106,11 @@ export default function App() {
     }
   }
 
+  // rev31: 启动期预热匿名 session, 让后续 PATCH/POST 写路径自带 Bearer token, 避免 401 闪现
+  useEffect(() => {
+    void ensureSession().catch((err) => console.warn("[auth] ensureSession failed", err));
+  }, []);
+
   useEffect(() => {
     const savedDraftId = localStorage.getItem(savedDraftKey);
     if (!savedDraftId) return;
@@ -154,6 +160,9 @@ export default function App() {
       if (data.type !== "template_picked" || !data.target) return;
       const scene = draft.scenes.find((item) => item.id === data.target);
       if (!scene) return;
+      // rev32: 模板选用 PATCH 成功后展开 Composer focus 到该场景, 方便立即填必填占位字段
+      setComposerOpen(true);
+      setComposerFocusSceneId(scene.id);
       if (data.action === "clear") {
         void runDraftAction(
           () => updateScene(draft.id, { ...scene, template_id: null, template_fields: null }),

@@ -503,7 +503,7 @@ def create_router(get_db, render_create, render_body_class):
         user_id = _uid(request)
         connection=get_db()
         try:
-            if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
+            if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
             draft=connection.execute("SELECT status, user_id FROM workflow_drafts WHERE id=?",(draft_id,)).fetchone()
             if draft is None or draft["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow draft not found")
             if draft["status"]!="confirmed":raise HTTPException(status_code=409,detail="Confirm the draft before generation")
@@ -518,7 +518,7 @@ def create_router(get_db, render_create, render_body_class):
         connection=get_db()
         try:
             user_id = _uid_of_request(request)
-            if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
+            if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
             run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
             if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
             sync_render(connection,run)
@@ -529,7 +529,7 @@ def create_router(get_db, render_create, render_body_class):
         connection=get_db()
         try:
             user_id = _uid_of_request(request)
-            if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
+            if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
             run=connection.execute("SELECT * FROM workflow_runs WHERE id=?",(run_id,)).fetchone()
             if run is None or run["user_id"] != user_id:raise HTTPException(status_code=404,detail="Workflow run not found")
             if run["status"]!="failed":raise HTTPException(status_code=409,detail="Only failed runs can be retried")
@@ -538,7 +538,7 @@ def create_router(get_db, render_create, render_body_class):
     @router.post("/{run_id}/rerender")
     def rerender_run(run_id:str,background_tasks:BackgroundTasks,request:Request = None):
         user_id = _uid_of_request(request)
-        if not user_id:raise HTTPException(status_code=401,detail="Authentication required")
+        if not user_id:raise HTTPException(status_code=401,detail="未登录或登录已过期，请重新登录")
         connection=get_db()
         try:
             run=connection.execute("SELECT user_id FROM workflow_runs WHERE id=?",(run_id,)).fetchone()

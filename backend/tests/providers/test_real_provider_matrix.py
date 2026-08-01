@@ -4,7 +4,7 @@
   - 真实调用 search API
   - 真实下载文件到本地 tmp
   - 用 ffprobe / file 命令校验产出格式 (size, duration, codec)
-  - 全部失败时跳过而不是出错 (允许 CI 在无网络时跳过)
+  - 默认缺少 key/ffprobe 时 skip; `FLIKI_PROVIDER_MATRIX_STRICT=1` 时改为失败
 
 依赖: 本机 ffmpeg (ffprobe), 已配置的 FLIKI_PROVIDER_*_API_KEY 在 .env
 """
@@ -27,6 +27,15 @@ from providers.stock import (  # noqa: E402
     PexelsProvider, PixabayProvider, fetch_with_fallback,
 )
 from providers.music import FreesoundProvider, fetch_music_with_fallback as music_fallback  # noqa: E402
+
+STRICT_PROVIDER_MATRIX = os.environ.get("FLIKI_PROVIDER_MATRIX_STRICT", "").lower() in {"1", "true", "yes"}
+
+
+def _skip_or_fail(reason):
+    if STRICT_PROVIDER_MATRIX:
+        raise RuntimeError(reason)
+    raise unittest.SkipTest(reason)
+
 
 
 def _has_ffprobe():
@@ -60,9 +69,9 @@ class TestPexelsProvider(unittest.TestCase):
         cls.key = os.environ.get("PEXELS_API_KEY", "")
         cls.skip = not cls.key
         if cls.skip:
-            raise unittest.SkipTest("PEXELS_API_KEY not configured; skipping real Pexels test")
+            _skip_or_fail("PEXELS_API_KEY not configured; skipping real Pexels test")
         if not _has_ffprobe():
-            raise unittest.SkipTest("ffprobe not available")
+            _skip_or_fail("ffprobe not available")
         cls.tmp = Path(tempfile.mkdtemp(prefix="fliki-pexels-"))
 
     @classmethod
@@ -89,9 +98,9 @@ class TestPixabayProvider(unittest.TestCase):
         cls.key = os.environ.get("PIXABAY_API_KEY", "")
         cls.skip = not cls.key
         if cls.skip:
-            raise unittest.SkipTest("PIXABAY_API_KEY not configured; skipping real Pixabay test")
+            _skip_or_fail("PIXABAY_API_KEY not configured; skipping real Pixabay test")
         if not _has_ffprobe():
-            raise unittest.SkipTest("ffprobe not available")
+            _skip_or_fail("ffprobe not available")
         cls.tmp = Path(tempfile.mkdtemp(prefix="fliki-pixabay-"))
 
     @classmethod
@@ -118,7 +127,7 @@ class TestFreesoundProvider(unittest.TestCase):
         cls.key = os.environ.get("FREESOUND_API_KEY", "")
         cls.skip = not cls.key
         if cls.skip:
-            raise unittest.SkipTest("FREESOUND_API_KEY not configured; skipping real Freesound test")
+            _skip_or_fail("FREESOUND_API_KEY not configured; skipping real Freesound test")
         cls.tmp = Path(tempfile.mkdtemp(prefix="fliki-freesound-"))
 
     @classmethod
@@ -144,9 +153,9 @@ class TestStockFallback(unittest.TestCase):
 
     def test_fetch_with_fallback_returns_first_success(self):
         if not (os.environ.get("PEXELS_API_KEY") or os.environ.get("PIXABAY_API_KEY")):
-            raise unittest.SkipTest("no stock provider key configured")
+            _skip_or_fail("no stock provider key configured")
         if not _has_ffprobe():
-            raise unittest.SkipTest("ffprobe not available")
+            _skip_or_fail("ffprobe not available")
         with tempfile.TemporaryDirectory(prefix="fliki-stock-fb-") as tmp:
             dest = Path(tmp) / "fallback.mp4"
             result = fetch_with_fallback("mountain landscape", dest)

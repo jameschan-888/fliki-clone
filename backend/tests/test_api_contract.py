@@ -172,7 +172,7 @@ class TemplatesContract(ApiContractBase):
     def test_template_validate_missing_required(self):
         # quote_card.quote 是 required, 空 fields 应返回 valid=false + errors
         status, payload = self.call("POST", "/templates/{template_id}/validate",
-                                     template_id="quote_card", payload={"fields": {}})
+                                     template_id="quote_card", payload={"fields": {"quote": "   "}})
         self.assertEqual(status, 200)
         self.assertIn("valid", payload)
         self.assertFalse(payload["valid"])

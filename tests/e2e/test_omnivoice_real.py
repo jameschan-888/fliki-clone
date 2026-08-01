@@ -2,11 +2,13 @@
 
 启动 (沙箱外人工执行):
   docker run -d --name omnivoice -p 127.0.0.1:3900:3900 \\
+    -e HF_ENDPOINT=https://hf-mirror.com -e HF_HUB_DISABLE_XET=1 \\
+    -e OMNIVOICE_TTS_BACKEND=kittentts \\
     -v D:/workspace/docker-volumes/omnivoice-data:/app/omnivoice_data \\
     ghcr.io/debpalash/omnivoice-studio:latest
 
 跑这个测试:
-  OMNIVOICE_E2E=1 python -m unittest tests.e2e.test_omnivoice_real -v
+  OMNIVOICE_E2E=1 OMNIVOICE_MODEL=kittentts python -m unittest tests.e2e.test_omnivoice_real -v
 
 跳过 (沙箱里 docker 受限):
   python -m unittest tests.e2e.test_omnivoice_real -v

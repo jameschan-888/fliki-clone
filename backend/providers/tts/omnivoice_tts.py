@@ -9,9 +9,11 @@
 #
 # 部署:
 #   docker run -d --name omnivoice -p 127.0.0.1:3900:3900 ^
+#     -e HF_ENDPOINT=https://hf-mirror.com -e HF_HUB_DISABLE_XET=1 ^
+#     -e OMNIVOICE_TTS_BACKEND=kittentts ^
 #     -v D:/workspace/docker-volumes/omnivoice-data:/app/omnivoice_data ^
 #     ghcr.io/debpalash/omnivoice-studio:latest
-#   首次启动会下载约 10GB 模型权重; 健康检查: curl http://localhost:3900/health
+#   模型按需下载到 D 盘缓存; 健康检查: curl http://localhost:3900/health
 from __future__ import annotations
 
 import os
@@ -43,6 +45,10 @@ def _env_api_key() -> str | None:
     return os.getenv("OMNIVOICE_API_KEY") or None
 
 
+def _env_model() -> str:
+    return os.getenv("OMNIVOICE_MODEL") or DEFAULT_MODEL
+
+
 def _resolve_voice(voice):
     """voice 协议: 'omnivoice:<engine>:<voice_id>' -> 直接用 voice_id;
     其他: 原样传给 OmniVoice (用户已知 OmniVoice voice 命名)."""
@@ -67,12 +73,12 @@ class OmniVoiceTTSProvider(TTSProvider):
         self,
         base_url=None,
         api_key=None,
-        model=DEFAULT_MODEL,
+        model=None,
         timeout=DEFAULT_TIMEOUT,
     ):
         self.base_url = (base_url or _env_base_url()).rstrip("/")
         self.api_key = api_key if api_key is not None else _env_api_key()
-        self.model = model
+        self.model = model or _env_model()
         self.timeout = timeout
 
     def synthesize(self, text, destination, voice=None, **kwargs):
@@ -135,7 +141,7 @@ class OmniVoiceTTSProvider(TTSProvider):
 def build_omnivoice_provider(
     base_url=None,
     api_key=None,
-    model=DEFAULT_MODEL,
+    model=None,
     timeout=DEFAULT_TIMEOUT,
 ):
     return OmniVoiceTTSProvider(

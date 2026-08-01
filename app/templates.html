@@ -43,7 +43,10 @@ function renderThumbBg(t){
 function pickTemplate(t){
   if(!target||!window.opener){alert("当前不是场景选择模式（缺少 opener 或 target）");return}
   var defaults={};
-  (t.fields||[]).forEach(function(f){if(f.default!==undefined&&f.default!=="")defaults[f.key]=f.default;else if(f.required)defaults[f.key]="";});
+  (t.fields||[]).forEach(function(f){
+    if(f.default!==undefined&&f.default!=="")defaults[f.key]=f.default;
+    else if(f.required)defaults[f.key]="（请填写"+f.label+"）";
+  });
   window.opener.postMessage({type:"template_picked",target:target,template_id:t.id,fields:defaults,action:"set"},"*");
   window.close();
 }

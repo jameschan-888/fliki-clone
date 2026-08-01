@@ -2,13 +2,13 @@
 
 > Fliki 风格独立视频创作系统, 从 0 开始二创. 本文件即是唯一交接主文档; INSTALL.md / HANDOFF.md / PROJECT_STATUS_AND_PLAN.md / HANDOVER_NEXT.md 已并入本文, 后续仅保留为历史快照.
 
-更新时间: 2026-07-29 (rev24 阶段 C #8 list 端点 user_id 过滤: 3 端点 + 9 单测 + e2e PASS; 演示型 92% / 单机交付 85% / 生产级 60%)
+更新时间: 2026-08-01 (rev30: OmniVoice 隔离服务 + kittentts 真实 E2E 闭环; 当前代码基线 HEAD `a25d336`)
 
 ---
 
-> **项目状态 (2026-07-31, rev25 收口)**: 9 个 commit 链全部入仓 (`2ade58b → c61527b`); 完整 8 阶段 CI 564s 跑通, 后端 532 tests + 前端 32 vitest + provider 联调 4 + 模板 smoke 5 全部 PASS. 工作区 0 改动.
+> **项目状态 (2026-08-01, rev30)**: OmniVoice 已以独立 Docker 服务运行在本机 3900, CPU 轻量引擎 `kittentts` 真实 E2E 3/3 PASS; offline 强门在暂停外部语音容器后 7/7 PASS (310.9s), 后端 532 tests (5 skipped), `ResourceWarning` 总数 0. 当前改动尚未提交.
 
-> **可执行三档**: (1) 沙箱外跑 `node scripts/ci.js` 复现 8/8 绿门; (2) 沙箱外手起 OmniVoice docker 跑 `OMNIVOICE_E2E=1 python -m unittest tests.e2e.test_omnivoice_real`; (3) 去各家平台重置已暴露的 API key (miniMax/gemini/openrouter 优先).
+> **当前两项有效队列**: (1) 补 GPT-SoVITS / MiniMax 当前环境的真实服务证据; (2) 生产化时把 tenant 哈希分桶升级为真实 `tenant_id` 数据模型.
 
 ## rev24 阶段 C #8 list 端点 user 过滤 (2026-07-29)
 
@@ -26,7 +26,7 @@
 - 关键回归 35 测试 PASS: test_user_id_fk 5, test_user_id_list_filter 9, test_workflow_drafts 6, test_cloud_provider 9, test_segment_dispatcher_stage_c 6
 - 后端 5181 PID 19280 (rev24 #8 启动后)
 
-**短板 (P2 待办)**: `GET /workflow-drafts/{draft_id}` 跨用户单点读仍无鉴权, 需在 get_draft / patch / delete / confirm 端点统一加 user_id 校验
+**后续状态 (已闭环)**: rev25 已由 `_require_draft_owner` 统一保护 get / patch / add / delete / reorder / confirm; 跨用户 draft / run / render 单点访问回归 27/27 PASS.
 
 ---
 
@@ -73,6 +73,16 @@
 ---
 
 ## 2. 完成度
+
+### 2026-07-31 当前快照 (rev28)
+
+> 本段是当前有效状态; 后面的 2026-07-27 / 2026-07-28 评分与计划保留为历史演进证据, 不再作为当前待办.
+
+- **质量门**: `node scripts/ci.js` 保持 full 8 阶段; `--offline` 跑 7 个本地强门; `--online` 只跑严格 Provider 矩阵; `--list` 可预览阶段、strict 与 timeout. phase 8 setup 继续先拉起后端再跑 smoke; backend 全量在 `PYTHONWARNINGS=always::ResourceWarning` 下为 0 warning.
+- **测试基线**: 后端 532 tests (6 skipped), API 合约 16, Provider 联调 4, 前端 vitest 32, 模板预览 smoke 5; Remotion TS 与前端生产构建均通过.
+- **产品闭环**: Script-to-video、Auto-edit、Composer 模板引导、模板字段编辑、声音/Avatar、任务历史、分页、统一错误提示均已落地.
+- **稳定性闭环**: user_id 隔离、metrics user/tenant 观察、告警 webhook、备份与灾备演练、JWT 启动校验、路由挂载门均已落地.
+- **仍需外部条件**: OmniVoice / GPT-SoVITS / MiniMax 真实服务联调; 真多租户 `tenant_id` 模型; 长视频云渲染生产资源验证.
 
 ### 2026-07-27 重新评估
 
@@ -284,11 +294,18 @@ docker compose up -d
 
 ---
 
-## 6. 当前缺口
+## 6. 当前有效缺口
 
-按 ROI 排序 (仅本轮新增):
+按 ROI 排序 (2026-07-31 rev26):
 
-### P0 / 已规划但未做
+1. **P1 / 外部真实 E2E**: OmniVoice 适配器、fallback 与默认 skip 测试已完成; 仍需在隔离 Docker 服务启动后跑真实接口 e2e.
+2. **P1 / 真多租户模型**: 当前 metrics tenant 维度是 user_id 哈希分桶, 只适合观察性演示; 生产化需 users / drafts / runs / jobs 全链路真实 `tenant_id` 与权限策略.
+3. **P2 / 外部 Provider 生产验证**: GPT-SoVITS 与 MiniMax 尚缺当前环境可用的真实服务证据; 不影响本地 Edge TTS / 免费素材 fallback 基线.
+4. **P3 / 文档减负**: README 顶部与 HANDOVER 顶部是当前入口; 下方旧日期段落仅作历史证据, 后续可继续迁入 `docs/archive/`，但不要删除验证记录.
+
+以下是 2026-07-27 的历史完成/暂缓清单, 不再作为当前优先队列:
+
+### 历史 P0 清单 (2026-07-27)
 1. ~~统一 README (INSTALL + HANDOFF + PROJECT_STATUS 三份去重)~~ ✅ 2026-07-27 完成
 2. ~~Composer / 模板库 (前端拖拽时间线 + 场景模板 + 模板元数据 meta)~~ ✅ 2026-07-27 完成 (Composer.tsx + 拖拽 + 模板库面板)
 3. ~~styles/app.css design tokens (来自 blcaptain-lingjian 审计)~~ ✅ 2026-07-27 完成 (CSS 变量 + Composer 样式)

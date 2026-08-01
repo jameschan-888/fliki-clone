@@ -58,8 +58,8 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt || true
-      - name: scripts/ci.js (7 phase local CI)
-        run: node scripts/ci.js
+      - name: scripts/ci.js (offline strong gate)
+        run: node scripts/ci.js --offline
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -67,6 +67,28 @@ jobs:
           name: ci-script-logs
           path: tests/
 
+  provider-integration:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - name: Install ffmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Install backend deps
+        run: |
+          cd backend
+          pip install -r requirements.txt || true
+      - name: Provider integration (strict online)
+        run: node scripts/ci.js --online
   frontend-build:
     runs-on: windows-latest
     timeout-minutes: 10
@@ -113,7 +135,7 @@ jobs:
 
   summary:
     runs-on: windows-latest
-    needs: [backend-tests, backend-ci-script, frontend-build, e2e-template-render]
+    needs: [backend-tests, backend-ci-script, provider-integration, frontend-build, e2e-template-render]
     if: always()
     steps:
       - run: |
@@ -122,5 +144,6 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "|---|---|"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| backend-tests | ${{ needs.backend-tests.result }} |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| backend-ci-script | ${{ needs.backend-ci-script.result }} |"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| provider-integration | ${{ needs.provider-integration.result }} |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| frontend-build | ${{ needs.frontend-build.result }} |"
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "| e2e-template-render | ${{ needs.e2e-template-render.result }} |"

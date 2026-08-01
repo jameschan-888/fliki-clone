@@ -315,8 +315,8 @@ class CrossUserAccessDeniedTest(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 404)
 
     # --- render.latest 跨用户隐藏 ---
-    @unittest.skipIf(True, "D3: /render.latest 端点尚未在 main.py 注册, 待 P5 重构, 暂 skip")
     def test_render_latest_cross_user_hidden(self):
+        self.assertIsNotNone(self.render_latest, "/render.latest route must be registered")
         # 直接插一条 render_job 属于 A
         now = "2026-07-29T00:00:00Z"
         import sqlite3
@@ -326,10 +326,19 @@ class CrossUserAccessDeniedTest(unittest.TestCase):
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             ("job-priv", "play-priv", "success", 100, "720p", "mp4", "local", "remotion", "user-aaaa", now),
         )
+        conn.execute(
+            "INSERT INTO render_jobs (_id, playback_id, status, progress, resolution, extension, renderer, engine, user_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("job-new", "play-priv", "processing", 40, "720p", "mp4", "local", "remotion", "user-aaaa", "2026-07-29T00:01:00Z"),
+        )
         conn.commit(); conn.close()
         # B 拿 playback_id 查不到 (静默 None)
         result = self.render_latest("play-priv", request=_FakeRequest(self.tok_b))
         self.assertIsNone(result["renderRecent"])
-        # A 自己查得到
+        self.assertIsNone(result["renderSuccess"])
+        # A 自己能分别拿到最近任务和最近成功任务
         result = self.render_latest("play-priv", request=_FakeRequest(self.tok_a))
-        self.assertIsNotNone(result["renderRecent"])
+        self.assertEqual(result["renderRecent"]["status"], "processing")
+        self.assertEqual(result["renderRecent"]["progress"], 40)
+        self.assertEqual(result["renderSuccess"]["status"], "success")
+        self.assertEqual(result["renderSuccess"]["progress"], 100)
