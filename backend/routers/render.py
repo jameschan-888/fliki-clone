@@ -43,21 +43,15 @@ def _resolve_con(con):
     Detect & resolve: real Connection returned as-is; Depends enters a fresh contextmanager
     and wraps the conn so caller-side close() also exits the generator (prevents SQLite
     connection leak in tests, since sqlite3.Connection.close cannot be monkey-patched).
-    Mock compat: legacy tests mock main.get_db (return_value=conn); honor that first.
+
     """
     if hasattr(con, "execute") and hasattr(con, "close"):
         return con
-    try:
-        import main as _main
-        _candidate = _main.get_db()
-        if hasattr(_candidate, "execute") and hasattr(_candidate, "close"):
-            return _candidate
-        if hasattr(_candidate, "__enter__"):
-            return _ConnWrapper(_candidate.__enter__(), _candidate)
-    except Exception:
-        pass
     from db.connection import get_db as _gdb
-    _gen = _gdb()
+    _candidate = _gdb()
+    if hasattr(_candidate, "execute") and hasattr(_candidate, "close"):
+        return _candidate
+    _gen = _candidate
     _conn = _gen.__enter__()
     return _ConnWrapper(_conn, _gen)
 

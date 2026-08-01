@@ -424,7 +424,6 @@ def rerender_existing(run_id, get_db, render_create, render_body_class, backgrou
             (now(), run_id),
         )
         connection.commit()
-        connection.close()
         response = render_create(
             render_body_class(playback_id=f"workflow-{run_id}", props_path=str(props_path), resolution="720p"),
             background_tasks,
