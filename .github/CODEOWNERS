@@ -1,0 +1,10 @@
+# rev35 阶段 1: 默认 owner 模板, 后续按团队调整.
+# 顶层 / 安全相关 / CI: 必 review
+/secure_middleware.py    @codex-fliki-agent
+/request_context.py      @codex-fliki-agent
+/auth_router.py          @codex-fliki-agent
+/.github/workflows/      @codex-fliki-agent
+/.pre-commit-config.yaml @codex-fliki-agent
+/commitlint.config.js    @codex-fliki-agent
+/app/src/api/auth.ts     @codex-fliki-agent
+/app/src/api/auth.test.ts @codex-fliki-agent
