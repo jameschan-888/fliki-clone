@@ -8,7 +8,16 @@ import urllib.error
 BACKEND = "http://127.0.0.1:5181"
 
 
+def _reset_rate_limits():
+    try:
+        req = urllib.request.Request(BACKEND + "/auth/_internal/reset-rate-limits", method="POST")
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+
 def _req(method, path, data=None, headers=None):
+
     url = BACKEND + path
     body = json.dumps(data).encode() if data is not None else None
     h = {"Content-Type": "application/json"}
@@ -26,6 +35,7 @@ def _req(method, path, data=None, headers=None):
 
 
 def _register_and_login():
+    _reset_rate_limits()
     email = "d2test_" + str(int(time.time() * 1000)) + "@fliki.com"
     _req("POST", "/auth/register", {"email": email, "password": "test12345"})
     s2, d2 = _req("POST", "/auth/login", {"email": email, "password": "test12345"})

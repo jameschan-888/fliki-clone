@@ -12,7 +12,16 @@ BACKEND = "http://127.0.0.1:5181"
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "app.db")
 
 
+def _reset_rate_limits():
+    try:
+        req = urllib.request.Request(BACKEND + "/auth/_internal/reset-rate-limits", method="POST")
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+
 def _register(email: str, password: str = "test12345") -> dict:
+    _reset_rate_limits()
     body = json.dumps({"email": email, "password": password, "role": "user"}).encode()
     req = urllib.request.Request(BACKEND + "/auth/register", data=body,
                                  headers={"Content-Type": "application/json"})
@@ -21,6 +30,7 @@ def _register(email: str, password: str = "test12345") -> dict:
 
 
 def _login(email: str, password: str = "test12345") -> dict:
+    _reset_rate_limits()
     body = json.dumps({"email": email, "password": password}).encode()
     req = urllib.request.Request(BACKEND + "/auth/login", data=body,
                                  headers={"Content-Type": "application/json"})

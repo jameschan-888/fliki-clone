@@ -18,7 +18,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 BACKEND = "http://127.0.0.1:5181"
 
 
+def _reset_rate_limits():
+    try:
+        req = urllib.request.Request(BACKEND + "/auth/_internal/reset-rate-limits", method="POST")
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+
 def _register(email: str) -> dict:
+    _reset_rate_limits()
     body = json.dumps({"email": email, "password": "test12345", "role": "user"}).encode("utf-8")
     req = urllib.request.Request(BACKEND + "/auth/register", data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=10) as r:

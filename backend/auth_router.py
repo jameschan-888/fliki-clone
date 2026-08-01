@@ -82,6 +82,19 @@ def _client_ip(request: Request) -> str:
         return "unknown"
     return request.client.host or "unknown"
 
+
+def reset_rate_limits():
+    """Test hook: clear in-memory rate-limit buckets (keeps live-server tests hermetic)."""
+    _LOGIN_LIMITER.reset()
+    _REGISTER_LIMITER.reset()
+
+
+if os.environ.get("FLIKI_ENV", "").lower() in ("test", "dev"):
+    @router.post("/_internal/reset-rate-limits", include_in_schema=False)
+    def _reset_rate_limits_endpoint():
+        """Test/dev-only: clear in-memory rate-limit buckets (never exposed in production)."""
+        reset_rate_limits()
+        return {"ok": True}
 def _enforce_rate_limit(limiter: SlidingWindowLimiter, key: str) -> None:
     blocked, _ = limiter.hit(key)
     if blocked:
