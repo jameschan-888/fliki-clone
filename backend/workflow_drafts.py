@@ -227,6 +227,8 @@ def create_router(get_db):
     def create_draft(body: DraftCreateBody, request: Request = None):
         from auth_router import get_user_id_from_request as _uid
         user_id = _uid(request)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
         with get_db() as connection:
             draft_id, now = uuid.uuid4().hex, utc_now()
             scenes = split_script(body.source_script)
@@ -352,6 +354,21 @@ def create_router(get_db):
             record_revision(connection, draft_id)
             connection.commit()
             return draft_payload(connection, draft_id)
+    @router.delete("/{draft_id}")
+    def delete_draft(draft_id: str, request: Request = None):
+        """删除草稿. 存在关联 workflow_runs 时拒绝 (409), 防误删渲染产物;
+        scene_drafts / draft_revisions 由 ON DELETE CASCADE 清理."""
+        with get_db() as connection:
+            _require_draft_owner(connection, draft_id, request)
+            run_count = connection.execute(
+                "SELECT COUNT(*) FROM workflow_runs WHERE workflow_draft_id=?", (draft_id,)
+            ).fetchone()[0]
+            if run_count:
+                raise HTTPException(status_code=409, detail="Cannot delete draft with existing workflow runs")
+            connection.execute("DELETE FROM workflow_drafts WHERE id=?", (draft_id,))
+            connection.commit()
+            return {"deleted": True, "id": draft_id}
+
     @router.post("/{draft_id}/confirm")
     def confirm_draft(draft_id: str, request: Request = None):
         with get_db() as connection:

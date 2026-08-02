@@ -30,7 +30,10 @@ class WorkflowDraftsTest(unittest.TestCase):
 
         class _FakeRequest:
             def __init__(self, token):
-                self.headers = {"Authorization": "Bearer " + token}
+                if token is None:
+                    self.headers = {}
+                else:
+                    self.headers = {"Authorization": "Bearer " + token}
         self._FakeRequest = _FakeRequest
 
     def tearDown(self):
@@ -182,6 +185,40 @@ class WorkflowDraftsTest(unittest.TestCase):
             self.assertIn("avatar", scene)
             self.assertIsNone(scene["avatar"])
 
+
+    def test_anonymous_create_rejected(self):
+        """P1 修复: 无 token 创建草稿必须 401, 防止匿名孤儿草稿 (user_id=None 永不可达)."""
+        with self.assertRaises(HTTPException) as ctx:
+            self.routes[("POST", "/workflow-drafts")](
+                DraftCreateBody(source_script="匿名草稿", title="x"),
+                request=self._FakeRequest(None),
+            )
+        self.assertEqual(ctx.exception.status_code, 401)
+
+    def test_delete_draft_removes_and_404_after(self):
+        created = self.create_draft()
+        result = self.routes[("DELETE", "/workflow-drafts/{draft_id}")](created["id"], request=self._FakeRequest(self.tok))
+        self.assertTrue(result["deleted"])
+        with self.assertRaises(HTTPException) as ctx:
+            self.routes[("GET", "/workflow-drafts/{draft_id}")](created["id"], request=self._FakeRequest(self.tok))
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_delete_draft_with_runs_rejected_409(self):
+        created = self.create_draft()
+        import sqlite3 as _sq
+        conn = _sq.connect(main.config["DB_PATH"])
+        conn.execute("INSERT INTO workflow_runs (id, workflow_draft_id, status, created_at, updated_at) VALUES (?, ?, 'queued', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')", ("run-del-1", created["id"]))
+        conn.commit()
+        conn.close()
+        with self.assertRaises(HTTPException) as ctx:
+            self.routes[("DELETE", "/workflow-drafts/{draft_id}")](created["id"], request=self._FakeRequest(self.tok))
+        self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_delete_draft_anonymous_rejected(self):
+        created = self.create_draft()
+        with self.assertRaises(HTTPException) as ctx:
+            self.routes[("DELETE", "/workflow-drafts/{draft_id}")](created["id"], request=self._FakeRequest(None))
+        self.assertEqual(ctx.exception.status_code, 401)
 
 if __name__ == "__main__":
     unittest.main()

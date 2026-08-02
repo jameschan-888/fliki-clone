@@ -182,7 +182,6 @@ def render_job_detail(job_id: str, request: Request = None, con: sqlite3.Connect
         except Exception:
             pass
 @router.post("/render.create")
-@router.post("/render.create")
 def render_create(body: RenderCreateBody, background_tasks: BackgroundTasks, request: Request = None, con: sqlite3.Connection = Depends(get_db)):
     """POST /render.create: enqueue a render job, spawn run_render_job via background task.
 
