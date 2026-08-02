@@ -44,7 +44,9 @@ tests/load/*.bak
 logs/
 *.dev.log
 app/frontend-dev.log
-app/autoedit.html.vanilla.bak# Runtime data (user uploads, generated assets, DB)
+app/autoedit.html.vanilla.bak
+
+# Runtime data (user uploads, generated assets, DB)
 app/data/
 backend/data/
 backend/data/avatar_clone_faces/

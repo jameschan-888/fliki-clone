@@ -2,13 +2,13 @@
 
 > Fliki 风格独立视频创作系统, 从 0 开始二创. 本文件即是唯一交接主文档; INSTALL.md / HANDOFF.md / PROJECT_STATUS_AND_PLAN.md / HANDOVER_NEXT.md 已并入本文, 后续仅保留为历史快照.
 
-更新时间: 2026-08-01 (rev30: OmniVoice 隔离服务 + kittentts 真实 E2E 闭环; 当前代码基线 HEAD `a25d336`)
+更新时间: 2026-08-02 (全面审计 + P1/P2 修复; 基线 HEAD `489253b`, 审计修复未提交; 审计报告见 `AUDIT_REPORT_2026-08-02.md`)
 
 ---
 
-> **项目状态 (2026-08-01, rev30)**: OmniVoice 已以独立 Docker 服务运行在本机 3900, CPU 轻量引擎 `kittentts` 真实 E2E 3/3 PASS; offline 强门在暂停外部语音容器后 7/7 PASS (310.9s), 后端 532 tests (5 skipped), `ResourceWarning` 总数 0. 当前改动尚未提交.
+> **项目状态 (2026-08-02)**: 全面审计完成 — 后端 569 tests (5 skipped) 全绿, `scripts/ci.js --offline` 7/7 PASS, 前端 vitest 40/40 + build OK; P1 (匿名草稿孤儿、Docker 浏览器路径/context) 与 P2 (依赖清单/README/.gitignore/草稿删除端点/DB 环境隔离等) 已修复, 待提交. 详见 `AUDIT_REPORT_2026-08-02.md`.
 
-> **当前两项有效队列**: (1) 补 GPT-SoVITS / MiniMax 当前环境的真实服务证据; (2) 生产化时把 tenant 哈希分桶升级为真实 `tenant_id` 数据模型.
+> **当前有效队列**: (1) 建 git remote 并首跑 GitHub Actions; (2) 补 GPT-SoVITS / MiniMax 真实服务证据; (3) 生产化时把 tenant 哈希分桶升级为真实 `tenant_id` 数据模型.
 
 ## rev24 阶段 C #8 list 端点 user 过滤 (2026-07-29)
 
