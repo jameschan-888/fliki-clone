@@ -169,3 +169,68 @@
 - 临时脚本已清理 (`.run_audit_start.ps1` 等)。
 - 报告文件: `D:\workspace\Fliki视频制作还原\AUDIT_REPORT_2026-08-02.md` (与 README/HANDOFF 同级, 便于交接)。
 
+---
+
+# 追加: P1/P2 修复 + 工作流完整性复审计 (2026-08-02 下午)
+
+## A. 修复落地 (4 commits: e1ae64c / ee0d490 / 85cb1bd / d4152c9)
+
+### P1 两项
+1. **匿名草稿孤儿**: `create_draft` 无 token 直接 401; 新增回归测试 (匿名创建 401). 实测: 匿名 POST /workflow-drafts → 401. ✅
+2. **Docker 交付链路**: 3 处修复 — ① compose `build.context: .` → `..` (Dockerfile `COPY backend/...` 需要仓库根 context) + `dockerfile: backend/Dockerfile`; ② `REMOTION_BROWSER_EXECUTABLE` compose 覆盖值与 Dockerfile ENV 对齐为 `/usr/bin/google-chrome-stable`; ③ 新增根 `.dockerignore` 控制 context 体积. 另修 `.env` 文件头 BOM+空行 (docker compose env_file 解析失败).
+   - **构建验证受网络阻塞**: `docker compose build` 在安装 google-chrome-stable 阶段失败 — `dl-ssl.google.com`/`dl.google.com` 在本机网络不可达 (环境性, 非代码问题). 代码级修复已完成; 实际构建需代理/可访问 Google 的网络, 或改用 chromium 包 (见 §C 优化项).
+
+### P2 八项
+| # | 项 | 状态 |
+|---|---|---|
+| 3 | requirements 依赖缺口 | ✅ 补 requests/openai/faster-whisper; CI 去掉 `|| true` 弱门禁和重复 pip install |
+| 4 | git remote / CI 未运行 | ⚠️ 需用户建仓推送 (本机无账号可代建); README 已列入队列 |
+| 5 | README 过期 | ✅ 状态段同步 HEAD/测试数/审计链接 |
+| 6 | .gitignore 断行 bug | ✅ L47 拆行修复; `git rm --cached` 移除 app/autoedit.html.vanilla.bak (17KB) |
+| 7 | 无草稿删除端点 | ✅ 新增 `DELETE /workflow-drafts/{draft_id}` (owner 校验; 有关联 run 返 409; 无 run 级联删除) + 3 回归测试 |
+| 8 | DB 无环境隔离 | ✅ config 支持 `FLIKI_DB_PATH` 覆盖; 实测隔离库完整跑通工作流 |
+| 9 | 双 @router.post | ✅ render.py 删重复装饰器 |
+| 10 | CI 弱门禁 | ✅ 随 #3 一并收紧 |
+
+另顺带: `.env.example` 补 FLIKI_JWT_SECRET / FLIKI_ALLOWED_ORIGINS / FLIKI_DB_PATH 三键. ✅
+
+## B. 工作流完整性复审计 (端到端实测, 隔离库)
+
+| # | 工作流环节 | 结果 |
+|---|---|---|
+| 1 | 匿名创建草稿 | 401 (P1-1 生效) ✅ |
+| 2 | 注册登录 → 带 token 创建草稿 (source_script 自动分镜 3 场景) | ✅ |
+| 3 | 追加场景 → reorder 倒序 → confirm | ✅ |
+| 4 | from-draft 创建 run → run 详情查询 | ✅ |
+| 5 | 有 run 删草稿 | 409 (防误删渲染产物) ✅ |
+| 6 | 无 run 删草稿 → 删除后读 | 200 + {"deleted":true} → 404 ✅ |
+| 7 | 跨用户访问 (B 读 A 的草稿/run) | 404 防枚举 ✅ |
+| 8 | 列表 user 隔离 (A 1 条 / B 0 条) | ✅ |
+
+全量回归: **573 tests OK (5 skipped)** — 含 4 个新测试 (匿名创建 401 ×1, 删除端点 ×3). 前端 build + vitest 40/40 通过.
+
+### 新发现 (复审计): 测试基建与 DB 隔离耦合
+- `test_p0_security` / `test_d1_tenant` / `test_p1a_user_metrics` 等 live 测试依赖"测试进程与服务进程共享默认 app.db" (测试进程直接写临时库, 服务 HTTP 读默认库). 用 `FLIKI_DB_PATH` 隔离服务后这组失败 (6 个). 默认库下全绿. 属测试基建耦合, 生产化/CI 隔离前需重构: live 测试应全部通过 API 自举数据, 或测试进程与服务读取同一 `FLIKI_DB_PATH`.
+
+## C. 短板评估与优化提升方案 (按 ROI)
+
+| 优先级 | 优化项 | 内容 | 工作量 |
+|---|---|---|---|
+| P0 | 建 git remote + 首跑 CI | 推仓后 .github 5 job 首次真实运行; 在 CI 加"起服务跑 live 测试组"步骤 (当前 live 组在 CI 会 skip) | 0.5 天 |
+| P0 | Docker 构建网络化 | Dockerfile chrome 源支持 build-arg 指向国内镜像, 或换 `chromium` apt 包 + REMOTION_BROWSER_EXECUTABLE 调整; 构建后跑一次模板渲染验证 | 0.5-1 天 |
+| P1 | live 测试去耦合 | p0_security/d1_tenant/p1a 改为 API 自举数据或统一 FLIKI_DB_PATH 读取 | 0.5-1 天 |
+| P1 | 真实渲染/转写工作流验证 | 本机跑一次真实 Remotion 模板渲染 (非 mock) + autoedit 上传→faster-whisper 转写→草稿 闭环 | 1-2 天 |
+| P2 | 文档自动同步 | scripts 更新 README 状态段 (HEAD/测试数), commit hook 或周更; 防再次过期 | 0.5 天 |
+| P2 | 草稿生命周期 | archived 清理策略 + draft_revisions 保留上限 | 0.5 天 |
+| P3 | CSP 收紧 | 生产前置: script-src 去 unsafe-inline, connect-src 白名单化 | 0.5 天 |
+
+## D. 验证命令速查
+
+```bash
+# 全量回归 (需 5181 起服务, FLIKI_ENV=test)
+python -m unittest discover -s tests -p "test_*.py"
+# 离线强门 7/7
+node scripts/ci.js --offline
+# 前端
+npm run build && npx vitest run
+```
