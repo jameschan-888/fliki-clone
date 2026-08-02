@@ -30,7 +30,7 @@ jobs:
         run: |
           cd backend
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
+          pip install -r requirements.txt
           pip install fastapi uvicorn[standard] pydantic python-multipart psutil
       - name: Run backend unit tests
         run: |
@@ -57,7 +57,7 @@ jobs:
       - name: Install deps
         run: |
           cd backend
-          pip install -r requirements.txt || true
+          pip install -r requirements.txt
       - name: scripts/ci.js (offline strong gate)
         run: node scripts/ci.js --offline
       - name: Upload logs
@@ -86,7 +86,7 @@ jobs:
       - name: Install backend deps
         run: |
           cd backend
-          pip install -r requirements.txt || true
+          pip install -r requirements.txt
       - name: Provider integration (strict online)
         run: node scripts/ci.js --online
   frontend-build:
@@ -121,7 +121,7 @@ jobs:
       - name: Install deps
         run: |
           cd backend
-          pip install -r requirements.txt || true
+          pip install -r requirements.txt
       - name: Start backend
         run: |
           $env:RENDER_PROVIDER="cloud"

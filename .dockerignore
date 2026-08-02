@@ -1,0 +1,35 @@
+﻿# Git & CI
+.git/
+.github/
+
+# Python
+**/__pycache__/
+**/*.pyc
+backend/.venv/
+backend/data/
+backend/.env
+backend/.run/
+backend/server.log
+backend/_uvi.*
+backend/_uvicorn.*
+backend/_backup_*.py
+backend/_p5c_write.py
+
+# Node / frontend
+app/node_modules/
+app/dist/
+app/*.log
+app/*.tsbuildinfo
+backend/workers/remotion-project/node_modules/
+backend/workers/remotion-project/out/
+backend/workers/remotion-project/.cache/
+backend/workers/remotion-project/bundle/
+
+# Runtime artifacts
+logs/
+tests/load/*.log
+tests/load/*.err
+*.log
+*.err
+voice-gallery.png
+Fliki项目交接文档.docx

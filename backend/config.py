@@ -7,7 +7,8 @@ ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / '.env')
 DATA_DIR = ROOT / 'data'
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-DB_PATH = str(DATA_DIR / 'app.db')
+# DB 路径可被 FLIKI_DB_PATH 覆盖 (测试/CI/多实例隔离, 避免污染默认开发库)
+DB_PATH = os.getenv('FLIKI_DB_PATH') or str(DATA_DIR / 'app.db')
 
 MEDIA_ROOT = DATA_DIR / 'media'
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)

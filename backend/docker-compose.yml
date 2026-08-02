@@ -13,8 +13,8 @@
 services:
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
     image: fliki-api:local
     container_name: fliki-api
     working_dir: /app
@@ -31,7 +31,7 @@ services:
     environment:
       - FLIKI_HOST=0.0.0.0
       - FLIKI_PORT=8765
-      - REMOTION_BROWSER_EXECUTABLE=/usr/local/bin/fliki-chromium
+      - REMOTION_BROWSER_EXECUTABLE=/usr/bin/google-chrome-stable
       - FFMPEG_EXECUTABLE=/usr/bin/ffmpeg
       - PYTHONIOENCODING=utf-8
       - PYTHONUTF8=1
