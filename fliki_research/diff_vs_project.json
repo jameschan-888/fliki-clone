@@ -1,0 +1,21 @@
+{
+  "captured_at": "2026-08-04 04:44:51",
+  "pages": [
+    {
+      "id": "home",
+      "fliki_url": "https://fliki.ai/",
+      "local_url": "http://127.0.0.1:31412/",
+      "fliki_ok": true,
+      "local_ok": true,
+      "diff_ratio": 0.9997
+    },
+    {
+      "id": "pricing",
+      "fliki_url": "https://fliki.ai/pricing",
+      "local_url": "http://127.0.0.1:31412/pricing",
+      "fliki_ok": true,
+      "local_ok": true,
+      "diff_ratio": 0.1324
+    }
+  ]
+}
