@@ -1,0 +1,283 @@
+{
+  "flikiResearch": {
+    "marketing_page": {
+      "title": "Turn blog into videos with AI voices",
+      "placeholder": "Create a faceless TikTok video about \"5 money habits that changed my life.\"",
+      "ctas": [
+        "Cycle video ideas",
+        "Generate video"
+      ],
+      "stats": {
+        "videos": "100M+",
+        "users": "12M+",
+        "languages": "82+",
+        "dialects": "153+",
+        "voices": "2,000+",
+        "tools_total": "35+"
+      },
+      "customers": [
+        "Meta",
+        "Oracle",
+        "Siemens",
+        "PayPal",
+        "SAP",
+        "Comcast",
+        "Toyota",
+        "Tata",
+        "PwC",
+        "Capgemini",
+        "ByteDance",
+        "MetLife",
+        "Toast",
+        "InDrive"
+      ]
+    },
+    "workflows": [
+      {
+        "id": "script-to-video",
+        "fliki": "Paste script → AI scenes → render",
+        "project": "drafts.html",
+        "status": "has",
+        "gap": "无"
+      },
+      {
+        "id": "blog-to-video",
+        "fliki": "URL → AI 总结脚本 → 视频；一篇 8-12 段",
+        "project": "无",
+        "status": "missing",
+        "gap": "RSS/URL 解析 + 文章分镜 + 总结脚本"
+      },
+      {
+        "id": "ppt-to-video",
+        "fliki": "上传 PPT → 每页自动脚本+画面+配音+字幕",
+        "project": "无",
+        "status": "missing",
+        "gap": "pptx 解析 + 页面分镜 + 模板适配"
+      },
+      {
+        "id": "auto-edit-video",
+        "fliki": "上传视频 → AI 字幕+静音段裁剪+转场+音乐",
+        "project": "autoedit.html",
+        "status": "has",
+        "gap": "AI 字幕/裁剪建议未全自动"
+      },
+      {
+        "id": "record-to-video",
+        "fliki": "浏览器录屏 → 自动转写 → 字幕+AI 配音",
+        "project": "无",
+        "status": "missing",
+        "gap": "WebRTC 录屏 + ASR + 字幕轨"
+      },
+      {
+        "id": "translate-video",
+        "fliki": "视频翻译 80+ 语言 + lip-sync + 多说话人",
+        "project": "无",
+        "status": "missing",
+        "gap": "ASR→MT→TTS+lip-sync 全链路"
+      },
+      {
+        "id": "empty-blank",
+        "fliki": "空白文件起点",
+        "project": "隐式支持",
+        "status": "partial",
+        "gap": "无独立入口"
+      }
+    ],
+    "featured_tools": [
+      {
+        "name": "Idea to video",
+        "project": "无",
+        "status": "missing",
+        "gap": "prompt→全自动"
+      },
+      {
+        "name": "Text to video",
+        "project": "drafts.html",
+        "status": "has"
+      },
+      {
+        "name": "AI video generator",
+        "project": "多模型合成",
+        "status": "has",
+        "gap": "模型代际落后 1-2 代"
+      },
+      {
+        "name": "Text to speech",
+        "project": "voices + edge_tts",
+        "status": "partial",
+        "gap": "400+ voice vs fliki 2,000+"
+      },
+      {
+        "name": "Voice cloning",
+        "project": "gpt_sovits_cpu",
+        "status": "partial",
+        "gap": "未实机；30 秒 vs 更长"
+      },
+      {
+        "name": "AI avatar",
+        "project": "avatars.html + heygen",
+        "status": "has"
+      },
+      {
+        "name": "AI video translator",
+        "project": "无",
+        "status": "missing",
+        "gap": "lip-sync + 多说话人翻译"
+      },
+      {
+        "name": "AI dubbing",
+        "project": "无",
+        "status": "missing",
+        "gap": "配音克隆跨语言"
+      },
+      {
+        "name": "Blog to video",
+        "project": "无",
+        "status": "missing",
+        "gap": "同 workflow"
+      },
+      {
+        "name": "PPT to video",
+        "project": "无",
+        "status": "missing",
+        "gap": "同 workflow"
+      },
+      {
+        "name": "AI image generator",
+        "project": "6 模型",
+        "status": "partial",
+        "gap": "缺 GPT Image 2 / Flux Pro / Seedream 4.5 / Qwen-Image-Edit-Plus / Nano Banana 2"
+      },
+      {
+        "name": "AI Reel maker",
+        "project": "无",
+        "status": "missing",
+        "gap": "9:16 短视频一键"
+      },
+      {
+        "name": "AI thumbnail maker",
+        "project": "无",
+        "status": "missing",
+        "gap": "GPT Image 2 文字渲染 + 多画幅"
+      }
+    ],
+    "basic_tools": [
+      {
+        "name": "Video: convert/trim/crop/resize/rotate/speed",
+        "project": "ffmpeg 间接",
+        "status": "partial"
+      },
+      {
+        "name": "Image: crop/convert/rotate",
+        "project": "无",
+        "status": "missing"
+      },
+      {
+        "name": "Audio: convert/trim/speed",
+        "project": "无",
+        "status": "missing"
+      },
+      {
+        "name": "AI script generator",
+        "project": "workflow-drafts 自动分镜",
+        "status": "partial"
+      }
+    ],
+    "ai_models": {
+      "fliki": [
+        "Veo 3.1",
+        "Sora",
+        "Kling 3 Pro",
+        "Seedance 2",
+        "PixVerse V5",
+        "Nano Banana 2",
+        "GPT Image 2",
+        "Flux Pro",
+        "Flux 2",
+        "Seedream 4.5",
+        "Qwen Image",
+        "Qwen-Image-Edit-Plus",
+        "Sync-3"
+      ],
+      "project": [
+        {
+          "name": "minimax",
+          "status": "enabled=false"
+        },
+        {
+          "name": "seedance 2",
+          "status": "同代 ✅"
+        },
+        {
+          "name": "kling-2.5-turbo",
+          "status": "落后 1 代"
+        },
+        {
+          "name": "kling-video",
+          "status": "同 2.x"
+        },
+        {
+          "name": "pixverse",
+          "status": "V4 落后 1 代"
+        },
+        {
+          "name": "edge_tts",
+          "status": "400+ voice 差距大"
+        },
+        {
+          "name": "faster_whisper",
+          "status": "✅"
+        },
+        {
+          "name": "gpt_sovits_cpu",
+          "status": "未实机"
+        },
+        {
+          "name": "wav2lip_onnx",
+          "status": "旧代 vs Sync-3"
+        },
+        {
+          "name": "heygen_api",
+          "status": "付费"
+        },
+        {
+          "name": "Pexels/Pixabay/Freesound",
+          "status": "✅ 实机 fallback"
+        },
+        {
+          "name": "remotion",
+          "status": "✅"
+        }
+      ]
+    },
+    "editor_paradigm": {
+      "fliki": "chat + timeline（Public beta）",
+      "project": "表单 Composer + 主时间轴"
+    },
+    "commercial": {
+      "fliki": [
+        "Workspaces",
+        "Teams",
+        "Billing（Free/Standard $28/Premium $88/Enterprise）",
+        "Brand kit",
+        "Sharing",
+        "Collaboration"
+      ],
+      "project": [
+        "全无"
+      ]
+    }
+  },
+  "gaps": {
+    "workflow_pct": 36,
+    "featured_pct": 31,
+    "basic_pct": 25,
+    "models_pct": 8,
+    "models_pct_v2": 23,
+    "editor_pct": 50,
+    "commercial_pct": 0,
+    "ui_visual_pct": 75,
+    "marketing_pct": 30
+  },
+  "weighted_demo": 36
+}
