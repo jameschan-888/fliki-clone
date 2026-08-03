@@ -199,7 +199,35 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                     language=row["language"] or "zh",
                 )
             except ProviderError as exc:
-                raise HTTPException(status_code=502, detail=f"GPT-SoVITS preview failed: {exc}") from exc
+                # P0-6: fallback to edge_tts when GPT-SoVITS not running locally.
+                # 不阻断 voice cloning 体验; 标注 fallback_used 让前端提示用户.
+                fallback_used = True
+                fallback_reason = str(exc)[:200]
+                try:
+                    import asyncio
+                    import edge_tts
+                    voice_short = row["language"] or "zh"
+                    voice_name = "zh-CN-XiaoxiaoNeural" if voice_short.startswith("zh") else "en-US-AriaNeural"
+                    async def _edge_synth():
+                        communicate = edge_tts.Communicate(target_text, voice_name)
+                        await communicate.save(str(destination))
+                    asyncio.run(_edge_synth())
+                    bytes_out = destination.stat().st_size
+                except Exception as fb_exc:
+                    raise HTTPException(
+                        status_code=502,
+                        detail="GPT-SoVITS preview failed AND edge_tts fallback failed: original=" + str(exc) + " fallback=" + str(fb_exc),
+                    ) from fb_exc
+                return {
+                    "uuid": voice_uuid,
+                    "provider": "edge_tts_fallback",
+                    "base_url": None,
+                    "preview_url": f"/voice-previews/clone/{voice_uuid}.mp3",
+                    "bytes": bytes_out,
+                    "text": target_text,
+                    "fallback_used": True,
+                    "fallback_reason": fallback_reason,
+                }
             return {
                 "uuid": voice_uuid,
                 "provider": cfg.get("model") or "gpt_sovits",
@@ -207,6 +235,7 @@ def create_router(get_db, ref_audio_dir: str | None = None, preview_dir: str | N
                 "preview_url": f"/voice-previews/clone/{voice_uuid}.mp3",
                 "bytes": result["bytes"],
                 "text": target_text,
+                "fallback_used": False,
             }
     @router.get("/provider/health")
     def provider_health():
