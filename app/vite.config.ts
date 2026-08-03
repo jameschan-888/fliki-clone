@@ -22,6 +22,7 @@ export default defineConfig({
         pricing: resolve(__dirname, "pricing.html"),
         login: resolve(__dirname, "login.html"),
         signup: resolve(__dirname, "signup.html"),
+        files: resolve(__dirname, "files.html"),
       },
     },
   },
