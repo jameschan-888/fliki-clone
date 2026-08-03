@@ -21,9 +21,11 @@ def _record_to_scenes(body, language):
 
 
 def _transcribe_audio(path, language):
-    # MVP: 直接返回客户端提供的 transcript, 不做 server-side ASR
-    # P1 接 faster-whisper / Edge ASR
-    return ""
+    try:
+        from autoedit import transcribe_audio
+        return transcribe_audio(path, language=(language or "zh-CN").split("-")[0]) or ""
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return ""
 
 def _record_to_scenes_extended(body, language):
     transcript = body.get("transcript") or ""

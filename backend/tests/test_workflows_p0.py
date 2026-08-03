@@ -108,6 +108,28 @@ class MockWorkflowsTest(unittest.TestCase):
         self.assertGreaterEqual(len(scenes), 1)
         self.assertIn("en-US", source)
         self.assertIn("zh-CN", source)
+    def test_record_extended_uses_local_asr(self):
+        import workflows.record as record
+        import autoedit
+        original = autoedit.transcribe_audio
+        try:
+            autoedit.transcribe_audio = lambda path, language: "ASR 生成的文字。"
+            scenes, source = record._record_to_scenes_extended({"audio_path": "demo.webm"}, "zh-CN")
+        finally:
+            autoedit.transcribe_audio = original
+        self.assertGreaterEqual(len(scenes), 1)
+        self.assertEqual(source, "ASR 生成的文字。")
+
+    def test_translate_extended_uses_configured_mt(self):
+        import workflows.translate as translate
+        original = translate._translate_text
+        try:
+            translate._translate_text = lambda text, source, target: "已翻译内容。"
+            scenes, source = translate._translate_to_scenes_extended({"source": "Original.", "source_lang": "en-US", "target_lang": "zh-CN"}, "zh-CN")
+        finally:
+            translate._translate_text = original
+        self.assertGreaterEqual(len(scenes), 1)
+        self.assertIn("已翻译内容", source)
 
 if __name__ == "__main__":
     unittest.main()
