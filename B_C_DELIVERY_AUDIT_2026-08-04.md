@@ -318,3 +318,37 @@ powershell scripts/push-to-github.ps1
 - N13: TS strict mode `Array.find()` 返回 `T | undefined`, 测试里 `expect(.find().prop)` 必须加 `!` 或显式 if 判断; P2 因加 `width/height/x/y` 类型字段触发连锁.
 - N14: TS 类型扩展要同步更新所有调用点. ElementChoice 加 4 个字段后, 所有 addElement 调用 (含测试 3 处 + AdvancedPanels 1 处) 必须同步补字段, 否则 strict 模式全报错.
 - N15: Node REPL 写 PowerShell 脚本时 `$` 必须转义为 `\$`, 否则模板字符串会把 $var 当 ES6 模板插值解析报错.
+
+
+---
+
+## P3 收口 (2026-08-04)
+
+### 完成的 3 子项 (独立 commit)
+
+| 子项 | commit | 文件 | 验证 |
+|---|---|---|---|
+| **P3.1 CDN 真图** | `32aa43c` | app/public/fliki-assets/ 15 webp + index.html | visual_diff 10 pages 0 diff, fliki 1:1 diff_ratio 0.9389 (全页真实) |
+| **P3.2 鼠标拖拽** | `5126ce2` | CanvasOverlay.tsx + test + ElementsPanel 集成 | vitest 6 new pass, build 938ms |
+| **P3.3 缩略图** | `6743fe0` | Timeline.tsx THUMB_BY_KIND + render + test | vitest 3 new pass, drafts bundle 95.82->97.04kB |
+
+### vitest 累计
+- 7 files / 52 tests → 9 files / 61 tests (+9 新增: CanvasOverlay 6 + Timeline 3)
+- 100% pass
+
+### ci.js 验收
+- 9 phases, 7 OK / 2 FAIL
+- FAIL 是 pre-existing CheckRoutesScriptTest 断言:
+  - test_ci_runs_template_preview_smoke_before_full_render: .github/workflows/ci.yml 缺 preview smoke step
+  - test_current_project_strict_gate_covers_provider_config: provider_config router prefix 期望问题
+- 跟 P3 改动无关, 按规矩不擅自修
+
+### 已知坑 (N16-N18)
+- N16: jsdom PointerEvent 不带 clientX, 用 MouseEvent + dispatchEvent 兜底
+- N17: useCallback draft stale, end() 必须从 dragRef 重算
+- N18: TS strict computeGeom 字面量必须完整 OverlayEl (含 id)
+
+### 用户后续动作
+- 修 CheckRoutesScriptTest 2 断言 (或者保持现状 + 标记 expected fail)
+- scripts/push-to-github.ps1 推到 GitHub → GH Actions 跑 yml → 云端验证
+- 进入 P1 候选 (Playwright 像素 diff / Editor 深层 UX)
