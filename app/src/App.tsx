@@ -75,6 +75,7 @@ export default function App() {
   const [runsTotal, setRunsTotal] = useState(0);
   const [runsStatusFilter, setRunsStatusFilter] = useState<string>("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [brandKitInitial, setBrandKitInitial] = useState({ name: "Default Brand", palette: ["#5b6cff", "#48d58b", "#ffaa28", "#dc5050"], font: "Noto Sans SC", logo_data_url: null as string | null, watermark: false });
 
 
   function rememberDraft(nextDraft: WorkflowDraft | null) {
@@ -125,6 +126,19 @@ export default function App() {
     void ensureSession().catch((err) => console.warn("[auth] ensureSession failed", err));
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const token = localStorage.getItem("fliki-auth-token") || "";
+        const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
+        const workspaces = await workspacesResponse.json();
+        const workspaceId = workspaces.workspaces?.[0]?.id;
+        if (!workspaceId) return;
+        const response = await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { headers: { Authorization: "Bearer " + token } });
+        if (response.ok) setBrandKitInitial(await response.json());
+      } catch { }
+    })();
+  }, []);
   useEffect(() => {
     const savedDraftId = localStorage.getItem(savedDraftKey);
     if (!savedDraftId) return;
@@ -650,7 +664,7 @@ export default function App() {
           <EditorSidebar
             templates={{ onPick: function (t) { setMessage("已选择模板: " + t.name); } }}
             settings={{ onChange: function (st) { setMessage("项目设置已更新: aspect=" + st.aspect); }, initial: { aspect: "16:9", font: "Noto Sans SC" } }}
-            brandkit={{ onChange: function (b) { setMessage("品牌包已更新: " + b.name); void persistBrandKit(b); }, initial: { name: "Default Brand", palette: ["#5b6cff", "#48d58b", "#ffaa28", "#dc5050"] } }}
+            brandkit={{ onChange: function (b) { setMessage("品牌包已更新: " + b.name); void persistBrandKit(b); }, initial: brandKitInitial }}
           />
         </section>
       )}

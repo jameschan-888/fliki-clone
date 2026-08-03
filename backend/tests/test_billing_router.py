@@ -30,5 +30,13 @@ class BillingRouterTest(unittest.TestCase):
         self.assertIn("/billing/me", paths)
         self.assertIn("/billing/subscribe", paths)
 
+    def test_consume_is_idempotent_by_reference(self):
+        from billing_router import ensure_billing_tables, consume_credits
+        ensure_billing_tables(self.con)
+        first = consume_credits(self.con, "u1", 10, "render", "req-1")
+        second = consume_credits(self.con, "u1", 10, "render", "req-1")
+        self.assertTrue(first["consumed"])
+        self.assertTrue(second["duplicate"])
+        self.assertEqual(second["balance"], 2150)
 if __name__ == "__main__":
     unittest.main()

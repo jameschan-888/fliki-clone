@@ -86,6 +86,11 @@ def build_workflow_router(prefix, tag, source_to_scenes, get_db, max_source_leng
         if not scenes:
             raise HTTPException(status_code=422, detail=source_label + " 无法生成任何 scene")
         with get_db() as connection:
+            from billing_router import consume_credits
+            credit_reference = (request.headers.get("X-Request-ID") if request else None) or uuid.uuid4().hex
+            credit_result = consume_credits(connection, user_id, 1, "workflow_draft", credit_reference)
+            if credit_result.get("insufficient"):
+                raise HTTPException(status_code=402, detail={"error_code": "INSUFFICIENT_CREDITS", "message": "credits 不足，请升级套餐"})
             draft_id = insert_draft(connection, user_id, title, source_script or "", language, scenes)
             return draft_payload(connection, draft_id)
 

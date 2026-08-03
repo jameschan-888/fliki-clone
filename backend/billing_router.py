@@ -76,6 +76,25 @@ def _uid(request):
     return user_id
 
 
+def consume_credits(con, user_id, amount, reason, reference_id):
+    ensure_billing_tables(con)
+    existing = con.execute("SELECT id FROM credit_ledger WHERE user_id=? AND reference_id=? AND delta < 0", (user_id, reference_id)).fetchone()
+    if existing:
+        row = con.execute("SELECT balance FROM credit_balances WHERE user_id=?", (user_id,)).fetchone()
+        return {"consumed": False, "duplicate": True, "balance": int(row[0]) if row else 0}
+    con.execute("BEGIN IMMEDIATE")
+    row = con.execute("SELECT balance FROM credit_balances WHERE user_id=?", (user_id,)).fetchone()
+    balance = int(row[0]) if row else 0
+    if balance < amount:
+        con.rollback()
+        return {"consumed": False, "duplicate": False, "insufficient": True, "balance": balance}
+    after = balance - amount
+    now = _now()
+    con.execute("UPDATE credit_balances SET balance=?, updated_at=? WHERE user_id=?", (after, now, user_id))
+    con.execute("INSERT INTO credit_ledger VALUES (?,?,?,?,?,?,?)", (uuid.uuid4().hex, user_id, -amount, after, reason, reference_id, now))
+    con.commit()
+    return {"consumed": True, "duplicate": False, "insufficient": False, "balance": after}
+
 def _state(con, user_id):
     ensure_billing_tables(con)
     subscription = con.execute("SELECT id,user_id,plan,billing_cycle,status,provider,current_period_end FROM subscriptions WHERE user_id=?", (user_id,)).fetchone()
@@ -114,7 +133,7 @@ def create_router(get_db=get_db):
                 before = previous[0] if previous else 0
                 after = before + amount
                 con.execute("INSERT OR REPLACE INTO credit_balances VALUES (?,?,?)", (user_id, after, now))
-                con.execute("INSERT INTO credit_ledger VALUES (?,?,?,?,?,?)", (uuid.uuid4().hex,user_id,amount,after,"subscription_grant",body.plan,now))
+                con.execute("INSERT INTO credit_ledger VALUES (?,?,?,?,?,?,?)", (uuid.uuid4().hex,user_id,amount,after,"subscription_grant",body.plan,now))
             con.commit()
             state = _state(con, user_id)
         state["payment"] = {"status": "not_charged", "provider": "local", "message": "已保存本地订阅状态，未执行外部扣款"}
