@@ -1,4 +1,4 @@
-﻿import { resolve } from "node:path";
+import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -23,7 +23,9 @@ export default defineConfig({
         login: resolve(__dirname, "login.html"),
         signup: resolve(__dirname, "signup.html"),
         files: resolve(__dirname, "files.html"),
-        playground: resolve(__dirname, "playground.html"),
+        playground: resolve(__dirname, "playground.html"),        characters: resolve(__dirname, "characters.html"),
+        features: resolve(__dirname, "features.html"),
+        useCases: resolve(__dirname, "use-cases.html"),
       },
     },
   },
