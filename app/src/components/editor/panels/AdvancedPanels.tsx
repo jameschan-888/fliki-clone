@@ -5,6 +5,7 @@ import {
   useEditorState,
   type EditorState,
 } from "../editorStore";
+import { CanvasOverlay } from "../CanvasOverlay";
 
 export function CopilotPanel() {
   const [prompt, setPrompt] = useState("");
@@ -187,6 +188,8 @@ export function ElementsPanel() {
   const [x, setX] = useState(540);
   const [y, setY] = useState(260);
   const elements = useEditorState((s: any) => s.elements);
+  const [selectedElId, setSelectedElId] = useState<string | null>(null);
+  const selectedEl = elements.find((e: any) => e.id === selectedElId) || null;
 
   const active = ELEMENT_TYPES.find((e) => e.id === selected);
 
@@ -301,15 +304,44 @@ export function ElementsPanel() {
       <section className="elementInspector" style={{ marginTop: 12 }}>
         <h4>已添加 ({elements.length})</h4>
         {elements.length === 0 ? (
-          <p className="hint">还未添加任何装饰元素。</p>
+          <p className="hint">还未添加任何装饰元素。点击上方配置后按 + 加入场景。</p>
         ) : (
-          elements.map((el: any) => (
-            <div key={el.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "1px solid #2d3756" }}>
-              <span style={{ flex: 1, fontSize: 11, color: "#cfd5ee" }}>{el.id}</span>
-              <small style={{ fontSize: 10, color: "#9da8c5" }}>{el.position} · {el.size}% · {el.opacity}%</small>
-              <button className="layerBtn danger" title="删除" onClick={() => editorActions.removeElement(el.id)}>✕</button>
-            </div>
-          ))
+          <>
+            {elements.map((el: any) => (
+              <div
+                key={el.id}
+                data-testid={"element-row-" + el.id}
+                onClick={() => setSelectedElId(el.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 0",
+                  borderTop: "1px solid #2d3756",
+                  cursor: "pointer",
+                  background: selectedElId === el.id ? "rgba(25,181,197,0.12)" : "transparent",
+                }}
+              >
+                <span style={{ flex: 1, fontSize: 11, color: "#cfd5ee" }}>{el.id}</span>
+                <small style={{ fontSize: 10, color: "#9da8c5" }}>{Math.round(el.width)}x{Math.round(el.height)} @ ({Math.round(el.x)},{Math.round(el.y)})</small>
+                <button className="layerBtn danger" title="删除" onClick={(e) => { e.stopPropagation(); editorActions.removeElement(el.id); setSelectedElId(null); }}>✕</button>
+              </div>
+            ))}
+            {selectedEl && (
+              <div data-testid="canvas-overlay-mount" style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ fontSize: 11, color: "#cfd5ee", display: "flex", justifyContent: "space-between" }}>
+                  <span>拖动调整 {selectedEl.id}</span>
+                  <button className="layerBtn" onClick={() => setSelectedElId(null)} title="关闭预览">✕</button>
+                </div>
+                <CanvasOverlay
+                  element={selectedEl}
+                  scale={0.25}
+                  onChange={(geom) => editorActions.setElementGeometry(selectedEl.id, geom)}
+                />
+                <p className="hint">中心拖动改 x/y · 角点拖动改 width/height · 释放后写回 store 与 Timeline</p>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
