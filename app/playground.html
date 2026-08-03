@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Playground | 本地视频制作台</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#eef2ff;background:radial-gradient(circle at 20% 0,#293669 0,transparent 38%),#0c1020}
+    .shell{max-width:1180px;margin:auto;padding:48px 24px}
+    h1{font-size:30px;margin:0 0 8px;letter-spacing:-.5px}
+    .lead{color:#aab3cf;font-size:14px;margin:0 0 24px}
+    .typePick{display:inline-flex;gap:6px;padding:5px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:999px;margin-bottom:18px}
+    .typePick button{padding:8px 22px;background:transparent;border:none;border-radius:999px;color:#aab3cf;font-weight:700;cursor:pointer;font-size:13px}
+    .typePick button.active{background:#5b6cff;color:#fff}
+    .playGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    @media(max-width:880px){.playGrid{grid-template-columns:1fr}}
+    .panel{padding:18px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.5)}
+    .panel h3{margin:0 0 12px;font-size:15px;color:#eef2ff}
+    label{display:block;margin:10px 0 4px;font-size:12px;color:#8ba7ff;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+    textarea,select,input[type=text]{width:100%;padding:10px 12px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:10px;color:#eef2ff;font-size:14px;outline:none;font-family:inherit}
+    textarea{min-height:120px;resize:vertical}
+    .subTabs{display:flex;gap:4px;padding:3px;background:rgba(20,27,49,.7);border:1px solid #2d3756;border-radius:8px;margin-bottom:14px}
+    .subTabs button{flex:1;padding:6px 8px;background:transparent;border:none;border-radius:6px;color:#aab3cf;font-size:12px;font-weight:600;cursor:pointer;text-transform:uppercase}
+    .subTabs button.active{background:#5b6cff;color:#fff}
+    .refs{display:flex;gap:6px;margin-top:6px}
+    .refSlot{flex:1;height:60px;border:1px dashed #3a4a7c;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6b748d;font-size:11px;cursor:pointer;background:rgba(20,27,49,.4)}
+    .refSlot:hover{border-color:#5b6cff;color:#718cff}
+    .enhanceRow{display:flex;gap:8px;align-items:center;margin-top:8px}
+    .enhanceRow button{padding:7px 12px;background:transparent;border:1px solid #5b6cff;border-radius:8px;color:#718cff;font-size:12px;cursor:pointer;font-weight:600}
+    .enhanceRow button:hover{background:rgba(91,108,255,.15)}
+    .generate{margin-top:16px;width:100%;padding:14px;background:#5b6cff;border:none;border-radius:10px;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+    .generate:hover{background:#718cff}
+    .generate:disabled{opacity:.6;cursor:wait}
+    .meta{font-size:11px;color:#9da8c5;margin-top:6px}
+    .meta strong{color:#8ba7ff;font-weight:700}
+    .history{display:flex;flex-direction:column;gap:10px}
+    .historyItem{display:grid;grid-template-columns:54px 1fr;gap:10px;padding:10px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4);align-items:center}
+    .historyItem .thumb{width:54px;height:54px;border-radius:6px;background:linear-gradient(135deg,#5b6cff,#48d58b);display:flex;align-items:center;justify-content:center;font-size:20px}
+    .historyItem .info strong{display:block;font-size:13px;color:#eef2ff;font-weight:600}
+    .historyItem .info small{font-size:11px;color:#9da8c5}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main_playground.tsx"></script>
+</body>
+</html>

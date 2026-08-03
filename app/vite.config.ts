@@ -23,6 +23,7 @@ export default defineConfig({
         login: resolve(__dirname, "login.html"),
         signup: resolve(__dirname, "signup.html"),
         files: resolve(__dirname, "files.html"),
+        playground: resolve(__dirname, "playground.html"),
       },
     },
   },
