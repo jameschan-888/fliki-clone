@@ -386,3 +386,68 @@
   .tl-row .label{font-weight:700;color:#8ba7ff;letter-spacing:.8px;text-transform:uppercase;font-size:10px}
   .tl-summary{margin-top:10px;padding-top:10px;border-top:1px dashed #2d3756;display:flex;gap:18px;font-size:11px;color:#9da8c5;flex-wrap:wrap}
   .tl-summary strong{color:#eef2ff;font-weight:700;font-size:13px}
+  .sidebar{display:flex;gap:12px;margin-top:14px}
+  .sidebarTools{display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(20,27,49,.6);border:1px solid #2d3756;border-radius:14px;width:88px;flex-shrink:0}
+  .sidebarTool{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;background:transparent;border:1px solid transparent;border-radius:10px;color:#aab3cf;cursor:pointer;font-size:11px;font-weight:600;transition:.15s}
+  .sidebarTool:hover{border-color:#3a4a7c;color:#eef2ff}
+  .sidebarTool.active{background:#5b6cff;border-color:#5b6cff;color:#fff}
+  .sidebarIcon{font-size:24px;line-height:1}
+  .sidebarLabel{font-size:10px;letter-spacing:.5px;text-transform:uppercase}
+  .sidebarContent{flex:1;min-width:0;padding:14px 16px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.5)}
+  .panel h3{margin:0 0 4px;font-size:16px;color:#eef2ff}
+  .panelHead{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+  .panelTabs{display:flex;gap:4px;padding:3px;background:rgba(20,27,49,.7);border:1px solid #2d3756;border-radius:8px;margin-bottom:10px}
+  .panelTab{flex:1;padding:6px 8px;background:transparent;border:none;border-radius:6px;color:#aab3cf;font-size:11px;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.5px}
+  .panelTab.active{background:#5b6cff;color:#fff}
+  .panelCats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .panelCat{padding:5px 12px;background:transparent;border:1px solid #3a4a7c;border-radius:16px;color:#aab3cf;font-size:11px;cursor:pointer;font-weight:600}
+  .panelCat.active{background:#5b6cff;border-color:#5b6cff;color:#fff}
+  .panelSearch{width:100%;padding:9px 12px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:10px;color:#eef2ff;font-size:13px;outline:none;margin-bottom:12px}
+  .panelSearch:focus{border-color:#5b6cff}
+  .panelGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .asset{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4);color:#cfd5ee;cursor:pointer;text-align:center;transition:.15s}
+  .asset:hover{border-color:#5b6cff;background:rgba(91,108,255,.1);transform:translateY(-1px)}
+  .assetIcon{font-size:30px}
+  .assetTitle{font-size:12px;font-weight:600}
+  .asset small{font-size:10px;color:#8ba7ff}
+  .panelList{display:flex;flex-direction:column;gap:6px}
+  .panelEmpty{padding:14px;text-align:center;color:#6b748d;font-size:13px}
+  .audioItem{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:8px 12px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4);color:inherit;cursor:pointer;text-align:left}
+  .audioItem:hover{border-color:#48d58b}
+  .audioPlay{width:30px;height:30px;border-radius:50%;background:rgba(72,213,139,.18);color:#48d58b;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+  .audioTitle{font-size:13px;font-weight:600;color:#eef2ff}
+  .audioMeta{font-size:11px;color:#9da8c5}
+  .subPreset{padding:8px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4);cursor:pointer;text-align:left;color:inherit;transition:.15s}
+  .subPreset:hover{border-color:#5b6cff}
+  .subPreset.active{border-color:#5b6cff;background:rgba(91,108,255,.12)}
+  .subPreview{padding:18px 8px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:linear-gradient(135deg,#2d3756 0,#1a1a2e 100%);min-height:60px;margin-bottom:6px}
+  .subPreview span{display:inline-block}
+  .subPos-top{align-items:flex-start}
+  .subPos-middle{align-items:center}
+  .subPos-bottom{align-items:flex-end}
+  .subName{font-size:11px;color:#aab3cf;font-weight:600;text-align:center}
+  .panelSubGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .tplItem{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4);color:inherit;cursor:pointer;text-align:left}
+  .tplItem:hover{border-color:#5b6cff}
+  .tplIcon{font-size:22px}
+  .tplMain{display:flex;flex-direction:column}
+  .tplMain strong{font-size:13px;color:#eef2ff;font-weight:600}
+  .tplMain small{font-size:11px;color:#9da8c5;margin-top:2px;display:block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tplMeta{font-size:10px;color:#8ba7ff;letter-spacing:.5px;text-transform:uppercase}
+  .settingsGroup{margin-bottom:14px}
+  .settingsLabel{display:block;font-size:10px;color:#8ba7ff;letter-spacing:1.2px;text-transform:uppercase;font-weight:800;margin-bottom:6px}
+  .settingsInput{width:100%;padding:8px 12px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:10px;color:#eef2ff;font-size:13px;outline:none}
+  .aspectGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .aspectBtn{padding:10px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4);color:#cfd5ee;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px}
+  .aspectBtn:hover{border-color:#5b6cff}
+  .aspectBtn.active{background:rgba(91,108,255,.18);border-color:#5b6cff;color:#fff}
+  .aspectBtn strong{font-size:16px;font-weight:800}
+  .aspectBtn small{font-size:10px;color:#9da8c5}
+  .colorRow{display:flex;gap:8px;flex-wrap:wrap}
+  .colorSwatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+  .colorSwatch.active{border-color:#fff;box-shadow:0 0 0 2px #5b6cff}
+  .brandRow{display:flex;align-items:center}
+  .brandOn{padding:8px 12px;border:1px solid #48d58b;border-radius:10px;color:#48d58b;font-size:13px;font-weight:600}
+  .brandLink{padding:8px 12px;background:transparent;border:1px dashed #3a4a7c;border-radius:10px;color:#9da8c5;cursor:pointer;font-size:13px}
+  .brandLink:hover{border-color:#5b6cff;color:#718cff}
+  @media(max-width:780px){.sidebar{flex-direction:column}.sidebarTools{flex-direction:row;width:auto;overflow-x:auto}}
