@@ -113,15 +113,18 @@ class VoiceClonesTest(unittest.TestCase):
         # Ref audio file should be removed
         self.assertFalse(Path(created["ref_audio_path"]).exists())
 
-    def test_preview_clone_502_when_provider_unreachable(self):
+    def test_preview_clone_fallback_to_edge_tts_when_provider_unreachable(self):
+        """P0.6: GPT-SoVITS 不可达时不再 502, 自动 fallback 到 edge_tts 返 200 + fallback_used."""
         created = self._post().json()
         from fastapi.testclient import TestClient
         client = TestClient(main.app)
-        # Configure gpt_sovits provider to point somewhere fast to fail.
         os.environ["FLIKI_GPT_SOVITS_URL"] = "http://127.0.0.1:1"  # nothing listens here
         r = client.post(f"/voice-clones/{created['uuid']}/preview")
-        self.assertEqual(r.status_code, 502, r.text)
-        self.assertIn("preview failed", r.json()["message"])
+        self.assertEqual(r.status_code, 200, r.text)
+        body = r.json()
+        self.assertTrue(body.get("fallback_used"), body)
+        self.assertEqual(body.get("provider"), "edge_tts_fallback", body)
+        self.assertGreater(body.get("bytes", 0), 0, body)
 
     def test_preview_clone_succeeds_with_mocked_httpx(self):
         created = self._post().json()
