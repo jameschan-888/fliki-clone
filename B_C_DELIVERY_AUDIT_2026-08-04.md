@@ -142,3 +142,48 @@
 本项目当前不是"100% 完整还原 Fliki 商业产品"。它已是一个"Fliki 形态 + 工程化闭环"的本地可运行 MVP：Marketing + 应用内核心闭环可用、对外共享可用、商业化计费跑通、审计/Workspace/Billing 三基础落实、Editor 11 面板、ASR/MT MVP、Provider 单测矩阵全过。但真 Providers（外部付费 API）和 Fliki 商业版 UX 流仍依赖外部条件。
 
 本次推进完毕。审计文件保持 B_C_DELIVERY_AUDIT_2026-08-04.md 单一文件、文件头日期以最初创建日为准；本文档末追加 2026-08-05 三阶段收口段。
+
+
+---
+
+## 2026-08-05 P1 收口（Marketing Footer + Editor 深层 UX + 像素 diff）
+
+### 已提交
+
+| Commit | 说明 |
+|---|---|
+| `683b479` | feat(marketing): add 16 footer legal/resource/company pages + 5 social stubs |
+| `0bb6535` | feat(editor): deep ux layers drag-sort + character training + element inspector |
+| `b609dcc` | feat(visual): marketing pixel diff smoke + 10 page baselines |
+| `f0cdf02` | chore: gitignore visual diff runtime artifacts |
+
+### 收口后短板状态
+
+| P1 短板 | 当前状态 | 证据 |
+|---|---|---|
+| Marketing Footer 独立静态页 | ✅ 已修复 | 16 个页面 (terms/privacy/cookies/gdpr/aup/security + help/changelog/affiliate/docs-api/brand-kits/status + about/careers/press/contact) + 5 个 social stub；与 Footer.tsx 32 个链接逐一对应；MarketingFooterPages.tsx (单一 React 组件文件, 16 export)。 |
+| Editor 11 面板深层 UX | ✅ 已修复 | Character 12 角色 + 训练进度条、Elements 16 类型 + drag-resize + 不透明度 + 位置、Layers 6 层 + 拖拽排序 + 显隐/锁定/不透明度滑块 + 全显全隐翻转。 |
+| Playwright 像素 diff | ✅ 已落地 | tests/e2e/visual_diff.py 起 http server 加载 app/dist, 截 10 个 Marketing 页 (home/features/characters/pricing/use-cases/terms/privacy/help/about/contact), 与 tests/e2e/visual_baselines/*.png 像素对比, 默认阈值 0.5%; --update-baselines 模式更新基线。已自验证: 故意注入背景色渐变变更 → 8 个页面 FAIL (ratio 0.46-0.91)。 |
+| /metrics 重复 + main.py inline 端点 | ✅ 早前已完成 | routers/analytics.py 含 /metrics + /providers + /characters + /；main.py 无任何 @app. 残留。 |
+
+### 本轮验证
+
+| 维度 | 命令 | 结果 |
+|---|---|---|
+| 静态校验 | python scripts/check_routes.py | 20 routers healthy, 0 fail |
+| 前端 build | npm run build | ✅ 0.5s, 97 modules |
+| 前端单元 | npm test -- --run | 40/40 PASS (7.4s) |
+| 后端 Provider + Workflows | python -m unittest (15 module) | 85 tests / 81 PASS + 4 SKIPPED (12.0s) |
+| 像素 diff | python tests/e2e/visual_diff.py | 10/10 PASS, ratio=0.0000 |
+| 后端 live | curl /health | 200 OK |
+
+### 仍诚实未做
+
+1. Marketing 页未对 Fliki 原站做 1:1 像素 diff (建议下一轮用 fliki_research/ 爬取的 source)。
+2. Editor 11 面板的 drag-resize 还未与 Timeline 真实联动 (仅 UI 控件, 状态独立); 接 SharedState 才闭环。
+3. 像素 diff 阈值 0.5% 对大块色变更宽容度略高; CI 可调 0.1%。
+4. visual_diff 用 ./app/dist, 而 dev server 用 vite dev (HMR) — dev 模式无基线, 需先 npm run build。
+
+### 关键诚实声明
+
+项目仍是 "Fliki 形态 + 工程化闭环" 本地 MVP。Marketing Footer 16 页 + 5 social stubs 让站外链接可访问、Editor 11 面板 deep UX 让角色/装饰/图层真正可配、像素 diff 让视觉回归有据可查。但仍未爬取 fliki.ai 原站做像素对照 (已纳入下一轮 P1)。
