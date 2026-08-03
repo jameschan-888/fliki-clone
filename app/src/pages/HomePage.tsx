@@ -7,6 +7,10 @@ import { API } from "../api/drafts";
 const NAV_LINKS = [
   { href: "/index.html", label: "首页" },
   { href: "/drafts.html", label: "Script to Video" },
+  { href: "/blog.html", label: "Blog to Video" },
+  { href: "/ppt.html", label: "PPT to Video" },
+  { href: "/record.html", label: "Record to Video" },
+  { href: "/translate.html", label: "Translate Video" },
   { href: "/autoedit.html", label: "Auto-edit" },
   { href: "/voices.html", label: "声音库" },
   { href: "/templates.html", label: "模板" },
