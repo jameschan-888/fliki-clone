@@ -31,6 +31,10 @@ from routers.render import (  # re-exported for tests + workflow_pipeline / auto
 from workflow_drafts import create_router as create_workflow_drafts_router
 from provider_config import create_router as create_provider_config_router, seed_runtime_providers, hydrate_env_from_disk
 from workflow_pipeline import create_router as create_workflow_pipeline_router
+from workflows.blog import create_router as create_blog_workflow_router
+from workflows.ppt import create_router as create_ppt_workflow_router
+from workflows.record import create_router as create_record_workflow_router
+from workflows.translate import create_router as create_translate_workflow_router
 from autoedit import create_router as create_autoedit_router
 from autoedit_pipeline import create_router as create_autoedit_pipeline_router
 from env_check_router import create_router as create_env_check_router
@@ -94,6 +98,10 @@ app.include_router(alerts_router)
 app.include_router(analytics_router)
 app.include_router(render_router)
 app.include_router(create_workflow_drafts_router(get_db))
+app.include_router(create_blog_workflow_router(get_db))
+app.include_router(create_ppt_workflow_router(get_db))
+app.include_router(create_record_workflow_router(get_db))
+app.include_router(create_translate_workflow_router(get_db))
 app.include_router(create_provider_config_router(get_db))
 VOICE_PREVIEW_DIR = Path(config["DATA_DIR"]) / "voice_previews"
 VOICE_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
