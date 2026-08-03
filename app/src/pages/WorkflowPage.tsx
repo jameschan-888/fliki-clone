@@ -26,6 +26,7 @@ export function WorkflowPage(props: WorkflowPageProps) {
   const [recording, setRecording] = useState(false);
   const [recordingReady, setRecordingReady] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
   async function toggleRecording() {
@@ -39,12 +40,13 @@ export function WorkflowPage(props: WorkflowPageProps) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       const recorder = new MediaRecorder(stream);
-      recorder.ondataavailable = () => setRecordingReady(true);
+      recorder.ondataavailable = (event) => { if (event.data.size) recordingChunksRef.current.push(event.data); setRecordingReady(true); };
       recorder.onstop = () => stream.getTracks().forEach((track) => track.stop());
       streamRef.current = stream;
       recorderRef.current = recorder;
       recorder.start();
       setRecording(true);
+      recordingChunksRef.current = [];
       setRecordingReady(false);
     } catch {
       setError("无法访问摄像头或麦克风，请检查浏览器权限");

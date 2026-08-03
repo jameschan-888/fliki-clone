@@ -5,6 +5,8 @@
 - 后续 P1: WebRTC 录屏 + 后端 ASR 闭环
 """
 import re
+import uuid
+import pathlib
 from workflows import build_workflow_router
 
 
@@ -32,7 +34,7 @@ def _record_to_scenes_extended(body, language):
         body["transcript"] = transcript
     return _record_to_scenes(body, language)
 def create_router(get_db):
-    return build_workflow_router(
+    router = build_workflow_router(
         prefix="/workflow-record",
         tag="workflow-record",
         source_to_scenes=_record_to_scenes_extended,
@@ -40,3 +42,23 @@ def create_router(get_db):
         max_source_length=80000,
         source_label="transcript",
     )
+
+    from fastapi import HTTPException, Request
+    from auth_router import get_user_id_from_request
+
+    @router.post("/upload")
+    async def upload_recording(request: Request):
+        user_id = get_user_id_from_request(request)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        form = await request.form()
+        recording = form.get("recording")
+        if recording is None or not hasattr(recording, "read"):
+            raise HTTPException(status_code=422, detail="recording 文件不能为空")
+        target_dir = pathlib.Path("data/uploads/recordings")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / (str(user_id) + "_" + uuid.uuid4().hex + ".webm")
+        target.write_bytes(await recording.read())
+        return {"audio_path": str(target), "filename": target.name}
+
+    return router
