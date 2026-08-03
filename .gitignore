@@ -92,3 +92,15 @@ app/vite.err
 app/voice-gallery-vite.log
 app/voice-gallery-vite.err
 app/tsconfig.app.tsbuildinfo
+
+
+# Visual diff artifacts (test runtime)
+tests/e2e/visual_capture/
+tests/e2e/visual_diff_report.json
+
+
+
+# Visual diff artifacts (test runtime)
+tests/e2e/visual_capture/
+tests/e2e/visual_diff_report.json
+
