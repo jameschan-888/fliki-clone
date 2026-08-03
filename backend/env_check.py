@@ -216,6 +216,14 @@ def build_capability_groups(provider_configs, *, ffmpeg_available, gpt_sovits_in
                 available = available and bool((wav2lip_info or {}).get("ok"))
                 latency_ms = (wav2lip_info or {}).get("latency_ms")
                 kind_hint = "需本地 onnx 模型；缺失自动 fallback static_avatar"
+            elif category == "stock" and cfg.get("is_pro_video"):
+                env_name = cfg.get("api_key_env", "")
+                available = available and bool(os.getenv(env_name, "")) if env_name else available
+                kind_hint = "新一代视频生成模型 (fliki 同代), 需 API key: " + (env_name or "未配置")
+            elif category == "stock" and cfg.get("is_pro_image"):
+                env_name = cfg.get("api_key_env", "")
+                available = available and bool(os.getenv(env_name, "")) if env_name else available
+                kind_hint = "新一代图像生成模型 (fliki 同代), 需 API key: " + (env_name or "未配置")
             providers.append({
                 "name": row["name"],
                 "is_mock": is_mock,
