@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Footer } from "../components/layout/Footer";
 import type {
   AutoEditDraft,
   AutoEditRun,
@@ -332,6 +333,7 @@ export function AutoEditPage() {
   }, []);
 
   return (
+    <>
     <div className="autoeditPage">
       <header className="autoeditHeader">
         <h1>🎬 Auto-edit 视频剪辑 <ApiStatus /></h1>
@@ -365,5 +367,7 @@ export function AutoEditPage() {
         </section>
       )}
     </div>
+      <Footer />
+    </>
   );
 }

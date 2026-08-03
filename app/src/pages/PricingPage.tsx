@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Footer } from "../components/layout/Footer";
 
 type Cycle = "monthly" | "annual";
 
@@ -146,6 +147,7 @@ function fmtCell(v: string | boolean): string {
 export function PricingPage() {
   const [cycle, setCycle] = useState<Cycle>("annual");
   return (
+    <>
     <main className="shell">
       <div className="eyebrow">PRICING</div>
       <h1>按用量付费, 不绑死月费</h1>
@@ -234,6 +236,8 @@ export function PricingPage() {
         <a href="/signup.html">免费注册</a>
       </div>
     </main>
+      <Footer />
+    </>
   );
 }
 

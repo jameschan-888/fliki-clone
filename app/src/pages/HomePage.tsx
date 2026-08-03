@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { EnvCheckBadge } from "../components/layout/EnvCheckBadge";
+import { Footer } from "../components/layout/Footer";
 import { ProviderKeyManager } from "../components/editor/ProviderKeyManager";
 import App from "../App";
 import { API } from "../api/drafts";
@@ -94,6 +95,7 @@ export function HomePage() {
         </div>
       </nav>
       <App />
+      <Footer />
       <ProviderKeyManager open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {avatarOpen && (
         <div className="modalMask" onClick={() => setAvatarOpen(false)}>

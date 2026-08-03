@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Footer } from "../components/layout/Footer";
 import { API } from "../api/drafts";
 import { ensureSession } from "../api/auth";
 
@@ -60,6 +61,7 @@ export function WorkflowPage(props: WorkflowPageProps) {
   }
 
   return (
+    <>
     <div className="workflow-page">
       <nav style={{ padding: "12px 24px", borderBottom: "1px solid #eee" }}>
         <a href="/index.html" style={{ marginRight: 16 }}>首页</a>
@@ -101,5 +103,7 @@ export function WorkflowPage(props: WorkflowPageProps) {
         )}
       </div>
     </div>
+      <Footer />
+    </>
   );
 }
