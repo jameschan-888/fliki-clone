@@ -73,6 +73,41 @@ class MockWorkflowsTest(unittest.TestCase):
         scenes, _ = _blog_to_scenes({"source": "一句话测试。"}, "zh-CN")
         self.assertGreaterEqual(len(scenes), 1)
 
+    def test_blog_extended_fetches_url_when_source_missing(self):
+        import workflows.blog as blog
+        original = blog._fetch_url
+        try:
+            blog._fetch_url = lambda url: "远程文章第一段。远程文章第二段。"
+            scenes, source = blog._blog_to_scenes_extended({"url": "https://example.com/post"}, "zh-CN")
+        finally:
+            blog._fetch_url = original
+        self.assertGreaterEqual(len(scenes), 1)
+        self.assertIn("远程文章", source)
+
+    def test_ppt_extended_uses_parsed_pptx_when_slides_missing(self):
+        import workflows.ppt as ppt
+        original = ppt._parse_pptx
+        try:
+            ppt._parse_pptx = lambda path: [{"title": "导入页", "content": "导入内容。"}]
+            scenes, source = ppt._ppt_to_scenes_extended({"pptx_path": "demo.pptx"}, "zh-CN")
+        finally:
+            ppt._parse_pptx = original
+        self.assertEqual(len(scenes), 1)
+        self.assertEqual(scenes[0]["title"], "导入页")
+        self.assertIn("PPT 共 1 页", source)
+
+    def test_record_extended_preserves_client_transcript(self):
+        from workflows.record import _record_to_scenes_extended
+        scenes, source = _record_to_scenes_extended({"transcript": "客户端转写内容。"}, "zh-CN")
+        self.assertGreaterEqual(len(scenes), 1)
+        self.assertEqual(source, "客户端转写内容。")
+
+    def test_translate_extended_preserves_language_metadata(self):
+        from workflows.translate import _translate_to_scenes_extended
+        scenes, source = _translate_to_scenes_extended({"source": "Hello world.", "source_lang": "en-US", "target_lang": "zh-CN"}, "zh-CN")
+        self.assertGreaterEqual(len(scenes), 1)
+        self.assertIn("en-US", source)
+        self.assertIn("zh-CN", source)
 
 if __name__ == "__main__":
     unittest.main()

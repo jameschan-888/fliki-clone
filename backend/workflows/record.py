@@ -12,16 +12,30 @@ def _record_to_scenes(body, language):
     text = (body.get("transcript") or body.get("source") or body.get("source_script") or "").strip()
     if not text:
         return ([], "")
-    cleaned = re.sub(r"s+", " ", text)
+    cleaned = re.sub(r"\s+", " ", text)
     from workflow_drafts import split_script
     return (split_script(cleaned), text)
 
 
+
+def _transcribe_audio(path, language):
+    # MVP: 直接返回客户端提供的 transcript, 不做 server-side ASR
+    # P1 接 faster-whisper / Edge ASR
+    return ""
+
+def _record_to_scenes_extended(body, language):
+    transcript = body.get("transcript") or ""
+    if not transcript and body.get("audio_path"):
+        transcript = _transcribe_audio(body["audio_path"], language)
+    if transcript:
+        body = dict(body)
+        body["transcript"] = transcript
+    return _record_to_scenes(body, language)
 def create_router(get_db):
     return build_workflow_router(
         prefix="/workflow-record",
         tag="workflow-record",
-        source_to_scenes=_record_to_scenes,
+        source_to_scenes=_record_to_scenes_extended,
         get_db=get_db,
         max_source_length=80000,
         source_label="transcript",

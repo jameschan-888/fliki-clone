@@ -12,17 +12,21 @@ def _translate_to_scenes(body, language):
     text = (body.get("source") or body.get("source_script") or "").strip()
     if not text:
         return ([], "")
-    cleaned = re.sub(r"s+", " ", text)
+    cleaned = re.sub(r"\s+", " ", text)
     from workflow_drafts import split_script
     src = ("[" + str(body.get("source_lang") or "?") + "->" + str(body.get("target_lang") or language) + "] ") + text[:200]
     return (split_script(cleaned), src)
 
 
+
+def _translate_to_scenes_extended(body, language):
+    scenes, src = _translate_to_scenes(body, language)
+    return (scenes, src)
 def create_router(get_db):
     return build_workflow_router(
         prefix="/workflow-translate",
         tag="workflow-translate",
-        source_to_scenes=_translate_to_scenes,
+        source_to_scenes=_translate_to_scenes_extended,
         get_db=get_db,
         max_source_length=50000,
         source_label="source",

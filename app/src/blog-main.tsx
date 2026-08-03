@@ -5,6 +5,6 @@ import "./styles/app.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <WorkflowPage endpoint={"/workflow-blog"} title={"Blog to Video - 博客转视频"} inputLabel={"粘贴文章文本 (URL fetch 后续 P1)"} inputField={"source"} inputPlaceholder={"粘贴博客全文..."} />
+    <WorkflowPage endpoint={"/workflow-blog"} title={"Blog to Video - 博客转视频"} inputLabel={"输入文章 URL"} inputField={"url"} mode={"url"} inputPlaceholder={"https://example.com/article"} />
   </React.StrictMode>
 );
