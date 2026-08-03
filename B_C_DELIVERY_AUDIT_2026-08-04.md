@@ -63,3 +63,82 @@
 1. 先做 Brand Kit GET 加载、Credits 扣减幂等和完整分享预览页。
 2. 再接 Record ASR 与 Translate MVP 的真实转写/翻译服务。
 3. 最后补编辑器缺失工具、Footer 独立页面、真实 Provider E2E、CI/Docker 验收。
+
+
+---
+
+## 2026-08-05 三阶段收口（Editor 11 面板 + ASR/翻译闭环 + Provider/CI/Docker 验收）
+
+### 已提交
+
+| Commit | 说明 |
+|---|---|
+| `e24961e` | fix(editor): keep brand kit persistence single scoped |
+| `4a5fd58` | feat(editor): persist brand kit per workspace |
+| `47ab1ee` | feat(app): add draft sharing and embed links |
+| `c603df8` | feat(platform): add billing credits and plans |
+| `9f65bbd` | feat(platform): add C2 workspace membership roles |
+| `4fbf90f` | feat(platform): add C1 audit log foundation |
+| `5e3f954` | docs: add B and C delivery audit |
+| `f9d12ab` | feat(platform): load brand kit and charge workflow credits |
+| `8d4a589` | feat(app): add public shared draft preview |
+| `3f8ff8d` | feat(editor): add copilot character elements record layers panels |
+| `2da8c95` | feat(workflows): add local asr and translate media flow |
+
+### 收口后短板状态
+
+| 之前短板 | 当前状态 | 证据 |
+|---|---|---|
+| 1 Brand Kit 启动加载缺失 | ✅ 已修复 | app/src/App.tsx 中 brandKitInitial state 异步加载 default workspace brand kit |
+| 3 Billing 真实扣减流水线缺失 | ✅ 已修复 | backend/billing_router.py consume_credits + BEGIN IMMEDIATE + X-Request-ID 幂等；workflow_drafts 创建草稿扣 1 credit，余额不足返 402 |
+| 4 Share 仅 JSON 不是可读页 | ✅ 已修复 | app/share.html + SharePage 把 token 渲染为只读场景预览 |
+| 5 Record 缺 server-side ASR | ✅ MVP 已落地 | Record 工作流复用 autoedit.transcribe_audio（faster-whisper 本地） |
+| 6 Translate 缺 ASR → MT → TTS | ✅ MVP 已落地 | media upload → ASR → MT（FLIKI_TRANSLATION_URL 可配置，未配时保留源文，绝不伪造翻译） |
+| 7 Editor 缺 5 个工具面板 | ✅ 已修复 | EditorSidebar 11 面板：Media/Audio/Subtitles/Templates/Settings/BrandKit/Copilot/Character/Elements/Record/Layers |
+| 8 Footer 静态页缺失 | 仍需补 | Marketing Footer link 目标仍未完整建 |
+| 9 真实新一代模型 E2E | 仍需补 | 无 API key，无法完成端到端；能力登记 + Provider 工厂就位 |
+| 10 500+ 测试 + 浏览器逐页 + Docker 真构建 + CI | 部分完成 | 见下表 |
+
+### 本轮验证（实测日志，落于 logs/phase3_*.log）
+
+| 维度 | 命令 | 结果 |
+|---|---|---|
+| Provider failover | cd backend + unittest tests.test_p6b_provider_failover | 6/6 PASS (1.4s) |
+| Mock provider gate | unittest tests.test_mock_provider_gate | 4/4 PASS |
+| Metrics + alerts | unittest tests.test_metrics tests.test_p1b_alerts | 5+6 PASS / 3 SKIPPED |
+| Workflows (含 ASR/翻译) | unittest tests.test_workflows_p0 tests.test_workflow_drafts | 23/23 PASS (4.1s) |
+| B/C 整套 (auth+workflows+audit+billing+workspace+share+brand-kit) 15 module | 同上 | 85 tests / 81 PASS + 4 SKIPPED / 0 FAIL (12.0s) |
+| 全量 discover (排除网络矩阵) | unittest discover -s tests -p test_*.py 跳过 real_provider_matrix | 594 PASS + 5 SKIPPED + 1 预存在 FAIL (337s) |
+| 前端单元 (vitest) | cd app + npm test -- --run | 40/40 PASS (6 files, 7.36s) |
+| 前端构建 | cd app + npm run build | 通过 (492ms, 97 modules) |
+| Docker compose 静态校验 | docker compose -f backend/docker-compose.yml config | 通过 |
+| 后端 live /health | curl http://127.0.0.1:5181/health | 200 OK（PID 25092 uptime 3h46m） |
+
+#### 不动 pre-existing 失败
+
+- tests/test_check_routes.py:test_current_project_strict_gate_covers_provider_config 在改前就有失败（check_routes.py 报两个 PREFIX_UNKNOWN warning，--fail-on-warn 因此 exit 1）。未修：与本轮目标无关。
+- backend/tests/providers/test_real_provider_matrix.py 是连真实 Pexels/Pixabay/Freesound 的网络矩阵，断网/沙箱必 skip。
+
+### 真实 Provider 限制（诚实声明 — 不归本项目补）
+
+> 以下 Provider 真实调用需要付费/被授权 API key。本仓库持有部分密钥并完成 Provider 工厂 + 单测，但端到端"上传 → 真实模型 → 真实文件回传"的完整证据，因密钥不可达/网络限制无法提交。
+
+- MiniMax Music/TTS — 工厂就绪，本地 fast_inference
+- GPT-SoVITS — 工厂就绪
+- MiniMax Video Gen / Veo 3.1 / Sora 2 / Kling 3 / Hailuo 02 / Wan 2.5 / OmniHuman / Sync-3 / ElevenLabs — 能力登记，存在 fake_provider 兜底
+- 因真实 key 受限：当 FLIKI_PROVIDER_*_API_KEY 缺失时，走 mock fallback，业务可用但视频/音频为占位
+
+### 仍需 P1 推进
+
+1. Marketing Footer 独立静态页（Privacy / Terms / Refund 等）
+2. Editor 11 面板的"深层 UX 100% 还原"（drag-resize、layers 缩略图、character 训练）— 骨架到位
+3. 真实新一代模型端到端录制证据（需用户/QA 配 key 后手动跑）
+4. CI (node scripts/ci.js --offline) 全 7 phase 一次跑完约 6 分钟，沙箱拆分；建议 GitHub Actions 跑全量
+5. Browser-逐页验收自动化（Playwright 截图 + 像素 diff）
+6. routers/analytics.py /metrics 与 main.py inline @app.get(/metrics) 残留技术债（P0.4 整体重构时统一收）
+
+### 关键诚实声明
+
+本项目当前不是"100% 完整还原 Fliki 商业产品"。它已是一个"Fliki 形态 + 工程化闭环"的本地可运行 MVP：Marketing + 应用内核心闭环可用、对外共享可用、商业化计费跑通、审计/Workspace/Billing 三基础落实、Editor 11 面板、ASR/MT MVP、Provider 单测矩阵全过。但真 Providers（外部付费 API）和 Fliki 商业版 UX 流仍依赖外部条件。
+
+本次推进完毕。审计文件保持 B_C_DELIVERY_AUDIT_2026-08-04.md 单一文件、文件头日期以最初创建日为准；本文档末追加 2026-08-05 三阶段收口段。
