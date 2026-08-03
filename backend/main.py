@@ -35,6 +35,7 @@ from workflows.blog import create_router as create_blog_workflow_router
 from workflows.ppt import create_router as create_ppt_workflow_router
 from workflows.record import create_router as create_record_workflow_router
 from workflows.translate import create_router as create_translate_workflow_router
+from chat import create_router as create_chat_router
 from autoedit import create_router as create_autoedit_router
 from autoedit_pipeline import create_router as create_autoedit_pipeline_router
 from env_check_router import create_router as create_env_check_router
@@ -102,6 +103,7 @@ app.include_router(create_blog_workflow_router(get_db))
 app.include_router(create_ppt_workflow_router(get_db))
 app.include_router(create_record_workflow_router(get_db))
 app.include_router(create_translate_workflow_router(get_db))
+app.include_router(create_chat_router(get_db))
 app.include_router(create_provider_config_router(get_db))
 VOICE_PREVIEW_DIR = Path(config["DATA_DIR"]) / "voice_previews"
 VOICE_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)

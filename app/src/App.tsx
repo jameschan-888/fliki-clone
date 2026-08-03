@@ -30,6 +30,7 @@ import { formatApiError } from "./api/drafts";
 import type { TemplateMeta } from "./api/drafts";
 import { ensureSession } from "./api/auth";
 import { Composer, computeTemplateCompletion, findNextIncompleteScene } from "./components/editor/Composer";
+import { ChatBar } from "./components/editor/ChatBar";
 import { getTemplateCatalogSnapshot, loadTemplateCatalogWithRetry, subscribeTemplateCache } from "./api/templateCache";
 
 const sample = "一条好视频，先从清晰的脚本开始。系统会把脚本拆成可编辑场景。你可以修改旁白、画面、声音和时长。只有确认后，才会调用素材、配音、音乐和渲染，避免浪费接口额度和算力。";
@@ -77,6 +78,16 @@ export default function App() {
     setDraft(nextDraft);
     if (nextDraft) localStorage.setItem(savedDraftKey, nextDraft.id);
     else localStorage.removeItem(savedDraftKey);
+  }
+
+  async function refreshDraft() {
+    if (!draft) return;
+    try {
+      const next = await getDraft(draft.id);
+      rememberDraft(next);
+    } catch (e) {
+      console.warn("[chat] refreshDraft failed", e);
+    }
   }
 
   // P0-2-2: onFailure 可选 rollback, 让 fire-and-forget 调用方失败时回滚 UI 状态.
@@ -704,6 +715,7 @@ export default function App() {
         onAfterChange={() => setAvatarRefreshKey((k) => k + 1)}
       />
       <Toast message={message} />
+      {draft && <ChatBar draftId={draft.id} onApplied={refreshDraft} />}
     </main>
   );
 }
