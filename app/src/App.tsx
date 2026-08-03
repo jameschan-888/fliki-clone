@@ -164,16 +164,6 @@ export default function App() {
       );
     }
     window.addEventListener("message", receiveVoice);
-    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
-    try {
-      const token = localStorage.getItem("fliki-auth-token") || "";
-      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
-      const workspaces = await workspacesResponse.json();
-      const workspaceId = workspaces.workspaces?.[0]?.id;
-      if (!workspaceId) return;
-      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
-    } catch { }
-  }
   return () => window.removeEventListener("message", receiveVoice);
   }, [draft]);
 
@@ -207,16 +197,6 @@ export default function App() {
       );
     }
     window.addEventListener("message", receiveTemplate);
-    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
-    try {
-      const token = localStorage.getItem("fliki-auth-token") || "";
-      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
-      const workspaces = await workspacesResponse.json();
-      const workspaceId = workspaces.workspaces?.[0]?.id;
-      if (!workspaceId) return;
-      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
-    } catch { }
-  }
   return () => window.removeEventListener("message", receiveTemplate);
   }, [draft]);
 
@@ -237,16 +217,6 @@ export default function App() {
         setMessage(formatApiError(error, "进度读取失败"));
       }
     }, 2000);
-    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
-    try {
-      const token = localStorage.getItem("fliki-auth-token") || "";
-      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
-      const workspaces = await workspacesResponse.json();
-      const workspaceId = workspaces.workspaces?.[0]?.id;
-      if (!workspaceId) return;
-      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
-    } catch { }
-  }
   return () => window.clearTimeout(timer);
   }, [run]);
 
@@ -269,16 +239,6 @@ export default function App() {
         setRunsTotal(0);
       })
       .finally(() => { if (!cancelled) setRunHistoryLoading(false); });
-    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
-    try {
-      const token = localStorage.getItem("fliki-auth-token") || "";
-      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
-      const workspaces = await workspacesResponse.json();
-      const workspaceId = workspaces.workspaces?.[0]?.id;
-      if (!workspaceId) return;
-      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
-    } catch { }
-  }
   return () => { cancelled = true; };
   }, [run?.status, runsStatusFilter]);
 
