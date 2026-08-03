@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { editorStore, editorActions, useEditorState } from "./editorStore";
 
 export type TimelineScene = {
   id: string;
@@ -9,11 +10,24 @@ export type TimelineScene = {
   visual?: string;
 };
 
-export type TimelineTrack = {
+type Clip = {
   id: string;
   label: string;
-  kind: "scene" | "audio" | "music" | "transcript";
-  clips: Array<{ id: string; label: string; duration_seconds: number; scene_index?: number }>;
+  duration_seconds: number;
+  scene_index?: number;
+  kind?: string;
+  opacity?: number;
+  locked?: boolean;
+  character_id?: string;
+};
+
+type Track = {
+  id: string;
+  label: string;
+  kind: string;
+  clips: Clip[];
+  isSync?: boolean;
+  source?: string;
 };
 
 export type TimelineProps = {
@@ -27,80 +41,163 @@ export type TimelineProps = {
 };
 
 function formatTime(seconds: number): string {
-  var m = Math.floor(seconds / 60);
-  var s = Math.floor(seconds % 60);
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
   return m.toString().padStart(2, "0") + ":" + s.toString().padStart(2, "0");
 }
 
 export function Timeline(props: TimelineProps) {
-  var scenes = props.scenes || [];
-  var audioClips = props.audio_clips || [];
-  var musicClips = props.music_clips || [];
-  var transcriptClips = props.transcript_clips || [];
-  var totalDuration = scenes.reduce(function (s, sc) { return s + (sc.duration_seconds || 0); }, 0);
-  var voiceCount = new Set(scenes.map(function (s) { return s.voice || ""; }).filter(Boolean)).size;
+  const scenes = props.scenes || [];
+  const audioClips = props.audio_clips || [];
+  const musicClips = props.music_clips || [];
+  const transcriptClips = props.transcript_clips || [];
+  const totalDuration = scenes.reduce((s: number, sc: TimelineScene) => s + (sc.duration_seconds || 0), 0);
 
-  var _a = useState(false), playing = _a[0], setPlaying = _a[1];
-  var _b = useState(0), playhead = _b[0], setPlayhead = _b[1];
-  var _c = useState(1), zoom = _c[0], setZoom = _c[1];
-  var _d = useState("timeline"), view = _d[0], setView = _d[1];
-  var _e = useState<string | null>(null), selectedScene = _e[0], setSelectedScene = _e[1];
+  const layers = useEditorState((s: any) => s.layers);
+  const elements = useEditorState((s: any) => s.elements);
+  const character = useEditorState((s: any) => s.character);
+  const selectedSceneFromStore = useEditorState((s: any) => s.selected_scene_id);
+  const storePlaying = useEditorState((s: any) => s.playing);
+  const playhead = useEditorState((s: any) => s.playhead);
 
-  function togglePlay() {
-    var next = !playing;
-    setPlaying(next);
+  const [localPlaying, setLocalPlaying] = useState<boolean>(false);
+  const [zoom, setZoom] = useState<number>(1);
+  const [view, setView] = useState<"basic" | "timeline">("timeline");
+  const playing = storePlaying || localPlaying;
+
+  function togglePlay(): void {
+    const next = !playing;
+    setLocalPlaying(next);
+    editorActions.togglePlay();
     if (props.onPlayStateChange) props.onPlayStateChange(next);
   }
 
-  function reset() { setPlayhead(0); setPlaying(false); }
-  function zoomIn() { setZoom(Math.min(3, zoom + 0.25)); }
-  function zoomOut() { setZoom(Math.max(0.5, zoom - 0.25)); }
+  function reset(): void {
+    editorActions.setPlayhead(0);
+    setLocalPlaying(false);
+  }
+  function zoomIn(): void { setZoom(Math.min(3, zoom + 0.25)); }
+  function zoomOut(): void { setZoom(Math.max(0.5, zoom - 0.25)); }
 
-  function clickScene(id: string) {
-    setSelectedScene(id);
+  function clickScene(id: string): void {
+    editorActions.setSelectedScene(id);
     if (props.onSelectScene) props.onSelectScene(id);
   }
 
-  var sceneTrack: TimelineTrack = {
+  const sceneTrack: Track = {
     id: "scene",
     label: "Scene",
     kind: "scene",
-    clips: scenes.map(function (s) { return { id: s.id, label: "S" + s.index, duration_seconds: s.duration_seconds, scene_index: s.index }; }),
+    clips: scenes.map((s: TimelineScene) => ({
+      id: s.id,
+      label: "S" + (s.index + 1),
+      duration_seconds: s.duration_seconds,
+      scene_index: s.index,
+    })),
   };
-  var audioTrack: TimelineTrack = {
+
+  const audioTrack: Track = {
     id: "audio",
     label: "Audio",
     kind: "audio",
-    clips: audioClips.map(function (a) { return { id: a.id, label: a.label, duration_seconds: a.duration_seconds }; }),
+    clips: audioClips.map((a) => ({
+      id: a.id,
+      label: a.label,
+      duration_seconds: a.duration_seconds,
+    })),
   };
-  var musicTrack: TimelineTrack = {
+
+  const musicTrack: Track = {
     id: "music",
     label: "Music",
     kind: "music",
-    clips: musicClips.map(function (m) { return { id: m.id, label: m.label, duration_seconds: m.duration_seconds }; }),
+    clips: musicClips.map((m) => ({
+      id: m.id,
+      label: m.label,
+      duration_seconds: m.duration_seconds,
+    })),
   };
-  var transcriptTrack: TimelineTrack = {
+
+  const transcriptTrack: Track = {
     id: "transcript",
     label: "字幕",
     kind: "transcript",
-    clips: transcriptClips.map(function (t) { return { id: t.id, label: t.label, duration_seconds: t.duration_seconds, scene_index: t.scene_index }; }),
+    clips: transcriptClips.map((t) => ({
+      id: t.id,
+      label: t.label,
+      duration_seconds: t.duration_seconds,
+      scene_index: t.scene_index,
+    })),
   };
 
-  var tracks: TimelineTrack[] = [sceneTrack, transcriptTrack, audioTrack, musicTrack];
+  const layerTrack: Track = {
+    id: "layers",
+    label: "Layers",
+    kind: "layer",
+    isSync: true,
+    source: "Layers panel",
+    clips: layers.map((l: any) => ({
+      id: l.id,
+      label: l.name + (l.visible ? "" : " (隐藏)"),
+      duration_seconds: totalDuration,
+      kind: l.kind,
+      opacity: l.opacity,
+      locked: l.locked,
+    })),
+  };
 
-  function renderClip(c: { id: string; label: string; duration_seconds: number; scene_index?: number }, kind: TimelineTrack["kind"]) {
-    var w = Math.max(40, (c.duration_seconds || 1) * 60 * zoom);
+  const elementTrack: Track = {
+    id: "elements",
+    label: "Elements",
+    kind: "element",
+    isSync: true,
+    source: "Elements panel",
+    clips: elements.map((e: any, i: number) => ({
+      id: e.id,
+      label: e.position + " · " + e.size + "% · " + e.opacity + "%",
+      duration_seconds: totalDuration / Math.max(1, elements.length),
+      kind: "element",
+      opacity: e.opacity,
+      scene_index: i,
+    })),
+  };
+
+  const avatarTrack: Track | null = character ? {
+    id: "avatar",
+    label: "Avatar",
+    kind: "avatar",
+    isSync: true,
+    source: "Character panel",
+    clips: [{
+      id: "char-" + character.id,
+      label: character.name + " · " + character.style + " · " + character.region,
+      duration_seconds: totalDuration,
+      character_id: character.id,
+    }],
+  } : null;
+
+  const tracks: Track[] = [sceneTrack, layerTrack, elementTrack]
+    .concat(avatarTrack ? [avatarTrack] : [])
+    .concat([transcriptTrack, audioTrack, musicTrack]);
+
+  function renderClip(c: Clip, kind: string) {
+    const w = Math.max(40, (c.duration_seconds || 1) * 60 * zoom);
+    const opacity = c.opacity != null ? c.opacity / 100 : 1;
+    const layerKey = (c.kind && (editorStore.kindColor as any)[c.kind]) ? c.kind : null;
+    const bgLayer = layerKey ? (editorStore.kindColor as any)[layerKey] : "#5b6cff";
+    const bgEl = c.character_id ? "#f5a524" : (c.kind === "element" ? "#19b5c5" : bgLayer);
+
     return (
       <div
         key={c.id}
-        className={"tl-clip " + kind}
-        style={{ width: w + "px" }}
-        onClick={function () { if (c.id) clickScene(c.id); }}
-        title={c.label + " · " + (c.duration_seconds || 0) + "s"}
+        className={"tl-clip " + kind + (c.locked ? " locked" : "")}
+        style={{ width: w + "px", opacity: opacity, background: bgEl + "55", borderColor: bgEl }}
+        onClick={() => { if (c.id) clickScene(c.id); }}
+        title={c.label + " · " + (c.duration_seconds || 0) + "s" + (c.opacity != null ? " · " + c.opacity + "%" : "")}
       >
         {kind === "scene" && <span className="idx">{(c.scene_index || 0) + 1}</span>}
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</span>
-        <span className="dur">{(c.duration_seconds || 0).toFixed(1)}s</span>
+        <span className="dur">{c.duration_seconds ? c.duration_seconds.toFixed(1) + "s" : ""}</span>
       </div>
     );
   }
@@ -117,32 +214,33 @@ export function Timeline(props: TimelineProps) {
           <button onClick={reset}>Reset</button>
         </div>
         <div className="tl-tabs">
-          <button className={view === "basic" ? "active" : ""} onClick={function () { setView("basic"); }}>Basic</button>
-          <button className={view === "timeline" ? "active" : ""} onClick={function () { setView("timeline"); }}>Timeline</button>
+          <button className={view === "basic" ? "active" : ""} onClick={() => setView("basic")}>Basic</button>
+          <button className={view === "timeline" ? "active" : ""} onClick={() => setView("timeline")}>Timeline</button>
         </div>
       </div>
 
       <div className="tl-tracks">
-        {tracks.map(function (tr) {
-          return (
-            <div key={tr.id} className="tl-track">
-              <div className="tl-track-label">{tr.label}<small>{tr.clips.length} clip</small></div>
-              <div className="tl-strip">
-                {tr.clips.length === 0 ? <span className="tl-empty">空轨道</span> : tr.clips.map(function (c) { return renderClip(c, tr.kind); })}
-              </div>
+        {tracks.map((tr) => (
+          <div key={tr.id} className={"tl-track" + (tr.isSync ? " tl-sync" : "")}>
+            <div className="tl-track-label">
+              {tr.label}
+              <small>{tr.clips.length} clip{tr.isSync ? " · ⇄ " + tr.source : ""}</small>
             </div>
-          );
-        })}
+            <div className="tl-strip">
+              {tr.clips.length === 0 ? (
+                <span className="tl-empty">空轨道{tr.isSync ? " · 来自 " + tr.source : ""}</span>
+              ) : tr.clips.map((c) => renderClip(c, tr.kind))}
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="tl-summary">
-        <span className="label">总时长</span><strong>{formatTime(totalDuration)}</strong>
-        <span className="label">场景</span><strong>{scenes.length}</strong>
-        <span className="label">声音</span><strong>{voiceCount}</strong>
-        <span className="label">音乐</span><strong>{musicClips.length}</strong>
-        <span className="label">字幕轨</span><strong>{transcriptClips.length}</strong>
-        {props.onAddScene && <button className="tl-add" onClick={props.onAddScene}>+ 新增场景</button>}
-      </div>
+      {(selectedSceneFromStore || layers.length > 0 || elements.length > 0 || character) ? (
+        <div className="tl-status">
+          store: {selectedSceneFromStore ? "scene=" + selectedSceneFromStore + " " : ""}
+          {layers.length} layers · {elements.length} elements · character={character ? character.name : "—"}
+        </div>
+      ) : null}
     </section>
   );
 }

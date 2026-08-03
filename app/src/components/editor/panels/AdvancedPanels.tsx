@@ -1,4 +1,10 @@
 import { useState } from "react";
+import {
+  editorActions,
+  editorStore,
+  useEditorState,
+  type EditorState,
+} from "../editorStore";
 
 export function CopilotPanel() {
   const [prompt, setPrompt] = useState("");
@@ -58,33 +64,25 @@ const CHARACTERS = [
 
 export function CharacterPanel() {
   const [filter, setFilter] = useState("全部");
-  const [selected, setSelected] = useState("");
-  const [training, setTraining] = useState(false);
-  const [progress, setProgress] = useState(0);
-
+  const currentCharacter = useEditorState((s: EditorState) => s.character);
   const styles = ["全部", "商务", "教育", "科技", "新闻", "生活", "社交"];
   const visibleCharacters = filter === "全部"
     ? CHARACTERS
     : CHARACTERS.filter((c) => c.style === filter);
 
-  function startTraining(id: string) {
-    setSelected(id);
-    setTraining(true);
-    setProgress(0);
-    const tick = setInterval(() => {
-      setProgress((p) => {
-        const next = p + 8;
-        if (next >= 100) {
-          clearInterval(tick);
-          setTraining(false);
-          return 100;
-        }
-        return next;
-      });
-    }, 80);
+  function select(c: any) {
+    editorActions.selectCharacter({
+      id: c.id,
+      name: c.name,
+      style: c.style,
+      region: c.region,
+      start_seconds: 0,
+    });
   }
 
-  const active = CHARACTERS.find((c) => c.id === selected);
+  const active = currentCharacter
+    ? CHARACTERS.find((c: any) => c.id === currentCharacter.id)
+    : null;
 
   return (
     <div className="panel">
@@ -107,8 +105,8 @@ export function CharacterPanel() {
         {visibleCharacters.map((c) => (
           <div
             key={c.id}
-            className={"characterCardMini" + (selected === c.id ? " selected" : "")}
-            onClick={() => setSelected(c.id)}
+            className={"characterCardMini" + (currentCharacter && currentCharacter.id === c.id ? " selected" : "")}
+            onClick={() => select(c)}
           >
             <span
               className="miniAvatar"
@@ -137,18 +135,22 @@ export function CharacterPanel() {
           <div className="characterActions">
             <button
               className="primary"
-              onClick={() => startTraining(active.id)}
-              disabled={training}
+              onClick={() => {
+                if (currentCharacter) editorActions.setSelectedScene(currentCharacter.id);
+              }}
             >
-              {training ? "训练中 " + progress + "%" : "训练 30s 样音"}
+              30s 样音训练 (stub)
             </button>
             <button className="secondary" onClick={() => window.location.href = "/characters.html"}>
               查看完整库
             </button>
+            <button className="secondary" onClick={() => editorActions.clearCharacter()}>
+              清除
+            </button>
           </div>
-          {training && (
-            <progress max={100} value={progress} />
-          )}
+          <small style={{ display: "block", marginTop: 8, color: "#48d58b", fontSize: 10 }}>
+            ✓ 已写入共享 store, Timeline Avatar 轨道可见
+          </small>
         </section>
       )}
     </div>
@@ -179,8 +181,19 @@ export function ElementsPanel() {
   const [opacity, setOpacity] = useState(100);
   const [size, setSize] = useState(100);
   const [position, setPosition] = useState("bottom-right");
+  const elements = useEditorState((s: any) => s.elements);
 
   const active = ELEMENT_TYPES.find((e) => e.id === selected);
+
+  function addToScene() {
+    if (!active) return;
+    editorActions.addElement({
+      id: active.id + "-" + Date.now().toString(36),
+      position: position as any,
+      size,
+      opacity,
+    });
+  }
 
   return (
     <div className="panel">
@@ -255,18 +268,25 @@ export function ElementsPanel() {
               }}
             >{active.icon}</span>
           </div>
-          <p className="hint">拖入场景或按 + 加入时间轴。</p>
-          <button
-            className="secondary"
-            onClick={() => {
-              const ev = new CustomEvent("addElement", { detail: { id: active.id, opacity, size, position } });
-              window.dispatchEvent(ev);
-            }}
-          >
-            + 加入当前场景
-          </button>
+          <p className="hint">拖入场景或按 + 加入时间轴 (Elements 轨道)。</p>
+          <button className="primary" onClick={addToScene}>+ 加入当前场景</button>
         </section>
       )}
+
+      <section className="elementInspector" style={{ marginTop: 12 }}>
+        <h4>已添加 ({elements.length})</h4>
+        {elements.length === 0 ? (
+          <p className="hint">还未添加任何装饰元素。</p>
+        ) : (
+          elements.map((el: any) => (
+            <div key={el.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "1px solid #2d3756" }}>
+              <span style={{ flex: 1, fontSize: 11, color: "#cfd5ee" }}>{el.id}</span>
+              <small style={{ fontSize: 10, color: "#9da8c5" }}>{el.position} · {el.size}% · {el.opacity}%</small>
+              <button className="layerBtn danger" title="删除" onClick={() => editorActions.removeElement(el.id)}>✕</button>
+            </div>
+          ))
+        )}
+      </section>
     </div>
   );
 }
@@ -293,7 +313,7 @@ export function RecordPanel() {
     }, 60_000);
   }
 
-  const fmt = (s: number) =>
+  const fmt = (s: any) =>
     Math.floor(s / 60).toString().padStart(2, "0") + ":" + (s % 60).toString().padStart(2, "0");
 
   return (
@@ -327,80 +347,12 @@ export function RecordPanel() {
   );
 }
 
-type Layer = {
-  id: string;
-  name: string;
-  kind: string;
-  visible: boolean;
-  opacity: number;
-  locked: boolean;
-};
-
-const DEFAULT_LAYERS: Layer[] = [
-  { id: "l1", name: "背景",     kind: "background", visible: true, opacity: 100, locked: false },
-  { id: "l2", name: "主视频",   kind: "video",      visible: true, opacity: 100, locked: false },
-  { id: "l3", name: "数字人",   kind: "avatar",     visible: true, opacity: 100, locked: false },
-  { id: "l4", name: "装饰元素", kind: "element",    visible: true, opacity: 80,  locked: false },
-  { id: "l5", name: "字幕",     kind: "subtitle",   visible: true, opacity: 100, locked: false },
-  { id: "l6", name: "水印",     kind: "watermark",  visible: true, opacity: 35,  locked: true },
-];
-
-const KIND_COLOR: Record<string, string> = {
-  background: "#5b6cff",
-  video: "#48d58b",
-  avatar: "#f5a524",
-  element: "#19b5c5",
-  subtitle: "#7bd0ff",
-  watermark: "#94a3b8",
-};
-
-const KIND_ICON: Record<string, string> = {
-  background: "▢",
-  video: "▶",
-  avatar: "◎",
-  element: "◇",
-  subtitle: "T",
-  watermark: "©",
-};
-
 export function LayersPanel() {
-  const [layers, setLayers] = useState<Layer[]>(DEFAULT_LAYERS);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const layers = useEditorState((s: any) => s.layers);
+  const sceneId = useEditorState((s: any) => s.selected_scene_id);
 
-  function toggle(id: string) {
-    setLayers((items) => items.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)));
-  }
-  function setOpacity(id: string, opacity: number) {
-    setLayers((items) => items.map((l) => (l.id === id ? { ...l, opacity } : l)));
-  }
-  function lock(id: string) {
-    setLayers((items) => items.map((l) => (l.id === id ? { ...l, locked: !l.locked } : l)));
-  }
-  function remove(id: string) {
-    setLayers((items) => items.filter((l) => l.id !== id));
-  }
-  function add() {
-    const next: Layer = {
-      id: "l" + (layers.length + 1),
-      name: "新图层 " + (layers.length + 1),
-      kind: "element",
-      visible: true,
-      opacity: 100,
-      locked: false,
-    };
-    setLayers((items) => items.concat(next));
-  }
-  function reorder(srcId: string, targetId: string) {
-    if (srcId === targetId) return;
-    setLayers((items) => {
-      const srcIndex = items.findIndex((l) => l.id === srcId);
-      const targetIndex = items.findIndex((l) => l.id === targetId);
-      if (srcIndex < 0 || targetIndex < 0) return items;
-      const next = items.slice();
-      const moved = next.splice(srcIndex, 1)[0];
-      next.splice(targetIndex, 0, moved);
-      return next;
-    });
+  function move(id: string, target: string) {
+    editorActions.reorderLayers(id, target);
   }
 
   return (
@@ -409,41 +361,40 @@ export function LayersPanel() {
         <span className="eyebrow">LAYERS</span>
         <h3>图层 ({layers.length})</h3>
       </div>
-      <p className="hint">拖拽排序 · 👁 显隐 · 🔒 锁定 · 滑块调节不透明度。</p>
+      <p className="hint">拖拽 ↕ 改顺序 · 👁 显隐 · 🔒 锁定 · 滑块调不透明度。所有改动同步到 Timeline Layers 轨道。</p>
       <div className="layerList">
-        {layers.map((l) => (
+        {layers.map((l: any) => (
           <div
             key={l.id}
             className={
               "layerRow" +
-              (draggingId === l.id ? " dragging" : "") +
               (l.locked ? " locked" : "") +
               (!l.visible ? " hidden" : "")
             }
             draggable={!l.locked}
-            onDragStart={() => setDraggingId(l.id)}
+            onDragStart={(ev) => ev.dataTransfer.setData("text/plain", l.id)}
             onDragOver={(ev) => ev.preventDefault()}
-            onDrop={() => {
-              if (draggingId) reorder(draggingId, l.id);
-              setDraggingId(null);
+            onDrop={(ev) => {
+              const src = ev.dataTransfer.getData("text/plain");
+              if (src) move(src, l.id);
             }}
-            onDragEnd={() => setDraggingId(null)}
+            onClick={() => editorActions.setSelectedScene(l.id)}
           >
-            <div className="layerThumb" style={{ background: KIND_COLOR[l.kind] || "#5b6cff" }}>
-              <span>{KIND_ICON[l.kind] || "◇"}</span>
+            <div className="layerThumb" style={{ background: (editorStore as any).kindColor[l.kind] }}>
+              <span>{(editorStore as any).kindIcon[l.kind]}</span>
             </div>
             <div className="layerInfo">
               <strong>{l.name}</strong>
               <small>{l.kind} · {l.opacity}% · {l.visible ? "可见" : "隐藏"}</small>
             </div>
             <div className="layerActions">
-              <button title="显隐" onClick={() => toggle(l.id)} className="layerBtn">
+              <button title="显隐" onClick={(ev) => { ev.stopPropagation(); editorActions.toggleLayer(l.id); }} className="layerBtn">
                 {l.visible ? "👁" : "○"}
               </button>
-              <button title="锁定" onClick={() => lock(l.id)} className="layerBtn">
+              <button title="锁定" onClick={(ev) => { ev.stopPropagation(); editorActions.lockLayer(l.id); }} className="layerBtn">
                 {l.locked ? "🔒" : "🔓"}
               </button>
-              <button title="删除" onClick={() => remove(l.id)} className="layerBtn danger">
+              <button title="删除" onClick={(ev) => { ev.stopPropagation(); editorActions.removeLayer(l.id); }} className="layerBtn danger">
                 ✕
               </button>
             </div>
@@ -453,18 +404,24 @@ export function LayersPanel() {
               max={100}
               value={l.opacity}
               className="layerOpacity"
-              onChange={(ev) => setOpacity(l.id, Number(ev.target.value))}
+              onClick={(ev) => ev.stopPropagation()}
+              onChange={(ev) => editorActions.setLayerOpacity(l.id, Number(ev.target.value))}
               disabled={l.locked}
             />
           </div>
         ))}
       </div>
-      <button className="secondary" onClick={add}>+ 添加图层</button>
+      <button className="secondary" onClick={() => editorActions.addLayer()}>+ 添加图层</button>
       <div className="layerQuickRow">
-        <button onClick={() => setLayers((items) => items.map((l) => ({ ...l, visible: true })))}>全部显示</button>
-        <button onClick={() => setLayers((items) => items.map((l) => ({ ...l, visible: false })))}>全部隐藏</button>
-        <button onClick={() => setLayers((items) => [...items].reverse())}>上下翻转</button>
+        <button onClick={() => editorActions.setLayerVisibilityAll(true)}>全部显示</button>
+        <button onClick={() => editorActions.setLayerVisibilityAll(false)}>全部隐藏</button>
+        <button onClick={() => editorActions.flipLayers()}>上下翻转</button>
       </div>
+      {sceneId && (
+        <small style={{ display: "block", marginTop: 8, color: "#48d58b", fontSize: 10 }}>
+          当前选中: {sceneId}
+        </small>
+      )}
     </div>
   );
 }
