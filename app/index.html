@@ -1,52 +1,223 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>本地视频制作台</title>
+  <title>本地视频制作台 · AI Video Generator</title>
   <style>
     *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#eef2ff;background:radial-gradient(circle at 20% 0,#293669 0,transparent 38%),#0c1020}.shell{max-width:1100px;margin:auto;padding:64px 24px}.eyebrow{color:#8ba7ff;font-size:12px;font-weight:800;letter-spacing:1.5px}h1{font-size:44px;margin:10px 0 12px;letter-spacing:-1px}.lead{max-width:720px;color:#aab3cf;font-size:17px;line-height:1.7}.status{display:inline-flex;align-items:center;gap:8px;margin:22px 0 34px;color:#8f9ab9;font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:#6b748d}.dot.ok{background:#48d58b;box-shadow:0 0 0 5px rgba(72,213,139,.12)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{display:block;min-height:190px;padding:24px;border:1px solid #2d3756;border-radius:18px;background:linear-gradient(145deg,rgba(30,39,66,.95),rgba(19,25,44,.95));color:inherit;text-decoration:none;transition:.2s transform,.2s border-color}.card:hover{transform:translateY(-3px);border-color:#718cff}.icon{font-size:30px}.card h2{margin:18px 0 8px;font-size:20px}.card p{margin:0;color:#9da8c5;line-height:1.6}.tag{display:inline-block;margin-top:18px;padding:5px 9px;border-radius:999px;background:#252f4e;color:#9db2ff;font-size:11px;font-weight:800}.note{margin-top:28px;padding:16px 18px;border-left:3px solid #6686ff;background:rgba(37,47,78,.6);color:#aab3cf;line-height:1.6}@media(max-width:720px){.shell{padding:38px 16px}h1{font-size:34px}.grid{grid-template-columns:1fr}}
-  
+
 .hero-input{display:flex;gap:10px;max-width:720px;margin:24px 0 30px;padding:8px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:14px}.hero-input input{flex:1;padding:12px 14px;background:transparent;border:none;color:#eef2ff;font-size:15px;outline:none}.hero-input button{padding:10px 22px;background:#5b6cff;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}.hero-input button:hover{background:#718cff}.stats{display:flex;flex-wrap:wrap;gap:32px;margin:24px 0 30px}.stats>div{display:flex;flex-direction:column}.stats strong{font-size:30px;color:#eef2ff;font-weight:800;letter-spacing:-.5px}.stats span{font-size:12px;color:#8ba7ff;letter-spacing:.5px;text-transform:uppercase;margin-top:4px}.customers{margin:24px 0 36px;padding:18px 0;border-top:1px solid #2d3756;border-bottom:1px solid #2d3756}.customers-label{font-size:11px;color:#8ba7ff;letter-spacing:1.5px;text-transform:uppercase;font-weight:800}.customer-row{display:flex;flex-wrap:wrap;gap:18px 30px;margin-top:14px}.customer-row span{font-size:14px;font-weight:600;color:#9da8c5;letter-spacing:.3px}@media(max-width:720px){.hero-input{flex-direction:column}.stats{gap:18px}}
 
-.featuresGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0 32px}.feat{display:block;padding:20px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.5);color:inherit;text-decoration:none;transition:.2s transform,.2s border-color}.feat:hover{transform:translateY(-3px);border-color:#718cff}.featIcon{font-size:28px}.feat h3{margin:12px 0 6px;font-size:16px;color:#eef2ff}.feat p{margin:0;color:#9da8c5;font-size:13px;line-height:1.55}.faqWrap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 32px}.faq{padding:16px 18px;border:1px solid #2d3756;border-radius:12px;background:rgba(20,27,49,.4);cursor:pointer}.faq summary{font-weight:700;color:#eef2ff;font-size:14px;outline:none;list-style:none}.faq summary::-webkit-details-marker{display:none}.faq p{margin:10px 0 0;color:#9da8c5;font-size:13px;line-height:1.6}.ft{margin-top:48px;padding:40px 24px 24px;border-top:1px solid #2d3756;background:linear-gradient(180deg,rgba(20,27,49,0),rgba(20,27,49,.4))}.ftGrid{max-width:1180px;margin:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:32px}.ftCol h4{margin:0 0 12px;font-size:11px;color:#8ba7ff;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.ftCol ul{margin:0;padding:0;list-style:none}.ftCol li{margin:7px 0;font-size:13px}.ftCol a{color:#cfd5ee;text-decoration:none}.ftCol a:hover{color:#718cff}.ftBottom{max-width:1180px;margin:32px auto 0;padding-top:20px;border-top:1px solid #2d3756;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}.ftBrand{display:flex;align-items:center;gap:10px;font-weight:800;color:#eef2ff;text-decoration:none}.ftDot{width:9px;height:9px;border-radius:50%;background:#5b6cff;box-shadow:0 0 0 4px rgba(91,108,255,.2)}.ftSocial{display:flex;gap:8px}.ftSocial a{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #2d3756;border-radius:50%;color:#9da8c5;text-decoration:none;font-size:13px}.ftSocial a:hover{border-color:#718cff;color:#718cff}.ftMeta{color:#6b748d;font-size:12px}.ftLegal{display:flex;gap:14px;margin-top:6px}.ftLegal a{color:#9da8c5;text-decoration:none}.ftLegal a:hover{color:#718cff}@media(max-width:980px){.featuresGrid,.faqWrap,.ftGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.featuresGrid,.faqWrap,.ftGrid{grid-template-columns:1fr}.ftBottom{flex-direction:column;align-items:flex-start}}
-</style>
+/* P2: video gallery (fliki.ai 1:1) */
+.gallery{margin:48px 0 32px}.gallery h2{font-size:28px;margin:0 0 6px;letter-spacing:-.5px}.gallery .lead{margin:0 0 22px}.vidGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.vidThumb{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#1a2342,#0e1530);border:1px solid #2d3756;display:flex;align-items:flex-end;padding:14px;color:#eef2ff;text-decoration:none;transition:.2s transform,.2s border-color}.vidThumb:hover{transform:translateY(-3px);border-color:#718cff}.vidThumb::before{content:"▶";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;background:rgba(91,108,255,.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;padding-left:4px}.vidThumb span{position:relative;z-index:1;font-weight:700;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.6)}@media(max-width:720px){.vidGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* P2: big 4-feature sections (fliki Text-to-Video / TTS / Series / Digital Twin) */
+.bigs{display:grid;gap:48px;margin:56px 0}.big{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;padding:32px;border:1px solid #2d3756;border-radius:24px;background:linear-gradient(160deg,rgba(30,39,66,.65),rgba(15,20,40,.65))}.big.flip{grid-template-columns:.9fr 1.1fr;direction:rtl}.big.flip>*{direction:ltr}.big .eyebrow{color:#5b6cff;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}.big h2{font-size:30px;margin:0 0 14px;letter-spacing:-.5px;line-height:1.25}.big p{color:#aab3cf;font-size:15px;line-height:1.7;margin:0 0 18px}.big ul{list-style:none;padding:0;margin:0 0 22px}.big li{padding:8px 0;color:#cfd5ee;font-size:14px;display:flex;align-items:center;gap:10px}.big li::before{content:"✓";color:#48d58b;font-weight:800;font-size:16px}.big .visual{aspect-ratio:4/3;border-radius:18px;background:linear-gradient(135deg,#293669,#0e1530);border:1px solid #2d3756;display:flex;align-items:center;justify-content:center;font-size:80px;color:#5b6cff;position:relative;overflow:hidden}.big .visual::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(91,108,255,.25),transparent 60%)}.big .cta{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#5b6cff;border-radius:10px;color:#fff;text-decoration:none;font-weight:700;font-size:14px;transition:.2s}.big .cta:hover{background:#718cff}@media(max-width:860px){.big,.big.flip{grid-template-columns:1fr;direction:ltr}}
+
+/* P2: testimonials (creator love) */
+.testi{margin:64px 0 48px}.testi .head{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:14px;margin-bottom:28px}.testi h2{font-size:30px;margin:0;letter-spacing:-.5px}.testi .stars{color:#f5a524;font-size:14px;letter-spacing:2px}.testi .score{color:#aab3cf;font-size:14px;margin-left:10px}.tGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.tCard{padding:24px;border:1px solid #2d3756;border-radius:18px;background:linear-gradient(160deg,rgba(30,39,66,.6),rgba(15,20,40,.6));display:flex;flex-direction:column;gap:16px}.tCard .quote{font-size:14px;line-height:1.65;color:#cfd5ee;margin:0;flex:1}.tCard .who{display:flex;align-items:center;gap:12px;border-top:1px solid #2d3756;padding-top:14px}.tCard .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#5b6cff,#48d58b);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex-shrink:0}.tCard .meta strong{display:block;font-size:13px;color:#eef2ff}.tCard .meta span{font-size:11px;color:#9da8c5}@media(max-width:860px){.tGrid{grid-template-columns:1fr}}
+
+.featuresGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0 32px}.feat{display:block;padding:20px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.5);color:inherit;text-decoration:none;transition:.2s transform,.2s border-color}.feat:hover{transform:translateY(-3px);border-color:#718cff}.featIcon{font-size:28px}.feat h3{margin:12px 0 6px;font-size:16px;color:#eef2ff}.feat p{margin:0;color:#9da8c5;font-size:13px;line-height:1.55}.faqWrap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 32px}.faq{padding:16px 18px;border:1px solid #2d3756;border-radius:12px;background:rgba(20,27,49,.4);cursor:pointer}.faq summary{font-weight:700;color:#eef2ff;font-size:14px;outline:none;list-style:none}.faq summary::-webkit-details-marker{display:none}.faq p{margin:10px 0 0;color:#9da8c5;font-size:13px;line-height:1.6}.ft{margin-top:48px;padding:40px 24px 24px;border-top:1px solid #2d3756;background:linear-gradient(180deg,rgba(20,27,49,0),rgba(20,27,49,.4))}.ftGrid{max-width:1180px;margin:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:32px}.ftCol h4{margin:0 0 12px;font-size:11px;color:#8ba7ff;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.ftCol ul{margin:0;padding:0;list-style:none}.ftCol li{margin:7px 0;font-size:13px}.ftCol a{color:#cfd5ee;text-decoration:none}.ftCol a:hover{color:#718cff}.ftBottom{max-width:1180px;margin:32px auto 0;padding-top:20px;border-top:1px solid #2d3756;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}.ftBrand{display:flex;align-items:center;gap:10px;font-weight:800;color:#eef2ff;text-decoration:none}.ftDot{width:9px;height:9px;border-radius:50%;background:#5b6cff;box-shadow:0 0 0 4px rgba(91,108,255,.2)}.ftSocial{display:flex;gap:8px}.ftSocial a{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #2d3756;border-radius:50%;color:#9da8c5;text-decoration:none;font-size:13px}.ftSocial a:hover{bo   rder-color:#718cff;color:#eef2ff}.ftMeta{font-size:12px;color:#8f9ab9}.ftLegal a{color:#8f9ab9;text-decoration:none;margin-right:14px}.ftLegal a:hover{color:#cfd5ee}@media(max-width:860px){.ftGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
 </head>
 <body>
   <main class="shell">
-    <span class="eyebrow">LOCAL VIDEO WORKSTATION</span>
-    <h1>本地视频制作台</h1>
-    <p class="lead">Script to Video 与 Auto-edit 共用同一套本地素材、配音、音乐和渲染能力。默认先生成可编辑草稿，确认后才消耗接口额度和算力。</p>
-    <div class="hero-input">
+    <span class="eyebrow">FLIKI · LOCAL VIDEO STUDIO</span>
+    <h1>Turn text into videos<br/>with AI voices</h1>
+    <p class="lead">Transform your ideas into stunning videos with our AI video generator. Easy to use text-to-video editor featuring lifelike voiceovers, dynamic AI video clips, and a wide range of AI-powered features.</p>
+    <form class="hero-input" onsubmit="event.preventDefault();location.href='/drafts.html';">
       <input type="text" placeholder="Create a faceless TikTok video about &quot;5 money habits that changed my life.&quot;" />
-      <button onclick="location.href='/drafts.html'">Cycle video ideas</button>
-    </div>
+      <button type="submit">Generate video</button>
+    </form>
     <div class="stats">
-      <div><strong>100M+</strong><span>videos</span></div>
-      <div><strong>12M+</strong><span>users</span></div>
-      <div><strong>82+</strong><span>languages</span></div>
-      <div><strong>153+</strong><span>dialects</span></div>
+      <div><strong>100M+</strong><span>videos created</span></div>
+      <div><strong>12M+</strong><span>users worldwide</span></div>
+      <div><strong>80+</strong><span>languages supported</span></div>
       <div><strong>2,000+</strong><span>voices</span></div>
+      <div><strong>35+</strong><span>tools</span></div>
     </div>
     <div class="customers">
-      <span class="customers-label">Trusted by</span>
+      <span class="customers-label">Trusted by 50,000+ companies worldwide</span>
       <div class="customer-row">
         <span>Meta</span><span>Oracle</span><span>Siemens</span><span>PayPal</span><span>SAP</span><span>Comcast</span><span>Toyota</span>
         <span>Tata</span><span>PwC</span><span>Capgemini</span><span>ByteDance</span><span>MetLife</span><span>Toast</span><span>InDrive</span>
       </div>
     </div>
+
+    <section class="gallery">
+      <h2>See what creators make with our AI video generator</h2>
+      <p class="lead">Real videos made with our text-to-video tool in under 5 minutes.</p>
+      <div class="vidGrid">
+        <a class="vidThumb" href="/drafts.html"><span>Product Info</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>Promo</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>Training</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>Tutorial</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>Review</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>TikTok</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>Ad</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>Educational</span></a>
+        <a class="vidThumb" href="/drafts.html"><span>Explainer</span></a>
+      </div>
+    </section>
+
+    <section class="bigs">
+      <article class="big">
+        <div>
+          <span class="eyebrow">TEXT TO VIDEO</span>
+          <h2>Your content, now in video form</h2>
+          <p>Paste a script, blog post or one-line prompt. Our text-to-video AI writes the script, picks visuals, adds AI voiceover, music, and subtitles — publish-ready video with consistent characters in minutes. The fastest way to turn any text into video.</p>
+          <ul>
+            <li>Script → scene → AI voice → visuals in one editor</li>
+            <li>2,000+ lifelike voices in 80+ languages and dialects</li>
+            <li>Consistent characters across scenes</li>
+            <li>Auto subtitles, music, and brand kits</li>
+          </ul>
+          <a class="cta" href="/drafts.html">Try text-to-video →</a>
+        </div>
+        <div class="visual">🎬</div>
+      </article>
+
+      <article class="big flip">
+        <div>
+          <span class="eyebrow">TEXT TO SPEECH</span>
+          <h2>Human-quality voice, at scale</h2>
+          <p>2,000+ lifelike AI voices in 80+ languages and dialects, with real emotion, pacing, and emphasis. Generate voiceover for any video, dub into any language, or clone your own voice from a short sample.</p>
+          <ul>
+            <li>Real emotion, pacing, and emphasis</li>
+            <li>Voice cloning from 30-second samples</li>
+            <li>80+ languages with 100+ dialect variants</li>
+            <li>Commercial-use license on every paid plan</li>
+          </ul>
+          <a class="cta" href="/voices.html">Explore voice library →</a>
+        </div>
+        <div class="visual">🎙️</div>
+      </article>
+
+      <article class="big">
+        <div>
+          <span class="eyebrow">SERIES</span>
+          <h2>Never run out of content</h2>
+          <p>Tell us your topic, style, and posting schedule. Our AI video generator plans your next videos, writes the scripts, and has them ready when you need them — so you stay consistent on TikTok, YouTube, and Shorts without the daily scramble.</p>
+          <ul>
+            <li>Weekly series auto-generated from one brief</li>
+            <li>Distinct episodes with consistent branding</li>
+            <li>Schedule and publish to all platforms</li>
+            <li>Refresh topics based on trending signals</li>
+          </ul>
+          <a class="cta" href="/drafts.html">Plan a series →</a>
+        </div>
+        <div class="visual">📝</div>
+      </article>
+
+      <article class="big flip">
+        <div>
+          <span class="eyebrow">DIGITAL TWIN</span>
+          <h2>Your face. Your voice. Zero filming.</h2>
+          <p>Record yourself once. Fliki creates a digital twin — an AI version of you that presents, teaches, and speaks in 80+ languages, with the same face and voice in every scene. Scale your video output without ever picking up a camera again.</p>
+          <ul>
+            <li>One-time avatar recording</li>
+            <li>Lip-sync in 80+ languages</li>
+            <li>Studio-quality output at any length</li>
+            <li>No credit card required · cancel anytime</li>
+          </ul>
+          <a class="cta" href="/avatars.html">Create your digital twin →</a>
+        </div>
+        <div class="visual">🧑‍🎤</div>
+      </article>
+    </section>
+
+    <section class="testi">
+      <div class="head">
+        <div>
+          <h2>Loved by content creators around the world</h2>
+          <div><span class="stars">★★★★★</span><span class="score">4.8 out of 5 · Based on 5,000+ reviews</span></div>
+        </div>
+      </div>
+      <div class="tGrid">
+        <article class="tCard">
+          <p class="quote">&ldquo;Fliki is incredibly easy to use. I just upload my script, and it automatically breaks it into smaller segments for me! The voice quality and visuals keep my TikTok audience coming back.&rdquo;</p>
+          <div class="who">
+            <div class="avatar">M</div>
+            <div class="meta"><strong>Maya Kim</strong><span>TikTok Creator · 2.3M followers</span></div>
+          </div>
+        </article>
+        <article class="tCard">
+          <p class="quote">&ldquo;As a busy orthodontist, I don&rsquo;t have time for content creation. Fliki lets me create patient education videos in minutes. My practice has grown 30% since I started posting consistently.&rdquo;</p>
+          <div class="who">
+            <div class="avatar">R</div>
+            <div class="meta"><strong>Dr. Rachel Chen</strong><span>Solo Practice Owner</span></div>
+          </div>
+        </article>
+        <article class="tCard">
+          <p class="quote">&ldquo;We replaced three video tools with Fliki. Script-to-video in 5 minutes, brand kit kept our videos consistent, and the AI dubbing in Spanish doubled our LATAM reach.&rdquo;</p>
+          <div class="who">
+            <div class="avatar">J</div>
+            <div class="meta"><strong>James O’Brien</strong><span>Growth Lead, Series B SaaS</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <div class="status"><span class="dot" id="apiDot"></span><span id="apiStatus">正在检查本地服务…</span></div>
     <section class="grid">
       <a class="card" href="/drafts.html"><span class="icon">🎬</span><h2>Script to Video</h2><p>输入脚本，编辑场景、画面、字幕、时长、声音和 Avatar，确认后再生成。</p><span class="tag">P5A + P5B + P5D-5</span></a>
-      <a class="card" href="/autoedit.html"><span class="icon">🎞️</span><h2>Auto-edit</h2><p>上传已有视频，自动转写、切分、加字幕与 B-roll，再确认渲染。</p><span class="tag">P5C</span></a>
-      <a class="card" href="/voices.html"><span class="icon">🎤</span><h2>80+ 语言声音库</h2><p>搜索 321 个声音，按语言和性别筛选，生成试听音频。</p><span class="tag">P5D-2</span></a><a class="card" href="/templates.html"><span class="icon">🧩</span><h2>模板市场</h2><p>5 套本地模板（开场/结尾/列表/引用/数据），选一套应用到场景，渲染按 structure 出图。</p><span class="tag">P7C-B</span></a>
+      <a class="card" href="/autoedit.html"><span class="icon">🎾️</span><h2>Auto-edit</h2><p>上传已有视频，自动转写、切分、加字幕与 B-roll，再确认渲染。</p><span class="tag">P5C</span></a>
+      <a class="card" href="/voices.html"><span class="icon">🎤</span><h2>80+ 语言声音库</h2><p>搜索 321 个声音，按语言和性别筛选，生成试听音频。</p><span class="tag">P5D-2</span></a>
       <a class="card" href="/avatars.html"><span class="icon">🧑‍🎤</span><h2>Avatar 库</h2><p>上传人脸参考图与默认音频，绑定到场景；缺模型时自动回退静态 MP4。</p><span class="tag">P5E</span></a>
       <a class="card" href="/env-check.html"><span class="icon">🔍</span><h2>环境诊断</h2><p>检查 FFmpeg、Node、Python、GPU、磁盘、Wav2Lip 模型与本地数字人能力。</p><span class="tag">P5D-1</span></a>
+      <a class="card" href="/pricing.html"><span class="icon">💰</span><h2>价格 & 工作区</h2><p>Free / Standard / Premium 三档计划；Workspaces 多人协作；Brand Kit 品牌一致性。</p><span class="tag">P6</span></a>
     </section>
+
     <div class="note">当前原则：草稿可编辑、节点可重试、接口可替换；Pexels / Pixabay / Freesound 默认走低成本素材路径。</div>
-<h2 style="font-size:26px;margin:48px 0 8px">12 大旗舰工具</h2><p style="color:#aab3cf;margin:0 0 24px">一个工作区, 覆盖从配音到字幕的每一步.</p><div class="featuresGrid"><a class="feat" href="/drafts.html"><span class="featIcon">🎥</span><h3>Idea to Video</h3><p>一句话生成完整脚本+分镜+配音+字幕+音乐.</p></a><a class="feat" href="/drafts.html"><span class="featIcon">✍️</span><h3>Script to Video</h3><p>粘贴脚本, AI 分镜, 选声音, 配画面/字幕/音乐.</p></a><a class="feat" href="/playground.html"><span class="featIcon">🎞️</span><h3>AI Video Generator</h3><p>Veo 3.1 / Sora / Kling 3 Pro 等多模型生成.</p></a><a class="feat" href="/voices.html"><span class="featIcon">🗣️</span><h3>Text to Speech</h3><p>2,000+ 声音, 80+ 语言, 100+ 方言.</p></a><a class="feat" href="/voices.html"><span class="featIcon">🧬</span><h3>Voice Cloning</h3><p>30 秒录音克隆你的声音, 70+ 语言.</p></a><a class="feat" href="/avatars.html"><span class="featIcon">🧑</span><h3>AI Avatar</h3><p>公共角色 + 自定义克隆 + AI 生成.</p></a><a class="feat" href="/translate.html"><span class="featIcon">🌐</span><h3>AI Video Translator</h3><p>80+ 语言翻译 + lip-sync 多说话人.</p></a><a class="feat" href="/translate.html"><span class="featIcon">🎙️</span><h3>AI Dubbing</h3><p>声音克隆跨 30+ 语言配音.</p></a><a class="feat" href="/blog.html"><span class="featIcon">📰</span><h3>Blog to Video</h3><p>URL 抓取, 自动总结脚本, 8-12 段视频.</p></a><a class="feat" href="/ppt.html"><span class="featIcon">📊</span><h3>PPT to Video</h3><p>上传 PPT, 每页自动脚本+画面+配音.</p></a><a class="feat" href="/playground.html"><span class="featIcon">🖼️</span><h3>AI Image Generator</h3><p>Flux / Qwen / GPT Image 2 / Seedream.</p></a><a class="feat" href="/drafts.html"><span class="featIcon">📱</span><h3>AI Reel Maker</h3><p>9:16 短视频一键, TikTok / Reels 直发.</p></a></div><h2 style="font-size:26px;margin:48px 0 8px">常见问题</h2><div class="faqWrap"><details class="faq"><summary>什么是 AI Video Generator?</summary><p>AI video generator 把文字 prompt/脚本/已有内容转成完成视频, 自动生成配音、画面、音乐、字幕. 你描述需求, AI 在几分钟内组装. Fliki 被 12M+ 创作者用于 TikTok/YouTube/培训内容.</p></details><details class="faq"><summary>Text to video 怎么工作?</summary><p>粘贴 blog 脚本/一句话 prompt, 系统生成匹配视频 + AI 配音 + 画面 + 音乐 + 烧录字幕. 短视频大约 2 分钟生成.</p></details><details class="faq"><summary>能用我自己的声音吗?</summary><p>可以. Voice cloning 录 30 秒到几分钟, 生成你的 AI 版声音, 70+ 语言都能用. Standard plan 1 个, Premium 3 个, Enterprise 专业级.</p></details><details class="faq"><summary>怎么把 blog 转视频?</summary><p>粘贴 URL 或全文, AI 写脚本, 选匹配画面, AI 配音, 加字幕. 1,500 字文章 → 60 秒视频, 80+ 语言.</p></details><details class="faq"><summary>PPT 转视频能用吗?</summary><p>可以. 上传 PPT 或 Google Slides, 每页转视频场景, 自动 AI 配音 + 转场 + 字幕. 培训/课程/入职资料.</p></details><details class="faq"><summary>支持多少语言?</summary><p>80+ 语言 + 100+ 方言: 英/西/葡/印地/阿拉伯/印尼/法/德/日/韩/俄/普通话. 2,000+ lifelike 声音.</p></details><details class="faq"><summary>Faceless 视频怎么做?</summary><p>AI 配音 + 股票/AI 画面 + 自动字幕, 无需出镜. 脚本/prompt → AI 配音画面 → 直发 TikTok/Shorts/Reels.</p></details><details class="faq"><summary>生成视频能商用吗?</summary><p>付费 plan 全部含完整商用授权 + YouTube 许可音乐. Enterprise 含赔偿条款.</p></details><details class="faq"><summary>生成需要多久?</summary><p>30-60 秒短视频 2 分钟内完成. 多场景长视频 5-10 分钟. Fliki 平均 2 分钟/条.</p></details><details class="faq"><summary>如何开始?</summary><p>免费 plan 无需信用卡, 30 秒注册即可. 已有账号? 直接登录.</p></details></div>
+
+    <h2 style="font-size:26px;margin:48px 0 8px">12 大旗舰工具</h2>
+    <p style="color:#aab3cf;margin:0 0 24px">一个工作区，覆盖从配音到字幕的每一步。</p>
+    <div class="featuresGrid">
+      <a class="feat" href="/drafts.html"><span class="featIcon">💡</span><h3>Idea to Video</h3><p>一句话 prompt → 全自动分镜 + 配音 + 字幕。</p></a>
+      <a class="feat" href="/drafts.html"><span class="featIcon">📝</span><h3>Text to Video</h3><p>粘贴脚本或博客，AI 自动选画面 + 配音 + 字幕。</p></a>
+      <a class="feat" href="/voices.html"><span class="featIcon">🗣️</span><h3>Text to Speech</h3><p>2,000+ 声音，80+ 语言，emotion + pacing 可调。</p></a>
+      <a class="feat" href="/avatars.html"><span class="featIcon">🧑‍🎤</span><h3>AI Avatar</h3><p>上传人脸参考图，绑定场景，缺模型时静态 MP4 回退。</p></a>
+      <a class="feat" href="/blog.html"><span class="featIcon">📰</span><h3>Blog to Video</h3><p>URL / RSS → AI 总结脚本 → 视频（8-12 段）。</p></a>
+      <a class="feat" href="/ppt.html"><span class="featIcon">📊</span><h3>PPT to Video</h3><p>上传 PPT/Google Slides → 每页自动分镜 + 配音 + 字幕。</p></a>
+      <a class="feat" href="/record.html"><span class="featIcon">⏺️</span><h3>Record to Video</h3><p>浏览器录屏 → ASR 转写 → 字幕 + AI 配音。</p></a>
+      <a class="feat" href="/translate.html"><span class="featIcon">🌐</span><h3>AI Video Translator</h3><p>80+ 语言 + lip-sync + 多说话人翻译。</p></a>
+      <a class="feat" href="/drafts.html"><span class="featIcon">🎙️</span><h3>AI Dubbing</h3><p>克隆自己的声音，跨语言配音并保持音色一致。</p></a>
+      <a class="feat" href="/autoedit.html"><span class="featIcon">✂️</span><h3>Auto-edit Video</h3><p>上传视频 → AI 字幕 + 静音段裁剪 + 转场 + 音乐。</p></a>
+      <a class="feat" href="/drafts.html"><span class="featIcon">🎥</span><h3>AI Reel Maker</h3><p>9:16 短视频一键生成，TikTok / Reels / Shorts 直发。</p></a>
+      <a class="feat" href="/drafts.html"><span class="featIcon">🖼️</span><h3>AI Thumbnail Maker</h3><p>GPT Image 2 文字渲染，多画幅自动出图。</p></a>
+    </div>
+
+    <h2 style="font-size:26px;margin:48px 0 8px">常见问题</h2>
+    <div class="faqWrap">
+      <details class="faq"><summary>什么是 AI Video Generator?</summary><p>AI video generator 把文字 prompt/脚本/已有内容转成完成视频，自动生成配音、画面、音乐、字幕。你描述需求，AI 在几分钟内组装。已被 12M+ 创作者用于 TikTok / YouTube / 培训内容。</p></details>
+      <details class="faq"><summary>Text to video 怎么工作？</summary><p>粘贴 blog 脚本/一句话 prompt，系统生成匹配视频 + AI 配音 + 画面 + 音乐 + 烧录字幕。短视频大约 2 分钟生成。</p></details>
+      <details class="faq"><summary>能用我自己的声音吗？</summary><p>可以。Voice cloning 录 30 秒到几分钟，生成你的 AI 版声音，70+ 语言都能用。Standard plan 1 个，Premium 3 个，Enterprise 专业级。</p></details>
+      <details class="faq"><summary>怎么把 blog 转视频？</summary><p>粘贴 URL 或全文，AI 写脚本，选匹配画面，AI 配音，加字幕。1,500 字文章 → 60 秒视频，80+ 语言。</p></details>
+      <details class="faq"><summary>PPT 转视频能用吗？</summary><p>可以。上传 PPT 或 Google Slides，每页转视频场景，自动 AI 配音 + 转场 + 字幕。培训 / 课程 / 入职资料。</p></details>
+      <details class="faq"><summary>支持多少语言？</summary><p>80+ 语言 + 100+ 方言：英 / 西 / 葡 / 印地 / 阿拉伯 / 印尼 / 法 / 德 / 日 / 韩 / 俄 / 普通话。2,000+ lifelike 声音。</p></details>
+      <details class="faq"><summary>Faceless 视频怎么做？</summary><p>AI 配音 + 股票/AI 画面 + 自动字幕，无需出镜。脚本 / prompt → AI 配音画面 → 直发 TikTok / Shorts / Reels。</p></details>
+      <details class="faq"><summary>生成视频能商用吗？</summary><p>付费 plan 全部含完整商用授权 + YouTube 许可音乐。Enterprise 含赔偿条款。</p></details>
+      <details class="faq"><summary>生成需要多久？</summary><p>30-60 秒短视频 2 分钟内完成。多场景长视频 5-10 分钟。Fliki 平均 2 分钟/条。</p></details>
+      <details class="faq"><summary>如何开始？</summary><p>免费 plan 无需信用卡，30 秒注册即可。已有账号？直接登录。</p></details>
+    </div>
   </main>
-  <footer class="ft"><div class="ftGrid"><div class="ftCol"><h4>Product</h4><ul><li><a href="/features.html#idea">Idea to Video</a></li><li><a href="/drafts.html">Script to Video</a></li><li><a href="/blog.html">Blog to Video</a></li><li><a href="/ppt.html">PPT to Video</a></li><li><a href="/voices.html">Voice Cloning</a></li><li><a href="/templates.html">Templates</a></li><li><a href="/pricing.html">Pricing</a></li></ul></div><div class="ftCol"><h4>Resources</h4><ul><li><a href="/help.html">Help Center</a></li><li><a href="/changelog.html">Changelog</a></li><li><a href="/affiliate.html">Affiliate</a></li><li><a href="/docs-api.html">API Docs</a></li><li><a href="/brand-kits.html">Brand Kit</a></li><li><a href="/status.html">Status</a></li></ul></div><div class="ftCol"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/careers.html">Careers</a></li><li><a href="/press.html">Press</a></li><li><a href="/contact.html">Contact</a></li></ul></div><div class="ftCol"><h4>Use Cases</h4><ul><li><a href="/use-cases.html#marketing">Marketing</a></li><li><a href="/use-cases.html#social">Social</a></li><li><a href="/use-cases.html#sales">Sales</a></li><li><a href="/use-cases.html#training">Training</a></li><li><a href="/use-cases.html#education">Education</a></li><li><a href="/use-cases.html#localization">Localization</a></li></ul></div><div class="ftCol"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/cookies.html">Cookies</a></li><li><a href="/gdpr.html">GDPR</a></li><li><a href="/aup.html">AUP</a></li><li><a href="/security.html">Security</a></li></ul></div></div><div class="ftBottom"><a class="ftBrand" href="/index.html"><span class="ftDot"></span>本地视频制作台</a><div class="ftSocial"><a href="/social/twitter">X</a><a href="/social/youtube">YT</a><a href="/social/linkedin">in</a><a href="/social/tiktok">TT</a><a href="/social/github">GH</a></div><div class="ftMeta">© 2026 Local Video Studio. Inspired by Fliki.ai architecture.<div class="ftLegal"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a><a href="/cookies.html">Cookies</a><a href="/security.html">Security</a></div></div></div></footer>
+
+  <footer class="ft">
+    <div class="ftGrid">
+      <div class="ftCol"><h4>Product</h4><ul><li><a href="/features.html#idea">Idea to Video</a></li><li><a href="/drafts.html">Script to Video</a></li><li><a href="/blog.html">Blog to Video</a></li><li><a href="/ppt.html">PPT to Video</a></li><li><a href="/voices.html">Voice Cloning</a></li><li><a href="/templates.html">Templates</a></li><li><a href="/pricing.html">Pricing</a></li></ul></div>
+      <div class="ftCol"><h4>Resources</h4><ul><li><a href="/help.html">Help Center</a></li><li><a href="/changelog.html">Changelog</a></li><li><a href="/affiliate.html">Affiliate</a></li><li><a href="/docs-api.html">API Docs</a></li><li><a href="/brand-kits.html">Brand Kit</a></li><li><a href="/status.html">Status</a></li></ul></div>
+      <div class="ftCol"><h4>Company</h4><ul><li><a href="/about.html">About</a></li><li><a href="/careers.html">Careers</a></li><li><a href="/press.html">Press</a></li><li><a href="/contact.html">Contact</a></li></ul></div>
+      <div class="ftCol"><h4>Use Cases</h4><ul><li><a href="/use-cases.html#marketing">Marketing</a></li><li><a href="/use-cases.html#social">Social</a></li><li><a href="/use-cases.html#sales">Sales</a></li><li><a href="/use-cases.html#training">Training</a></li><li><a href="/use-cases.html#education">Education</a></li><li><a href="/use-cases.html#localization">Localization</a></li></ul></div>
+      <div class="ftCol"><h4>Legal</h4><ul><li><a href="/terms.html">Terms</a></li><li><a href="/privacy.html">Privacy</a></li><li><a href="/cookies.html">Cookies</a></li><li><a href="/gdpr.html">GDPR</a></li><li><a href="/aup.html">AUP</a></li><li><a href="/security.html">Security</a></li></ul></div>
+    </div>
+    <div class="ftBottom">
+      <a class="ftBrand" href="/index.html"><span class="ftDot"></span>本地视频制作台</a>
+      <div class="ftSocial"><a href="/social/twitter">X</a><a href="/social/youtube">YT</a><a href="/social/linkedin">in</a><a href="/social/tiktok">TT</a><a href="/social/github">GH</a></div>
+      <div class="ftMeta">© 2026 Local Video Studio. Inspired by Fliki.ai architecture.<div class="ftLegal"><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy</a><a href="/cookies.html">Cookies</a><a href="/security.html">Security</a></div></div>
+    </div>
+  </footer>
+
   <script>
     fetch("http://127.0.0.1:5181/health").then(function(response){return response.json()}).then(function(result){document.getElementById("apiDot").classList.add("ok");document.getElementById("apiStatus").textContent="本地服务正常 · "+result.status}).catch(function(){document.getElementById("apiStatus").textContent="本地服务未启动"});
   </script>

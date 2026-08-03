@@ -12,26 +12,26 @@ describe("editorStore / editorActions", () => {
 
   it("toggleLayer flips visibility of the matching layer", () => {
     const target = DEFAULT_LAYERS[0].id;
-    const before = getState().layers.find((l) => l.id === target).visible;
+    const before = getState().layers.find((l) => l.id === target)!.visible;
     editorActions.toggleLayer(target);
-    const after = getState().layers.find((l) => l.id === target).visible;
+    const after = getState().layers.find((l) => l.id === target)!.visible;
     expect(after).toBe(!before);
   });
 
   it("setLayerOpacity updates only the matching layer", () => {
     const target = DEFAULT_LAYERS[1].id;
     editorActions.setLayerOpacity(target, 42);
-    const l = getState().layers.find((x) => x.id === target);
+    const l = getState().layers.find((x) => x.id === target)!;
     expect(l.opacity).toBe(42);
-    const other = getState().layers.find((x) => x.id === DEFAULT_LAYERS[0].id);
+    const other = getState().layers.find((x) => x.id === DEFAULT_LAYERS[0].id)!;
     expect(other.opacity).not.toBe(42);
   });
 
   it("lockLayer toggles locked flag", () => {
     const target = DEFAULT_LAYERS[2].id;
-    const before = getState().layers.find((l) => l.id === target).locked;
+    const before = getState().layers.find((l) => l.id === target)!.locked;
     editorActions.lockLayer(target);
-    expect(getState().layers.find((l) => l.id === target).locked).toBe(!before);
+    expect(getState().layers.find((l) => l.id === target)!.locked).toBe(!before);
   });
 
   it("reorderLayers moves src before target and is a no-op when src==target", () => {
