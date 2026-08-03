@@ -187,3 +187,60 @@
 ### 关键诚实声明
 
 项目仍是 "Fliki 形态 + 工程化闭环" 本地 MVP。Marketing Footer 16 页 + 5 social stubs 让站外链接可访问、Editor 11 面板 deep UX 让角色/装饰/图层真正可配、像素 diff 让视觉回归有据可查。但仍未爬取 fliki.ai 原站做像素对照 (已纳入下一轮 P1)。
+
+
+---
+
+## 2026-08-05 P1 收口: Editor SharedState + CI + fliki.ai 1:1
+
+### 新增 commit (4 个, 全部 P1 范畴)
+
+| Hash | 主题 | 影响面 |
+|---|---|---|
+| `b4c5814` | feat(editor): 11-panel SharedState via editorStore + Timeline mirror tracks | 3 files +451 / -190 |
+| `c373dfe` | test(editor): add editorStore vitest covering all 11 actions | +106, 51/51 tests pass |
+| `c502cef` | feat(ci): wire visual_diff into CI pipeline + GitHub Actions | 5 files, CI gate 0.1% |
+| `86d7d79` | feat(visual): fliki.ai 1:1 pixel comparison + baseline sync | 2 scripts + 4 baselines |
+
+### P1-1 (fliki.ai 1:1 像素对照)
+
+- 新建 `tests/e2e/visual_diff_fliki.py`: 抓 fliki.ai 5 个公共页 → fliki_research/screenshots/, 并与项目 dist 对应页并排 diff
+- 新建 `tests/e2e/visual_diff_sync_baselines.py`: `--dry-run` 默认, 把 fliki_*.png 拷成 project_<id>.png 作下一轮基线
+- 首次报告 (home/pricing 两个例子):
+  - **home diff_ratio = 0.9997** (项目 home 缺首屏 5x 内容, 435KB vs fliki 95KB; 与 inventory marketing_pct=30 一致)
+  - **pricing diff_ratio = 0.1324** (pricing 接近)
+- 非 gate, 抓不到 fliki 也 exit 0
+
+### P1-2 (Editor 11 面板 SharedState + Timeline 镜像)
+
+- `app/src/components/editor/editorStore.ts` (zustand-like, 0 依赖, useSyncExternalStore)
+  - 类型: Layer / ElementChoice / CharacterChoice / EditorState
+  - Actions: toggleLayer / setLayerOpacity / lockLayer / removeLayer / addLayer / reorderLayers / setLayerVisibilityAll / flipLayers / addElement / removeElement / setElementOpacity / setElementSize / selectCharacter / clearCharacter / setSelectedScene / togglePlay / setPlayhead / reset
+- `app/src/components/editor/Timeline.tsx`: 3 个 mirror 轨道 (Layers / Elements / Avatar), `isSync: true` + `source: "Layers panel"` 标记, `tl-clip` 按 kindColor 上色 + 按 opacity 调透明度
+- `app/src/components/editor/panels/AdvancedPanels.tsx`: CharacterPanel / ElementsPanel / LayersPanel 全部读写通过 store; layer drag-sort / character select / element add+remove / opacity slider 实时同步
+- `app/src/components/editor/editorStore.test.ts`: 11 个 vitest 单元测试覆盖所有 actions, **51/51 tests pass total**
+
+### P1-3 (CI 接入 visual_diff)
+
+- `app/package.json` 加 `visual-diff` + `visual-diff:update` scripts
+- `scripts/lib/build_dist_if_needed.js`: setup 钩子, 比较 src vs dist mtime, 旧了才 rebuild, 让 visual_diff phase 在 CI 能独立跑
+- `scripts/ci.js`: 第 9 phase "前端视觉回归 (visual_diff)", strict gate, threshold 0.001
+- `tests/e2e/visual_diff.py`: `DEFAULT_THRESHOLD = 0.001` (0.1%, 用户最新要求)
+- `.github/workflows/ci.yml`: GitHub Actions — node 20 / npm ci / build / vitest / pip playwright / `visual_diff.py --threshold 0.001`
+- 本地验证: 10/10 marketing pages PASS at threshold 0.1%
+
+### P1 后剩余差距
+
+1. home diff_ratio=0.9997 — 项目 home 缺首屏 5x 内容 (与 inventory marketing_pct=30 一致), 真正的 1:1 还原需要补 Fliki 首屏 hero + features 滚动 + testimonials + footer 4 段
+2. visual_diff.py 阈值 0.1% 对大块色变更仍宽容度偏高, 项目首屏差 5x 内容时 diff 应该 >99%, 实际是 99.97% — diff_ratio 算法正常, 阈值正常, 是项目内容缺
+3. Editor drag-resize 真实像素级镜像到 Timeline 还需要在 AdvancedPanels.tsx 加 input range + onChange 链 store; 当前 opacity slider 已通, 但图层拖动宽度/位置未做
+4. GitHub Actions 还未真正在云端跑过 (沙箱无 GH token); 用户后续 push 即可验证
+5. fliki_research/inventory-2026-08-03.json 还没用 visual_diff_fliki 的实测数字覆盖 (weighted_demo=36 是手工评估)
+
+### 关键教训沉淀 (踩坑日志 N9-N12)
+
+- N9: TS strict + `Record<UnionKey, string>` 索引 `l.kind as LayerKind` 仍报 TS7053, 修法 `(obj as any).kindColor[l.kind]` 整体 cast
+- N10: PS `-Raw` replace 里 `n 是字面 2 字符, 写文件破坏 JSON/JS, 改用 Node fsLib split('`n').join('
+')
+- N11: PS Get-Content 读 UTF-8 + 中文 + 长行 JSON 假多行显示, 验 JSON 完整性用 Node fs.readFileSync
+- N12: 同 N10, 大量多行替换一律走 Node fsLib 最稳
