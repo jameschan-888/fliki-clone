@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SceneDraft, WorkflowDraft, WorkflowRun } from "./types/draft";
 import { AvatarPicker } from "./components/editor/AvatarPicker";
 import { Toast } from "./components/ui/Toast";
@@ -164,7 +164,17 @@ export default function App() {
       );
     }
     window.addEventListener("message", receiveVoice);
-    return () => window.removeEventListener("message", receiveVoice);
+    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
+    try {
+      const token = localStorage.getItem("fliki-auth-token") || "";
+      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
+      const workspaces = await workspacesResponse.json();
+      const workspaceId = workspaces.workspaces?.[0]?.id;
+      if (!workspaceId) return;
+      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
+    } catch { }
+  }
+  return () => window.removeEventListener("message", receiveVoice);
   }, [draft]);
 
   useEffect(() => {
@@ -197,7 +207,17 @@ export default function App() {
       );
     }
     window.addEventListener("message", receiveTemplate);
-    return () => window.removeEventListener("message", receiveTemplate);
+    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
+    try {
+      const token = localStorage.getItem("fliki-auth-token") || "";
+      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
+      const workspaces = await workspacesResponse.json();
+      const workspaceId = workspaces.workspaces?.[0]?.id;
+      if (!workspaceId) return;
+      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
+    } catch { }
+  }
+  return () => window.removeEventListener("message", receiveTemplate);
   }, [draft]);
 
   useEffect(() => {
@@ -217,7 +237,17 @@ export default function App() {
         setMessage(formatApiError(error, "进度读取失败"));
       }
     }, 2000);
-    return () => window.clearTimeout(timer);
+    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
+    try {
+      const token = localStorage.getItem("fliki-auth-token") || "";
+      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
+      const workspaces = await workspacesResponse.json();
+      const workspaceId = workspaces.workspaces?.[0]?.id;
+      if (!workspaceId) return;
+      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
+    } catch { }
+  }
+  return () => window.clearTimeout(timer);
   }, [run]);
 
   // B-6: 当前 run 状态变化时刷新历史
@@ -239,7 +269,17 @@ export default function App() {
         setRunsTotal(0);
       })
       .finally(() => { if (!cancelled) setRunHistoryLoading(false); });
-    return () => { cancelled = true; };
+    async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
+    try {
+      const token = localStorage.getItem("fliki-auth-token") || "";
+      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
+      const workspaces = await workspacesResponse.json();
+      const workspaceId = workspaces.workspaces?.[0]?.id;
+      if (!workspaceId) return;
+      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
+    } catch { }
+  }
+  return () => { cancelled = true; };
   }, [run?.status, runsStatusFilter]);
 
   // P2-Pagination: 加载下一页 runs
@@ -518,6 +558,16 @@ export default function App() {
     }).length
     : 0;
 
+  async function persistBrandKit(kit: { name: string; palette: string[]; font: string; logo_data_url: string | null; watermark: boolean }) {
+    try {
+      const token = localStorage.getItem("fliki-auth-token") || "";
+      const workspacesResponse = await fetch("/workspaces", { headers: { Authorization: "Bearer " + token } });
+      const workspaces = await workspacesResponse.json();
+      const workspaceId = workspaces.workspaces?.[0]?.id;
+      if (!workspaceId) return;
+      await fetch("/workspaces/" + encodeURIComponent(workspaceId) + "/brand-kit", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify(kit) });
+    } catch { }
+  }
   return (
     <main>
       {!draft && (
@@ -640,7 +690,7 @@ export default function App() {
           <EditorSidebar
             templates={{ onPick: function (t) { setMessage("已选择模板: " + t.name); } }}
             settings={{ onChange: function (st) { setMessage("项目设置已更新: aspect=" + st.aspect); }, initial: { aspect: "16:9", font: "Noto Sans SC" } }}
-            brandkit={{ onChange: function (b) { setMessage("品牌包已更新: " + b.name); }, initial: { name: "Default Brand", palette: ["#5b6cff", "#48d58b", "#ffaa28", "#dc5050"] } }}
+            brandkit={{ onChange: function (b) { setMessage("品牌包已更新: " + b.name); void persistBrandKit(b); }, initial: { name: "Default Brand", palette: ["#5b6cff", "#48d58b", "#ffaa28", "#dc5050"] } }}
           />
         </section>
       )}
