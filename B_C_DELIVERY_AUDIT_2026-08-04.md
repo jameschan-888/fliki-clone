@@ -244,3 +244,77 @@
 ')
 - N11: PS Get-Content 读 UTF-8 + 中文 + 长行 JSON 假多行显示, 验 JSON 完整性用 Node fs.readFileSync
 - N12: 同 N10, 大量多行替换一律走 Node fsLib 最稳
+
+
+---
+
+## 2026-08-05 P2 收口: home 1:1 + drag-resize + GH Actions 待 push
+
+### 新增 commit (5 个, P2 范畴)
+
+| Hash | 主题 | 影响 |
+|---|---|---|
+| `fcbdfa6` | feat(marketing): 1:1 home rebuild — gallery + 4 big features + testimonials | index.html 3.8KB → 23.7KB |
+| `19621e4` | feat(editor): drag-resize pixel mirror — width/height/x/y + Timeline track | editorStore + AdvancedPanels + Timeline |
+| `deb336f` | docs(ci): push-to-github.ps1 + PUSH_TO_GITHUB.md | 待用户 push 触发 |
+
+### P2-A home 1:1 还原
+
+app/index.html 按 fliki.ai 真实结构重写:
+- **Hero**: 标题 "Turn text into videos with AI voices" + 描述 + 输入框
+- **Stats**: 100M+ videos / 12M+ users / 80+ languages / 2,000+ voices / 35+ tools
+- **Trusted by**: 50,000+ companies + 14 个品牌 (Meta/Oracle/Siemens/...)
+- **Video gallery**: 9 个缩略图 (Info/Promo/Training/Tutorial/Review/TikTok/Ad/Educational/Explainer)
+- **4 big features** (fliki Text-to-Video / TTS / Series / Digital Twin):
+  - 每个含 eyebrow + h2 + 描述 + ✓ 列表 4 条 + CTA 按钮
+  - Digital Twin: "Your face. Your voice. Zero filming."
+- **Testimonials**: "Loved by content creators around the world" + 4.8★ 5,000+ reviews
+  - Maya Kim (TikTok 2.3M) / Dr. Rachel Chen / James O'Brien
+- **12 大旗舰工具** 网格 (Idea/Blog/PPT/Avatar/Dubbing/Reel/Thumbnail...)
+- **10 个 FAQ** (含 AI Video Generator/Voice Cloning/Translation/商用等)
+- **5 列 footer + 5 social** + Copyright + Legal 链接
+
+### P2-B drag-resize 像素镜像
+
+ElementChoice 类型扩展 (像素基于 1280x720 画布):
+- `width`, `height`, `x`, `y` 4 个新字段 (默认 200x200@540,260 画布中心)
+- `setElementGeometry(id, {width?, height?, x?, y?})` 部分更新 action
+- ElementsPanel 加 4 个 number input (data-testid: element-width/height/x/y-row)
+- Timeline Elements mirror track label 实时显示 `WxH@(x,y)`
+- 输入数字 → editorStore → Timeline mirror 标签实时同步 (无 React state 中转)
+
+测试: 51 → 52 PASS, 新增 setElementGeometry 覆盖单字段 + 多字段 + 不存在 id 是 no-op
+
+### P2-C GH Actions 待 push
+
+.github/workflows/ci.yml 已在 P1 commit (c502cef). 本轮新增:
+- `scripts/push-to-github.ps1` 幂等 push 脚本 (接受 -Repo / -Token 或环境变量)
+- `PUSH_TO_GITHUB.md` 一分钟准备 + 一键 push 文档
+
+用户需 1 行命令触发 CI:
+```powershell
+$env:GITHUB_REPO='your-name/fliki-clone'; $env:GITHUB_TOKEN='ghp_xxx'
+powershell scripts/push-to-github.ps1
+```
+然后打开 Actions 看 9 phase (~6 分钟).
+
+### 验收
+
+| 维度 | 结果 |
+|---|---|
+| npm run build | 0 错 (21 页) |
+| npm test --run | 52/52 PASS (含 setElementGeometry) |
+| visual_diff 10/10 | PASS at threshold 0.1% (home 重 baseline) |
+| visual_diff_fliki home | diff 0.9998 (HTML 结构 1:1; 剩差异是 CDN 缩略图 vs 色块占位) |
+
+### P2 后剩余差距
+
+1. **home 真实图片资源** — 9 个 video 缩略图 + 3 个 testimonial avatars + 4 big features visual + Series ep 缩略图. 当前用 emoji + 色块占位. 沙箱没网抓图, 用户若需 1:1 像素需下载 fliki CDN 图存到 `app/public/fliki-assets/`.
+2. **drag-resize 真实拖拽手势** — 当前是 number input 实时改 width/height/x/y; 若要鼠标拖拽改大小/位置需要加 mousedown/mousemove/mouseup handler + canvas overlay, 是 P3 范畴.
+3. **Timeline 4 features 没真缩略图** — Series ep1/ep2/ep3, Digital Twin demo 都是文字说明, 缺真截图.
+
+### 关键教训沉淀 (踩坑日志 N13-N15)
+
+- N13: TS strict mode `Array.find()` 返回 `T | undefined`, 测试里 `expect(.find().prop)` 必须加 `!` 或显式 if 判断; P2 因加 `width/height/x/y` 类型字段触发连锁.
+- N14: TS 类型扩展要同步更新所有调用点. ElementChoice 加 4 个字段后, 所有 addElement 调用 (含测试 3 处 + AdvancedPanels 1 处) 必须同步补字段, 否则 strict 模式全报错.
+- N15: Node REPL 写 PowerShell 脚本时 `$` 必须转义为 `\$`, 否则模板字符串会把 $var 当 ES6 模板插值解析报错.
