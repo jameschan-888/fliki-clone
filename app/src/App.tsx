@@ -33,6 +33,7 @@ import { Composer, computeTemplateCompletion, findNextIncompleteScene } from "./
 import { ChatBar } from "./components/editor/ChatBar";
 import { Timeline } from "./components/editor/Timeline";
 import { EditorSidebar } from "./components/editor/EditorSidebar";
+import { RichScriptEditor } from "./components/editor/RichScriptEditor";
 import { getTemplateCatalogSnapshot, loadTemplateCatalogWithRetry, subscribeTemplateCache } from "./api/templateCache";
 
 const sample = "一条好视频，先从清晰的脚本开始。系统会把脚本拆成可编辑场景。你可以修改旁白、画面、声音和时长。只有确认后，才会调用素材、配音、音乐和渲染，避免浪费接口额度和算力。";
@@ -635,9 +636,11 @@ export default function App() {
 
       {draft && (
         <section className="toolsPanel">
+          <RichScriptEditor initial={script} onChange={function (t) { setScript(t); }} />
           <EditorSidebar
             templates={{ onPick: function (t) { setMessage("已选择模板: " + t.name); } }}
             settings={{ onChange: function (st) { setMessage("项目设置已更新: aspect=" + st.aspect); }, initial: { aspect: "16:9", font: "Noto Sans SC" } }}
+            brandkit={{ onChange: function (b) { setMessage("品牌包已更新: " + b.name); }, initial: { name: "Default Brand", palette: ["#5b6cff", "#48d58b", "#ffaa28", "#dc5050"] } }}
           />
         </section>
       )}

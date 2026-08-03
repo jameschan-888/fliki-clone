@@ -451,3 +451,31 @@
   .brandLink{padding:8px 12px;background:transparent;border:1px dashed #3a4a7c;border-radius:10px;color:#9da8c5;cursor:pointer;font-size:13px}
   .brandLink:hover{border-color:#5b6cff;color:#718cff}
   @media(max-width:780px){.sidebar{flex-direction:column}.sidebarTools{flex-direction:row;width:auto;overflow-x:auto}}
+  .palettePresets{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:10px}
+  .paletteBtn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4);cursor:pointer;color:inherit}
+  .paletteBtn:hover{border-color:#5b6cff}
+  .paletteBtn.active{border-color:#5b6cff;background:rgba(91,108,255,.15)}
+  .paletteSwatch{display:inline-block;width:18px;height:18px;border-radius:4px}
+  .paletteBtn small{font-size:10px;color:#9da8c5}
+  .colorInput{width:42px;height:36px;border:1px solid #3a4a7c;border-radius:8px;background:transparent;cursor:pointer;padding:2px}
+  .logoRow{margin-bottom:10px}
+  .logoPreview{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.4)}
+  .logoPreview img{max-width:120px;max-height:60px;background:#fff;border-radius:4px;padding:4px}
+  .logoPreview button{padding:5px 10px;background:transparent;border:1px solid #dc5050;border-radius:6px;color:#dc5050;font-size:11px;cursor:pointer}
+  .logoUpload{display:block;padding:18px;border:1px dashed #3a4a7c;border-radius:10px;text-align:center;cursor:pointer;color:#9da8c5;font-size:13px}
+  .logoUpload:hover{border-color:#5b6cff;color:#718cff}
+  .checkboxLabel{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfd5ee;text-transform:none;letter-spacing:0;font-weight:500}
+  .checkboxLabel input{width:auto;margin:0}
+  .richEditor{margin-top:14px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.55);overflow:hidden}
+  .richEditorToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid #2d3756;background:rgba(20,27,49,.7)}
+  .richActions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .richMeta{color:#9da8c5;font-size:11px;font-weight:600}
+  .richBtn{padding:4px 10px;background:transparent;border:1px solid #3a4a7c;border-radius:6px;color:#aab3cf;font-size:11px;cursor:pointer}
+  .richBtn:hover{border-color:#dc5050;color:#dc5050}
+  .richEditorWrap{position:relative;min-height:200px}
+  .richPreview,.richTextarea{position:absolute;inset:0;width:100%;height:100%;padding:14px 16px;font-family:inherit;font-size:14px;line-height:1.65;border:none;outline:none;background:transparent;white-space:pre-wrap;word-wrap:break-word;overflow:auto}
+  .richPreview{color:#eef2ff;pointer-events:none;z-index:1}
+  .richPreview mark{background:rgba(255,170,40,.25);color:#ffe14a;padding:1px 3px;border-radius:3px;font-weight:600}
+  .richTextarea{color:transparent;caret-color:#fff;background:transparent;z-index:2;resize:none}
+  .richTextarea::placeholder{color:#6b748d}
+  .richFooter{padding:8px 14px;border-top:1px solid #2d3756;color:#6b748d;font-size:11px;background:rgba(20,27,49,.4)}

@@ -4,6 +4,7 @@ import { AudioPanel, type AudioPanelProps } from "./panels/AudioPanel";
 import { SubtitlesPanel, type SubtitlesPanelProps } from "./panels/SubtitlesPanel";
 import { TemplatesPanel, type TemplatesPanelProps } from "./panels/TemplatesPanel";
 import { SettingsPanel, type SettingsPanelProps } from "./panels/SettingsPanel";
+import { BrandKitPanel, type BrandKitPanelProps } from "./panels/BrandKitPanel";
 
 const TOOLS = [
   { id: "media", label: "Media", icon: "🖼️" },
@@ -11,7 +12,8 @@ const TOOLS = [
   { id: "subtitles", label: "Subtitles", icon: "💬" },
   { id: "templates", label: "Templates", icon: "🧩" },
   { id: "settings", label: "Settings", icon: "⚙️" },
-] as const;
+  { id: "brandkit", label: "Brand", icon: "🎨" },
+];
 
 type ToolId = typeof TOOLS[number]["id"];
 
@@ -21,6 +23,7 @@ export type EditorSidebarProps = {
   subtitles?: SubtitlesPanelProps;
   templates?: TemplatesPanelProps;
   settings?: SettingsPanelProps;
+  brandkit?: BrandKitPanelProps;
 };
 
 export function EditorSidebar(props: EditorSidebarProps) {
@@ -48,7 +51,8 @@ export function EditorSidebar(props: EditorSidebarProps) {
           {active === "audio" && <AudioPanel onPick={props.audio?.onPick} />}
           {active === "subtitles" && <SubtitlesPanel onPick={props.subtitles?.onPick} activeId={props.subtitles?.activeId} />}
           {active === "templates" && <TemplatesPanel onPick={props.templates?.onPick} />}
-          {active === "settings" && <SettingsPanel onChange={props.settings?.onChange} initial={props.settings?.initial} />}
+          {active === "settings" && <SettingsPanel onChange={props.settings?.onChange} initial={props.settings?.initial} />}          {active === "brandkit" && <BrandKitPanel onChange={props.brandkit?.onChange} initial={props.brandkit?.initial} />}
+          {active === "brandkit" && <BrandKitPanel onChange={props.brandkit?.onChange} initial={props.brandkit?.initial} />}
         </div>
       )}
     </div>
