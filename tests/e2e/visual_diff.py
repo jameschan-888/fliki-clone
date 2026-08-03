@@ -1,3 +1,5 @@
+DEFAULT_THRESHOLD = 0.001
+
 """Pixel diff smoke for Marketing pages.
 
 默认模式: 拿当前构建的 dist 截图与 baselines/*.png 比较；超过阈值 (默认 0.5% 像素) 视为视觉退化。
@@ -130,7 +132,7 @@ def diff_pixels(a, b):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--threshold", type=float, default=0.005, help="差异比例上限, 默认 0.5%")
+    ap.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD, help="差异比例上限, 默认 0.5%")
     ap.add_argument("--update-baselines", action="store_true")
     args = ap.parse_args()
 

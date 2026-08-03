@@ -90,6 +90,15 @@ const allPhases = [
     setup: "scripts/lib/ci_backend_setup.js",
     allowFail: false,
   },
+  {
+    // P1-3: 像素级视觉回归. 阈值 0.1% (用户最新要求). 复用前端 build 产物. 
+    name: "前端视觉回归 (visual_diff)",
+    cmd: "python",
+    args: ["tests/e2e/visual_diff.py", "--threshold", "0.001"],
+    cwd: ROOT,
+    setup: "scripts/lib/build_dist_if_needed.js",
+    allowFail: false,
+  }
 ];
 
 const phases = mode === "offline"
