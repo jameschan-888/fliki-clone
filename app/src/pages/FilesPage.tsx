@@ -140,6 +140,18 @@ export function FilesPage() {
     setSelected(ns);
   }
 
+  async function shareDraft(id: string) {
+    const draftId = id.startsWith("draft-") ? id.slice(6) : "";
+    if (!draftId) return;
+    try {
+      const token = localStorage.getItem("fliki-auth-token") || "";
+      const response = await fetch("/workflow-drafts/" + encodeURIComponent(draftId) + "/share", { method: "POST", headers: { Authorization: "Bearer " + token } });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail?.message || "分享链接创建失败");
+      await navigator.clipboard?.writeText(new URL(body.url, window.location.origin).toString());
+      setError("分享链接已复制");
+    } catch (shareError) { setError(shareError instanceof Error ? shareError.message : "分享失败"); }
+  }
   function bulkDelete() {
     if (selected.size === 0) return;
     if (!confirm("确定要删除选中的 " + selected.size + " 个文件吗?")) return;
@@ -223,7 +235,7 @@ export function FilesPage() {
                 <span className="meta">{fmtRel(f.updated_at)}</span>
                 <span className="meta">{f.meta || ""}</span>
                 <div className="actions">
-                  <button onClick={function () { window.location.href = f.href; }}>打开</button>
+                  <button onClick={function () { window.location.href = f.href; }}>打开</button>{f.id.startsWith("draft-") && <button onClick={function () { void shareDraft(f.id); }}>分享</button>}
                   <button onClick={function () { setFiles(function (arr) { return arr.filter(function (x) { return x.id !== f.id; }); }); }}>删除</button>
                 </div>
               </div>

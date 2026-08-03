@@ -50,6 +50,7 @@ from metrics_router import create_router as create_metrics_router
 from audit_router import create_router as create_audit_router
 from workspace_router import create_router as create_workspace_router
 from billing_router import create_router as create_billing_router
+from share_router import create_router as create_share_router
 
 
 hydrate_env_from_disk()
@@ -131,6 +132,7 @@ app.include_router(create_metrics_router(get_db))
 app.include_router(create_audit_router(get_db))
 app.include_router(create_workspace_router(get_db))
 app.include_router(create_billing_router(get_db))
+app.include_router(create_share_router(get_db))
 
 
 app.include_router(create_workflow_pipeline_router(get_db, render_create, RenderCreateBody))
