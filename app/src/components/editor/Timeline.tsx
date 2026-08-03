@@ -1,4 +1,39 @@
 import { useState } from "react";
+// P3.3: Timeline element/layer thumbnail mapping. 来自 app/public/fliki-assets/.
+// element.id 形如 "watermark-abc123", 取前缀 kind 匹配.
+const THUMB_BY_KIND: Record<string, string> = {
+  // elements (16 种 from ELEMENT_TYPES in AdvancedPanels.tsx)
+  shape: "/fliki-assets/videos/info.webp",
+  sticker: "/fliki-assets/videos/training.webp",
+  icon: "/fliki-assets/videos/review.webp",
+  bar: "/fliki-assets/videos/ad.webp",
+  arrow: "/fliki-assets/videos/promo.webp",
+  cta: "/fliki-assets/videos/promo.webp",
+  highlight: "/fliki-assets/testimonials/maya.webp",
+  line: "/fliki-assets/testimonials/rachel.webp",
+  "lower-third": "/fliki-assets/testimonials/james.webp",
+  bubble: "/fliki-assets/videos/educational.webp",
+  counter: "/fliki-assets/videos/explainer.webp",
+  "background-blur": "/fliki-assets/series/creators.webp",
+  lottie: "/fliki-assets/videos/ad.webp",
+  caption: "/fliki-assets/videos/tutorial.webp",
+  logo: "/fliki-assets/testimonials/rachel.webp",
+  watermark: "/fliki-assets/series/ep1.webp",
+  // layers
+  background: "/fliki-assets/series/creators.webp",
+  video: "/fliki-assets/videos/promo.webp",
+  avatar: "/fliki-assets/testimonials/maya.webp",
+  element: "/fliki-assets/videos/info.webp",
+  subtitle: "/fliki-assets/videos/tutorial.webp",
+};
+
+function thumbFor(id: string): string | null {
+  if (!id) return null;
+  if (THUMB_BY_KIND[id]) return THUMB_BY_KIND[id];
+  const prefix = id.split("-")[0];
+  return THUMB_BY_KIND[prefix] || null;
+}
+
 import { editorStore, editorActions, useEditorState } from "./editorStore";
 
 export type TimelineScene = {
@@ -183,6 +218,7 @@ export function Timeline(props: TimelineProps) {
   function renderClip(c: Clip, kind: string) {
     const w = Math.max(40, (c.duration_seconds || 1) * 60 * zoom);
     const opacity = c.opacity != null ? c.opacity / 100 : 1;
+    const thumbnailUrl = c.id ? thumbFor(c.id) : null;
     const layerKey = (c.kind && (editorStore.kindColor as any)[c.kind]) ? c.kind : null;
     const bgLayer = layerKey ? (editorStore.kindColor as any)[layerKey] : "#5b6cff";
     const bgEl = c.character_id ? "#f5a524" : (c.kind === "element" ? "#19b5c5" : bgLayer);
@@ -196,7 +232,23 @@ export function Timeline(props: TimelineProps) {
         title={c.label + " · " + (c.duration_seconds || 0) + "s" + (c.opacity != null ? " · " + c.opacity + "%" : "")}
       >
         {kind === "scene" && <span className="idx">{(c.scene_index || 0) + 1}</span>}
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</span>
+        {thumbnailUrl && (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            data-testid="timeline-thumb"
+            style={{
+              width: 32,
+              height: 18,
+              objectFit: "cover",
+              borderRadius: 2,
+              marginRight: 6,
+              flexShrink: 0,
+              border: "1px solid rgba(255,255,255,0.15)",
+            }}
+          />
+        )}
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{c.label}</span>
         <span className="dur">{c.duration_seconds ? c.duration_seconds.toFixed(1) + "s" : ""}</span>
       </div>
     );
