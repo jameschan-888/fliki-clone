@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>登录 | 本地视频制作台</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#eef2ff;background:radial-gradient(circle at 80% 0,#293669 0,transparent 38%),#0c1020;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:100%;max-width:420px;padding:36px 32px;border:1px solid #2d3756;border-radius:18px;background:linear-gradient(145deg,rgba(30,39,66,.95),rgba(19,25,44,.95));box-shadow:0 8px 40px rgba(0,0,0,.4)}
+    .logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;font-weight:800;font-size:18px;color:#eef2ff;text-decoration:none}
+    .logo .dot{width:10px;height:10px;border-radius:50%;background:#5b6cff;box-shadow:0 0 0 4px rgba(91,108,255,.2)}
+    h1{margin:0 0 6px;font-size:24px}
+    .sub{margin:0 0 24px;color:#9da8c5;font-size:14px}
+    label{display:block;margin:14px 0 6px;font-size:13px;color:#aab3cf;font-weight:600}
+    input{width:100%;padding:11px 14px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:10px;color:#eef2ff;font-size:15px;outline:none}
+    input:focus{border-color:#5b6cff;box-shadow:0 0 0 3px rgba(91,108,255,.15)}
+    .submit{margin-top:22px;width:100%;padding:12px;background:#5b6cff;border:none;border-radius:10px;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+    .submit:hover{background:#718cff}
+    .submit:disabled{opacity:.6;cursor:wait}
+    .alt{margin-top:18px;text-align:center;color:#9da8c5;font-size:13px}
+    .alt a{color:#718cff;text-decoration:none;font-weight:600}
+    .err{margin-top:12px;padding:10px 12px;background:rgba(220,80,80,.15);border:1px solid rgba(220,80,80,.4);border-radius:8px;color:#ff8585;font-size:13px}
+    .ok{margin-top:12px;padding:10px 12px;background:rgba(72,213,139,.12);border:1px solid rgba(72,213,139,.4);border-radius:8px;color:#48d58b;font-size:13px}
+    .strength{margin-top:6px;height:5px;background:rgba(20,27,49,.7);border-radius:3px;overflow:hidden}
+    .strength>div{height:100%;transition:width .2s,background .2s}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main_login.tsx"></script>
+</body>
+</html>

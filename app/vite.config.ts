@@ -20,6 +20,8 @@ export default defineConfig({
         record: resolve(__dirname, "record.html"),
         translate: resolve(__dirname, "translate.html"),
         pricing: resolve(__dirname, "pricing.html"),
+        login: resolve(__dirname, "login.html"),
+        signup: resolve(__dirname, "signup.html"),
       },
     },
   },
