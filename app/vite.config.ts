@@ -27,6 +27,7 @@ export default defineConfig({
         features: resolve(__dirname, "features.html"),
         useCases: resolve(__dirname, "use-cases.html"),
         billing: resolve(__dirname, "billing.html"),
+        share: resolve(__dirname, "share.html"),
       },
     },
   },

@@ -55,7 +55,7 @@ def create_router(get_db=get_db):
                 token, visibility = secrets.token_urlsafe(32), "unlisted"
                 con.execute("INSERT INTO share_links VALUES (?, ?, ?, ?, ?, 'active', ?, NULL)", (uuid.uuid4().hex, token, draft_id, owner, visibility, _now()))
                 con.commit()
-        return {"token": token, "draft_id": draft_id, "visibility": visibility, "url": "/share/" + token, "embed_url": "/share/" + token + "/embed"}
+        return {"token": token, "draft_id": draft_id, "visibility": visibility, "url": "/share.html?token=" + token, "embed_url": "/share.html?token=" + token}
 
     @router.delete("/workflow-drafts/{draft_id}/share")
     def revoke_share(draft_id: str, request: Request):
