@@ -181,6 +181,11 @@ export function ElementsPanel() {
   const [opacity, setOpacity] = useState(100);
   const [size, setSize] = useState(100);
   const [position, setPosition] = useState("bottom-right");
+  // P2 drag-resize: 像素级 width/height/x/y, 直接镜像到 Timeline Elements mirror track
+  const [width, setWidth] = useState(200);
+  const [height, setHeight] = useState(200);
+  const [x, setX] = useState(540);
+  const [y, setY] = useState(260);
   const elements = useEditorState((s: any) => s.elements);
 
   const active = ELEMENT_TYPES.find((e) => e.id === selected);
@@ -192,6 +197,10 @@ export function ElementsPanel() {
       position: position as any,
       size,
       opacity,
+      width,
+      height,
+      x,
+      y,
     });
   }
 
@@ -249,6 +258,22 @@ export function ElementsPanel() {
               <option value="bottom-right">右下</option>
               <option value="center">居中</option>
             </select>
+          </label>
+          <label className="inspectorRow" data-testid="element-width-row">
+            <span>宽度 (px)</span>
+            <input type="number" min={20} max={1280} value={width} onChange={(ev) => setWidth(Number(ev.target.value) || 0)} />
+          </label>
+          <label className="inspectorRow" data-testid="element-height-row">
+            <span>高度 (px)</span>
+            <input type="number" min={20} max={720} value={height} onChange={(ev) => setHeight(Number(ev.target.value) || 0)} />
+          </label>
+          <label className="inspectorRow" data-testid="element-x-row">
+            <span>X 偏移 (px)</span>
+            <input type="number" min={0} max={1280} value={x} onChange={(ev) => setX(Number(ev.target.value) || 0)} />
+          </label>
+          <label className="inspectorRow" data-testid="element-y-row">
+            <span>Y 偏移 (px)</span>
+            <input type="number" min={0} max={720} value={y} onChange={(ev) => setY(Number(ev.target.value) || 0)} />
           </label>
           <div className="elementPreview" style={{ opacity: opacity / 100 }}>
             <span

@@ -154,7 +154,7 @@ export function Timeline(props: TimelineProps) {
     source: "Elements panel",
     clips: elements.map((e: any, i: number) => ({
       id: e.id,
-      label: e.position + " · " + e.size + "% · " + e.opacity + "%",
+      label: e.position + " · " + e.size + "% · " + e.opacity + "% · " + e.width + "x" + e.height + "@(" + e.x + "," + e.y + ")",
       duration_seconds: totalDuration / Math.max(1, elements.length),
       kind: "element",
       opacity: e.opacity,

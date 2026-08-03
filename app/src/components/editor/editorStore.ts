@@ -18,6 +18,11 @@ export type ElementChoice = {
   position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
   size: number;
   opacity: number;
+  // P2 drag-resize: 像素级 width/height + x/y 偏移 (基于 1280x720 画布)
+  width: number;
+  height: number;
+  x: number;
+  y: number;
 };
 
 export type CharacterChoice = {
@@ -167,6 +172,10 @@ export const editorActions = {
         position: el.position,
         size: el.size,
         opacity: el.opacity,
+        width: el.width ?? 200,
+        height: el.height ?? 200,
+        x: el.x ?? 540,
+        y: el.y ?? 260,
       };
       return { ...s, elements: s.elements.concat(next) };
     });
@@ -179,6 +188,15 @@ export const editorActions = {
   },
   setElementSize(id: string, size: number) {
     setState((s) => ({ ...s, elements: s.elements.map((e) => e.id === id ? { ...e, size } : e) }));
+  },
+  // P2 drag-resize: 像素级 width/height + x/y 镜像到 Timeline mirror tracks
+  setElementGeometry(id: string, geom: { width?: number; height?: number; x?: number; y?: number }) {
+    setState((s) => ({
+      ...s,
+      elements: s.elements.map((e) => e.id === id
+        ? { ...e, ...(geom.width != null ? { width: geom.width } : {}), ...(geom.height != null ? { height: geom.height } : {}), ...(geom.x != null ? { x: geom.x } : {}), ...(geom.y != null ? { y: geom.y } : {}) }
+        : e),
+    }));
   },
   selectCharacter(c: CharacterChoice) {
     setState((s) => ({ ...s, character: c }));

@@ -67,8 +67,8 @@ describe("editorStore / editorActions", () => {
   });
 
   it("addElement + removeElement + setElementOpacity mutate the elements array", () => {
-    editorActions.addElement({ id: "el1", position: "top-left", size: 50, opacity: 80 });
-    editorActions.addElement({ id: "el2", position: "center", size: 30, opacity: 100 });
+    editorActions.addElement({ id: "el1", position: "top-left", size: 50, opacity: 80, width: 100, height: 100, x: 100, y: 100 });
+    editorActions.addElement({ id: "el2", position: "center", size: 30, opacity: 100, width: 200, height: 200, x: 540, y: 260 });
     const id = getState().elements[0].id;
     editorActions.setElementOpacity(id, 25);
     expect(getState().elements[0].opacity).toBe(25);
@@ -94,7 +94,7 @@ describe("editorStore / editorActions", () => {
 
   it("reset() restores DEFAULT_LAYERS + null character", () => {
     editorActions.toggleLayer(DEFAULT_LAYERS[0].id);
-    editorActions.addElement({ position: "top-right", size: 10, opacity: 10 });
+    editorActions.addElement({ position: "top-right", size: 10, opacity: 10, width: 50, height: 50, x: 0, y: 0 });
     editorActions.selectCharacter({ id: "x", name: "X", style: "X", region: "X", start_seconds: 0 });
     editorActions.reset();
     const s = getState();
@@ -103,4 +103,26 @@ describe("editorStore / editorActions", () => {
     expect(s.elements.length).toBe(0);
     expect(s.layers[0].visible).toBe(DEFAULT_LAYERS[0].visible);
   });
+
+  it("setElementGeometry mutates only the specified fields (pixel-level drag-resize)", () => {
+    editorActions.addElement({ id: "g1", position: "center", size: 100, opacity: 100, width: 200, height: 200, x: 540, y: 260 });
+    // 改 width
+    editorActions.setElementGeometry("g1", { width: 320 });
+    let g = getState().elements[0];
+    expect(g.width).toBe(320);
+    expect(g.height).toBe(200);
+    expect(g.x).toBe(540);
+    expect(g.y).toBe(260);
+    // 改 x/y
+    editorActions.setElementGeometry("g1", { x: 100, y: 50 });
+    g = getState().elements[0];
+    expect(g.x).toBe(100);
+    expect(g.y).toBe(50);
+    expect(g.width).toBe(320);
+    // 不存在的 id 是 no-op
+    const before = getState().elements.length;
+    editorActions.setElementGeometry("does-not-exist", { width: 999 });
+    expect(getState().elements.length).toBe(before);
+  });
+
 });
