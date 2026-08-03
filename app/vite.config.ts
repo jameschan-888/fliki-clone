@@ -19,6 +19,7 @@ export default defineConfig({
         ppt: resolve(__dirname, "ppt.html"),
         record: resolve(__dirname, "record.html"),
         translate: resolve(__dirname, "translate.html"),
+        pricing: resolve(__dirname, "pricing.html"),
       },
     },
   },

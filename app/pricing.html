@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>定价 | 本地视频制作台</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#eef2ff;background:radial-gradient(circle at 20% 0,#293669 0,transparent 38%),#0c1020}
+    .shell{max-width:1180px;margin:auto;padding:56px 24px}
+    .eyebrow{color:#8ba7ff;font-size:12px;font-weight:800;letter-spacing:1.5px}
+    h1{font-size:42px;margin:8px 0 12px;letter-spacing:-1px}
+    .lead{max-width:760px;color:#aab3cf;font-size:17px;line-height:1.7}
+    .toggle{display:inline-flex;gap:6px;margin:22px 0 30px;padding:5px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:999px}
+    .toggle button{padding:8px 18px;background:transparent;border:none;border-radius:999px;color:#aab3cf;font-weight:700;cursor:pointer}
+    .toggle button.active{background:#5b6cff;color:#fff}
+    .plans{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin:6px 0 36px}
+    .plan{padding:24px;border:1px solid #2d3756;border-radius:18px;background:linear-gradient(145deg,rgba(30,39,66,.95),rgba(19,25,44,.95));position:relative}
+    .plan.featured{border-color:#718cff;box-shadow:0 0 0 1px rgba(113,140,255,.4)}
+    .plan-badge{position:absolute;top:-12px;right:18px;background:#718cff;color:#fff;font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px}
+    .plan-name{font-size:14px;color:#8ba7ff;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+    .plan-price{margin:10px 0 4px;font-size:38px;font-weight:800}
+    .plan-price small{font-size:14px;color:#9da8c5;font-weight:600;margin-left:4px}
+    .plan-price .old{font-size:14px;color:#6b748d;text-decoration:line-through;margin-left:8px;font-weight:600}
+    .plan-desc{color:#9da8c5;font-size:13px;line-height:1.55;min-height:42px}
+    .plan-cta{display:block;margin:18px 0;text-align:center;padding:10px;background:#5b6cff;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;text-decoration:none}
+    .plan-cta:hover{background:#718cff}
+    .plan-cta.ghost{background:transparent;border:1px solid #3a4a7c}
+    .plan ul{margin:0;padding:0;list-style:none;color:#cfd5ee;font-size:13px;line-height:1.85}
+    .plan ul li::before{content:"✓";color:#48d58b;margin-right:8px;font-weight:800}
+    .plan ul li.no::before{content:"—";color:#6b748d}
+    .compare{margin:36px 0 0;overflow-x:auto}
+    .compare table{width:100%;border-collapse:collapse;font-size:14px}
+    .compare th,.compare td{padding:14px 12px;text-align:center;border-bottom:1px solid #2d3756;color:#cfd5ee}
+    .compare th{color:#8ba7ff;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;background:rgba(20,27,49,.4)}
+    .compare th:first-child,.compare td:first-child{text-align:left;color:#aab3cf;font-weight:600}
+    .compare tr:hover td{background:rgba(113,140,255,.06)}
+    .compare .check{color:#48d58b;font-weight:800}
+    .compare .dash{color:#6b748d}
+    .workflows{margin:48px 0 24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .wf{padding:18px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.4)}
+    .wf h3{margin:0 0 6px;font-size:16px;color:#eef2ff}
+    .wf p{margin:0;color:#9da8c5;font-size:13px;line-height:1.55}
+    .wf small{color:#8ba7ff;font-weight:700;display:block;margin-bottom:4px;font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+    .faq{margin:48px 0 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .faq-item{padding:18px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.4)}
+    .faq-item h4{margin:0 0 8px;font-size:15px;color:#eef2ff}
+    .faq-item p{margin:0;color:#9da8c5;font-size:13px;line-height:1.65}
+    .cta-strip{margin:48px 0 0;padding:32px;text-align:center;border:1px solid #2d3756;border-radius:18px;background:linear-gradient(145deg,rgba(113,140,255,.18),rgba(19,25,44,.95))}
+    .cta-strip h2{margin:0 0 8px;font-size:26px}
+    .cta-strip p{margin:0 0 18px;color:#aab3cf}
+    .cta-strip a{display:inline-block;padding:12px 28px;background:#5b6cff;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;text-decoration:none}
+    @media(max-width:980px){.plans{grid-template-columns:repeat(2,minmax(0,1fr))}.workflows,.faq{grid-template-columns:1fr}}
+    @media(max-width:560px){.plans{grid-template-columns:1fr}.shell{padding:32px 16px}h1{font-size:30px}}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main_pricing.tsx"></script>
+</body>
+</html>
