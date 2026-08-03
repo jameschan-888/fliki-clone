@@ -4,6 +4,8 @@
 - MVP: 接收前端解析后的 slides JSON, 每页一个 scene
 - 后续 P1: 直接接 .pptx 上传
 """
+import uuid
+from pathlib import Path
 from workflows import build_workflow_router
 
 
@@ -65,11 +67,21 @@ def _ppt_to_scenes_extended(body, language):
                 body["slides"] = parsed
     return _ppt_to_scenes(body, language)
 def create_router(get_db):
-    return build_workflow_router(
-        prefix="/workflow-ppt",
-        tag="workflow-ppt",
-        source_to_scenes=_ppt_to_scenes_extended,
-        get_db=get_db,
-        max_source_length=50000,
-        source_label="slides",
-    )
+    router = build_workflow_router(prefix="/workflow-ppt", tag="workflow-ppt", source_to_scenes=_ppt_to_scenes_extended, get_db=get_db, max_source_length=50000, source_label="slides")
+    from fastapi import HTTPException, Request
+    from auth_router import get_user_id_from_request
+    @router.post("/upload")
+    async def upload_pptx(request: Request):
+        user_id = get_user_id_from_request(request)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        form = await request.form()
+        upload = form.get("pptx")
+        if upload is None or not hasattr(upload, "read"):
+            raise HTTPException(status_code=422, detail="pptx 文件不能为空")
+        target_dir = Path("data/uploads/pptx")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / (str(user_id) + "_" + uuid.uuid4().hex + ".pptx")
+        target.write_bytes(await upload.read())
+        return {"pptx_path": str(target), "filename": target.name}
+    return router
