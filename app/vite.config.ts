@@ -26,6 +26,7 @@ export default defineConfig({
         playground: resolve(__dirname, "playground.html"),        characters: resolve(__dirname, "characters.html"),
         features: resolve(__dirname, "features.html"),
         useCases: resolve(__dirname, "use-cases.html"),
+        billing: resolve(__dirname, "billing.html"),
       },
     },
   },
