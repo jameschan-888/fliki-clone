@@ -31,6 +31,7 @@ import type { TemplateMeta } from "./api/drafts";
 import { ensureSession } from "./api/auth";
 import { Composer, computeTemplateCompletion, findNextIncompleteScene } from "./components/editor/Composer";
 import { ChatBar } from "./components/editor/ChatBar";
+import { Timeline } from "./components/editor/Timeline";
 import { getTemplateCatalogSnapshot, loadTemplateCatalogWithRetry, subscribeTemplateCache } from "./api/templateCache";
 
 const sample = "一条好视频，先从清晰的脚本开始。系统会把脚本拆成可编辑场景。你可以修改旁白、画面、声音和时长。只有确认后，才会调用素材、配音、音乐和渲染，避免浪费接口额度和算力。";
@@ -618,6 +619,17 @@ export default function App() {
             />
           )}
         </section>
+      )}
+
+      {draft && composerOpen && (
+        <Timeline
+          scenes={draft.scenes.map(function (sc, i) { return { id: sc.id, index: i, duration_seconds: sc.duration_seconds || 4, subtitle: sc.subtitle_display || sc.subtitle || "", voice: sc.voice || "", visual: sc.visual_intent || sc.visual_intent || "" }; })}
+          audio_clips={draft.scenes.filter(function (sc) { return !!sc.voice; }).map(function (sc, i) { return { id: "a-" + sc.id, label: sc.voice, duration_seconds: sc.duration_seconds || 4 }; })}
+          music_clips={outputFile ? [{ id: "m-bg", label: "Background", duration_seconds: draft.scenes.reduce(function (s, sc) { return s + (sc.duration_seconds || 4); }, 0) }] : []}
+          transcript_clips={draft.scenes.map(function (sc, i) { return { id: "t-" + sc.id, label: (sc.subtitle_display || "").slice(0, 12), duration_seconds: sc.duration_seconds || 4, scene_index: i }; })}
+          onSelectScene={function (id) { var sc = draft.scenes.find(function (s) { return s.id === id; }); if (sc) setComposerFocusSceneId(sc.id); }}
+          onAddScene={function () { setMessage("请在 Composer 中新增场景"); }}
+        />
       )}
 
 {historyOpen && (
