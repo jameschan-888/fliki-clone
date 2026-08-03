@@ -71,7 +71,7 @@ def shot(page, url: str, out: Path, label: str) -> bool:
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=15000)
         page.wait_for_timeout(800)
-        page.screenshot(path=str(out), full_page=False)
+        page.screenshot(path=str(out), full_page=True)
         print(f"  [{label}] -> {out.name} ({out.stat().st_size} bytes)")
         return True
     except (PWTimeout, Exception) as e:

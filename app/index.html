@@ -9,16 +9,13 @@
 
 .hero-input{display:flex;gap:10px;max-width:720px;margin:24px 0 30px;padding:8px;background:rgba(20,27,49,.7);border:1px solid #3a4a7c;border-radius:14px}.hero-input input{flex:1;padding:12px 14px;background:transparent;border:none;color:#eef2ff;font-size:15px;outline:none}.hero-input button{padding:10px 22px;background:#5b6cff;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer}.hero-input button:hover{background:#718cff}.stats{display:flex;flex-wrap:wrap;gap:32px;margin:24px 0 30px}.stats>div{display:flex;flex-direction:column}.stats strong{font-size:30px;color:#eef2ff;font-weight:800;letter-spacing:-.5px}.stats span{font-size:12px;color:#8ba7ff;letter-spacing:.5px;text-transform:uppercase;margin-top:4px}.customers{margin:24px 0 36px;padding:18px 0;border-top:1px solid #2d3756;border-bottom:1px solid #2d3756}.customers-label{font-size:11px;color:#8ba7ff;letter-spacing:1.5px;text-transform:uppercase;font-weight:800}.customer-row{display:flex;flex-wrap:wrap;gap:18px 30px;margin-top:14px}.customer-row span{font-size:14px;font-weight:600;color:#9da8c5;letter-spacing:.3px}@media(max-width:720px){.hero-input{flex-direction:column}.stats{gap:18px}}
 
-/* P2: video gallery (fliki.ai 1:1) */
-.gallery{margin:48px 0 32px}.gallery h2{font-size:28px;margin:0 0 6px;letter-spacing:-.5px}.gallery .lead{margin:0 0 22px}.vidGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.vidThumb{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#1a2342,#0e1530);border:1px solid #2d3756;display:flex;align-items:flex-end;padding:14px;color:#eef2ff;text-decoration:none;transition:.2s transform,.2s border-color}.vidThumb:hover{transform:translateY(-3px);border-color:#718cff}.vidThumb::before{content:"▶";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;background:rgba(91,108,255,.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;padding-left:4px}.vidThumb span{position:relative;z-index:1;font-weight:700;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.6)}@media(max-width:720px){.vidGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.gallery{margin:48px 0 32px}.gallery h2{font-size:28px;margin:0 0 6px;letter-spacing:-.5px}.gallery .lead{margin:0 0 22px}.vidGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.vidThumb{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#1a2342,#0e1530);border:1px solid #2d3756;display:flex;align-items:flex-end;padding:14px;color:#eef2ff;text-decoration:none;transition:.2s transform,.2s border-color;background-size:cover;background-position:center}.vidThumb:hover{transform:translateY(-3px);border-color:#718cff}.vidThumb::before{content:"\25B6";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;background:rgba(91,108,255,.85);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;padding-left:4px;z-index:2}.vidThumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.7));z-index:1}.vidThumb span{position:relative;z-index:3;font-weight:700;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.8)}@media(max-width:720px){.vidGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* P2: big 4-feature sections (fliki Text-to-Video / TTS / Series / Digital Twin) */
-.bigs{display:grid;gap:48px;margin:56px 0}.big{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;padding:32px;border:1px solid #2d3756;border-radius:24px;background:linear-gradient(160deg,rgba(30,39,66,.65),rgba(15,20,40,.65))}.big.flip{grid-template-columns:.9fr 1.1fr;direction:rtl}.big.flip>*{direction:ltr}.big .eyebrow{color:#5b6cff;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}.big h2{font-size:30px;margin:0 0 14px;letter-spacing:-.5px;line-height:1.25}.big p{color:#aab3cf;font-size:15px;line-height:1.7;margin:0 0 18px}.big ul{list-style:none;padding:0;margin:0 0 22px}.big li{padding:8px 0;color:#cfd5ee;font-size:14px;display:flex;align-items:center;gap:10px}.big li::before{content:"✓";color:#48d58b;font-weight:800;font-size:16px}.big .visual{aspect-ratio:4/3;border-radius:18px;background:linear-gradient(135deg,#293669,#0e1530);border:1px solid #2d3756;display:flex;align-items:center;justify-content:center;font-size:80px;color:#5b6cff;position:relative;overflow:hidden}.big .visual::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(91,108,255,.25),transparent 60%)}.big .cta{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#5b6cff;border-radius:10px;color:#fff;text-decoration:none;font-weight:700;font-size:14px;transition:.2s}.big .cta:hover{background:#718cff}@media(max-width:860px){.big,.big.flip{grid-template-columns:1fr;direction:ltr}}
+.bigs{display:grid;gap:48px;margin:56px 0}.big{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;padding:32px;border:1px solid #2d3756;border-radius:24px;background:linear-gradient(160deg,rgba(30,39,66,.65),rgba(15,20,40,.65))}.big.flip{grid-template-columns:.9fr 1.1fr;direction:rtl}.big.flip>*{direction:ltr}.big .eyebrow{color:#5b6cff;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}.big h2{font-size:30px;margin:0 0 14px;letter-spacing:-.5px;line-height:1.25}.big p{color:#aab3cf;font-size:15px;line-height:1.7;margin:0 0 18px}.big ul{list-style:none;padding:0;margin:0 0 22px}.big li{padding:8px 0;color:#cfd5ee;font-size:14px;display:flex;align-items:center;gap:10px}.big li::before{content:"\2713";color:#48d58b;font-weight:800;font-size:16px}.big .visual{aspect-ratio:4/3;border-radius:18px;background:linear-gradient(135deg,#293669,#0e1530);border:1px solid #2d3756;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}.big .visual img,.big .visual .epStack{width:100%;height:100%;object-fit:cover;display:block}.big .epStack{display:flex;flex-direction:column;gap:6px;padding:14px}.big .epStack .ep{flex:1;border-radius:8px;background-size:cover;background-position:center;border:1px solid rgba(255,255,255,.08);position:relative;display:flex;align-items:flex-end;padding:8px;font-size:10px;color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.8)}.big .visual.creators img{object-fit:cover}.big .cta{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#5b6cff;border-radius:10px;color:#fff;text-decoration:none;font-weight:700;font-size:14px;transition:.2s}.big .cta:hover{background:#718cff}@media(max-width:860px){.big,.big.flip{grid-template-columns:1fr;direction:ltr}}
 
-/* P2: testimonials (creator love) */
-.testi{margin:64px 0 48px}.testi .head{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:14px;margin-bottom:28px}.testi h2{font-size:30px;margin:0;letter-spacing:-.5px}.testi .stars{color:#f5a524;font-size:14px;letter-spacing:2px}.testi .score{color:#aab3cf;font-size:14px;margin-left:10px}.tGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.tCard{padding:24px;border:1px solid #2d3756;border-radius:18px;background:linear-gradient(160deg,rgba(30,39,66,.6),rgba(15,20,40,.6));display:flex;flex-direction:column;gap:16px}.tCard .quote{font-size:14px;line-height:1.65;color:#cfd5ee;margin:0;flex:1}.tCard .who{display:flex;align-items:center;gap:12px;border-top:1px solid #2d3756;padding-top:14px}.tCard .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#5b6cff,#48d58b);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex-shrink:0}.tCard .meta strong{display:block;font-size:13px;color:#eef2ff}.tCard .meta span{font-size:11px;color:#9da8c5}@media(max-width:860px){.tGrid{grid-template-columns:1fr}}
+.testi{margin:64px 0 48px}.testi .head{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:14px;margin-bottom:28px}.testi h2{font-size:30px;margin:0;letter-spacing:-.5px}.testi .stars{color:#f5a524;font-size:14px;letter-spacing:2px}.testi .score{color:#aab3cf;font-size:14px;margin-left:10px}.tGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.tCard{padding:24px;border:1px solid #2d3756;border-radius:18px;background:linear-gradient(160deg,rgba(30,39,66,.6),rgba(15,20,40,.6));display:flex;flex-direction:column;gap:16px}.tCard .quote{font-size:14px;line-height:1.65;color:#cfd5ee;margin:0;flex:1}.tCard .who{display:flex;align-items:center;gap:12px;border-top:1px solid #2d3756;padding-top:14px}.tCard .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#5b6cff,#48d58b);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex-shrink:0;overflow:hidden;background-size:cover;background-position:center}.tCard .avatar img{width:100%;height:100%;object-fit:cover;display:block}.tCard .meta strong{display:block;font-size:13px;color:#eef2ff}.tCard .meta span{font-size:11px;color:#9da8c5}@media(max-width:860px){.tGrid{grid-template-columns:1fr}}
 
-.featuresGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0 32px}.feat{display:block;padding:20px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.5);color:inherit;text-decoration:none;transition:.2s transform,.2s border-color}.feat:hover{transform:translateY(-3px);border-color:#718cff}.featIcon{font-size:28px}.feat h3{margin:12px 0 6px;font-size:16px;color:#eef2ff}.feat p{margin:0;color:#9da8c5;font-size:13px;line-height:1.55}.faqWrap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 32px}.faq{padding:16px 18px;border:1px solid #2d3756;border-radius:12px;background:rgba(20,27,49,.4);cursor:pointer}.faq summary{font-weight:700;color:#eef2ff;font-size:14px;outline:none;list-style:none}.faq summary::-webkit-details-marker{display:none}.faq p{margin:10px 0 0;color:#9da8c5;font-size:13px;line-height:1.6}.ft{margin-top:48px;padding:40px 24px 24px;border-top:1px solid #2d3756;background:linear-gradient(180deg,rgba(20,27,49,0),rgba(20,27,49,.4))}.ftGrid{max-width:1180px;margin:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:32px}.ftCol h4{margin:0 0 12px;font-size:11px;color:#8ba7ff;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.ftCol ul{margin:0;padding:0;list-style:none}.ftCol li{margin:7px 0;font-size:13px}.ftCol a{color:#cfd5ee;text-decoration:none}.ftCol a:hover{color:#718cff}.ftBottom{max-width:1180px;margin:32px auto 0;padding-top:20px;border-top:1px solid #2d3756;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}.ftBrand{display:flex;align-items:center;gap:10px;font-weight:800;color:#eef2ff;text-decoration:none}.ftDot{width:9px;height:9px;border-radius:50%;background:#5b6cff;box-shadow:0 0 0 4px rgba(91,108,255,.2)}.ftSocial{display:flex;gap:8px}.ftSocial a{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #2d3756;border-radius:50%;color:#9da8c5;text-decoration:none;font-size:13px}.ftSocial a:hover{bo   rder-color:#718cff;color:#eef2ff}.ftMeta{font-size:12px;color:#8f9ab9}.ftLegal a{color:#8f9ab9;text-decoration:none;margin-right:14px}.ftLegal a:hover{color:#cfd5ee}@media(max-width:860px){.ftGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.featuresGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:24px 0 32px}.feat{display:block;padding:20px;border:1px solid #2d3756;border-radius:14px;background:rgba(20,27,49,.5);color:inherit;text-decoration:none;transition:.2s transform,.2s border-color}.feat:hover{transform:translateY(-3px);border-color:#718cff}.featIcon{font-size:28px}.feat h3{margin:12px 0 6px;font-size:16px;color:#eef2ff}.feat p{margin:0;color:#9da8c5;font-size:13px;line-height:1.55}.faqWrap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 32px}.faq{padding:16px 18px;border:1px solid #2d3756;border-radius:12px;background:rgba(20,27,49,.4);cursor:pointer}.faq summary{font-weight:700;color:#eef2ff;font-size:14px;outline:none;list-style:none}.faq summary::-webkit-details-marker{display:none}.faq p{margin:10px 0 0;color:#9da8c5;font-size:13px;line-height:1.6}.ft{margin-top:48px;padding:40px 24px 24px;border-top:1px solid #2d3756;background:linear-gradient(180deg,rgba(20,27,49,0),rgba(20,27,49,.4))}.ftGrid{max-width:1180px;margin:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:32px}.ftCol h4{margin:0 0 12px;font-size:11px;color:#8ba7ff;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.ftCol ul{margin:0;padding:0;list-style:none}.ftCol li{margin:7px 0;font-size:13px}.ftCol a{color:#cfd5ee;text-decoration:none}.ftCol a:hover{color:#718cff}.ftBottom{max-width:1180px;margin:32px auto 0;padding-top:20px;border-top:1px solid #2d3756;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}.ftBrand{display:flex;align-items:center;gap:10px;font-weight:800;color:#eef2ff;text-decoration:none}.ftDot{width:9px;height:9px;border-radius:50%;background:#5b6cff;box-shadow:0 0 0 4px rgba(91,108,255,.2)}.ftSocial{display:flex;gap:8px}.ftSocial a{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #2d3756;border-radius:50%;color:#9da8c5;text-decoration:none;font-size:13px}.ftSocial a:hover{border-color:#718cff;color:#eef2ff}.ftMeta{font-size:12px;color:#8f9ab9}.ftLegal a{color:#8f9ab9;text-decoration:none;margin-right:14px}.ftLegal a:hover{color:#cfd5ee}@media(max-width:860px){.ftGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body>
@@ -49,15 +46,15 @@
       <h2>See what creators make with our AI video generator</h2>
       <p class="lead">Real videos made with our text-to-video tool in under 5 minutes.</p>
       <div class="vidGrid">
-        <a class="vidThumb" href="/drafts.html"><span>Product Info</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>Promo</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>Training</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>Tutorial</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>Review</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>TikTok</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>Ad</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>Educational</span></a>
-        <a class="vidThumb" href="/drafts.html"><span>Explainer</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/info.webp)"><span>Product Info</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/promo.webp)"><span>Promo</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/training.webp)"><span>Training</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/tutorial.webp)"><span>Tutorial</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/review.webp)"><span>Review</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/ad.webp)"><span>Ad</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/educational.webp)"><span>Educational</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/explainer.webp)"><span>Explainer</span></a>
+        <a class="vidThumb" href="/drafts.html" style="background-image:url(/fliki-assets/videos/info.webp)"><span>Explainer 2</span></a>
       </div>
     </section>
 
@@ -75,7 +72,7 @@
           </ul>
           <a class="cta" href="/drafts.html">Try text-to-video →</a>
         </div>
-        <div class="visual">🎬</div>
+        <div class="visual"><img src="/fliki-assets/videos/promo.webp" alt="Text to Video" loading="lazy" /></div>
       </article>
 
       <article class="big flip">
@@ -91,7 +88,7 @@
           </ul>
           <a class="cta" href="/voices.html">Explore voice library →</a>
         </div>
-        <div class="visual">🎙️</div>
+        <div class="visual"><img src="/fliki-assets/videos/tutorial.webp" alt="Text to Speech" loading="lazy" /></div>
       </article>
 
       <article class="big">
@@ -107,7 +104,13 @@
           </ul>
           <a class="cta" href="/drafts.html">Plan a series →</a>
         </div>
-        <div class="visual">📝</div>
+        <div class="visual">
+          <div class="epStack">
+            <div class="ep" style="background-image:url(/fliki-assets/series/ep1.webp)">Ep. 1</div>
+            <div class="ep" style="background-image:url(/fliki-assets/series/ep2.webp)">Ep. 2</div>
+            <div class="ep" style="background-image:url(/fliki-assets/series/ep3.webp)">Ep. 3</div>
+          </div>
+        </div>
       </article>
 
       <article class="big flip">
@@ -123,7 +126,7 @@
           </ul>
           <a class="cta" href="/avatars.html">Create your digital twin →</a>
         </div>
-        <div class="visual">🧑‍🎤</div>
+        <div class="visual creators"><img src="/fliki-assets/series/creators.webp" alt="Digital Twin" loading="lazy" /></div>
       </article>
     </section>
 
@@ -138,21 +141,21 @@
         <article class="tCard">
           <p class="quote">&ldquo;Fliki is incredibly easy to use. I just upload my script, and it automatically breaks it into smaller segments for me! The voice quality and visuals keep my TikTok audience coming back.&rdquo;</p>
           <div class="who">
-            <div class="avatar">M</div>
+            <div class="avatar"><img src="/fliki-assets/testimonials/maya.webp" alt="Maya Kim" /></div>
             <div class="meta"><strong>Maya Kim</strong><span>TikTok Creator · 2.3M followers</span></div>
           </div>
         </article>
         <article class="tCard">
           <p class="quote">&ldquo;As a busy orthodontist, I don&rsquo;t have time for content creation. Fliki lets me create patient education videos in minutes. My practice has grown 30% since I started posting consistently.&rdquo;</p>
           <div class="who">
-            <div class="avatar">R</div>
+            <div class="avatar"><img src="/fliki-assets/testimonials/rachel.webp" alt="Dr. Rachel Chen" /></div>
             <div class="meta"><strong>Dr. Rachel Chen</strong><span>Solo Practice Owner</span></div>
           </div>
         </article>
         <article class="tCard">
           <p class="quote">&ldquo;We replaced three video tools with Fliki. Script-to-video in 5 minutes, brand kit kept our videos consistent, and the AI dubbing in Spanish doubled our LATAM reach.&rdquo;</p>
           <div class="who">
-            <div class="avatar">J</div>
+            <div class="avatar"><img src="/fliki-assets/testimonials/james.webp" alt="James O’Brien" /></div>
             <div class="meta"><strong>James O’Brien</strong><span>Growth Lead, Series B SaaS</span></div>
           </div>
         </article>
