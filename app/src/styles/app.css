@@ -500,3 +500,48 @@
 .legalFooter a{color:#8ba7ff;text-decoration:none;margin:0 6px;font-weight:600}
 .legalFooter a:hover{text-decoration:underline}
 @media(max-width:640px){.legalBody{padding:6px 16px 20px}.legalSection,.legalExtra{padding:18px}}
+
+.characterCardMini{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #2d3756;border-radius:9px;background:rgba(20,27,49,.4);cursor:pointer;transition:.15s}
+.characterCardMini:hover{border-color:#718cff}
+.characterCardMini.selected{border-color:#48d58b;background:rgba(72,213,139,.1)}
+.characterCardMiniInfo{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.characterCardMiniInfo strong{font-size:13px}
+.characterCardMiniInfo small{font-size:10px;color:#9da8c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.characterDetail{margin-top:14px;padding:14px;border:1px solid #2d3756;border-radius:11px;background:rgba(20,27,49,.6)}
+.characterDetailHead{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.characterDetailHead strong{display:block;font-size:14px}
+.characterDetailHead small{display:block;font-size:11px;color:#9da8c5;margin-top:2px}
+.characterActions{display:flex;gap:8px;margin-top:8px}
+.characterActions button{flex:1;padding:8px;border-radius:8px;border:0;font-size:12px;font-weight:700;cursor:pointer}
+.characterActions .primary{background:#5b6cff;color:#fff}
+.characterActions .primary:disabled{opacity:.65}
+.characterActions .secondary{background:transparent;color:#aab3cf;border:1px solid #3a4a7c}
+.characterDetail progress{width:100%;height:8px;margin-top:10px;appearance:none;-webkit-appearance:none;border:0;border-radius:4px;background:#1d2540;overflow:hidden}
+.characterDetail progress::-webkit-progress-bar{background:#1d2540}
+.characterDetail progress::-webkit-progress-value{background:linear-gradient(90deg,#48d58b,#5b6cff)}
+.elementInspector{margin-top:14px;padding:14px;border:1px solid #2d3756;border-radius:11px;background:rgba(20,27,49,.6)}
+.elementInspector h4{margin:0 0 10px;font-size:13px;color:#8ba7ff}
+.inspectorRow{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:11px;color:#aab3cf}
+.inspectorRow span{width:54px;flex-shrink:0}
+.inspectorRow input[type=range]{flex:1;min-width:0;accent-color:#5b6cff}
+.inspectorRow select{flex:1;background:#151c35;color:#fff;border:1px solid #3a4a7c;border-radius:8px;padding:5px 8px;font-size:11px}
+.inspectorRow small{width:36px;text-align:right;color:#48d58b}
+.elementPreview{display:flex;justify-content:center;align-items:center;padding:14px;margin:10px 0;border:1px dashed #3a4a7c;border-radius:9px;min-height:80px;background:rgba(15,21,40,.4)}
+.recordMeta{margin-top:12px;padding:10px;border-radius:8px;background:rgba(15,21,40,.5);color:#7e88a3;font-size:11px;line-height:1.7}
+.layerRow{display:grid;grid-template-columns:38px 1fr auto;grid-template-rows:auto auto;gap:6px 10px;padding:10px;border:1px solid #2d3756;border-radius:10px;background:rgba(20,27,49,.5);transition:.15s}
+.layerRow.dragging{opacity:.5;border-color:#5b6cff}
+.layerRow.locked{opacity:.7}
+.layerRow.hidden .layerThumb{filter:grayscale(.9) brightness(.55)}
+.layerRow.hidden .layerInfo strong{color:#7e88a3;text-decoration:line-through}
+.layerThumb{grid-row:1/3;width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px}
+.layerInfo{display:flex;flex-direction:column;gap:3px;min-width:0}
+.layerInfo strong{font-size:13px;color:#fff}
+.layerInfo small{font-size:10px;color:#9da8c5}
+.layerActions{display:flex;gap:4px;align-items:center}
+.layerBtn{border:1px solid transparent;background:transparent;color:#cfd5ee;cursor:pointer;font-size:13px;padding:3px 5px;border-radius:6px}
+.layerBtn:hover{border-color:#3a4a7c}
+.layerBtn.danger:hover{border-color:#ff9aa2;color:#ff9aa2}
+.layerOpacity{grid-column:1/4;width:100%;accent-color:#5b6cff}
+.layerQuickRow{display:flex;gap:6px;margin-top:8px}
+.layerQuickRow button{flex:1;padding:6px;border:1px solid #3a4a7c;border-radius:8px;background:transparent;color:#aab3cf;font-size:11px;cursor:pointer}
+.layerQuickRow button:hover{background:#5b6cff;color:#fff;border-color:#5b6cff}
