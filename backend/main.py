@@ -48,6 +48,7 @@ from templates_router import create_router as create_templates_router
 from minimax_voice_clones_router import create_router as create_minimax_voice_clones_router
 from metrics_router import create_router as create_metrics_router
 from audit_router import create_router as create_audit_router
+from workspace_router import create_router as create_workspace_router
 
 
 hydrate_env_from_disk()
@@ -127,6 +128,7 @@ app.include_router(create_templates_router(get_db))
 app.include_router(create_minimax_voice_clones_router(get_db))
 app.include_router(create_metrics_router(get_db))
 app.include_router(create_audit_router(get_db))
+app.include_router(create_workspace_router(get_db))
 
 
 app.include_router(create_workflow_pipeline_router(get_db, render_create, RenderCreateBody))
