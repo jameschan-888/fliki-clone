@@ -79,6 +79,8 @@ def init_db():
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_workflow_runs_user ON workflow_runs(user_id, created_at DESC)")
                 elif table == "render_jobs":
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_render_jobs_user ON render_jobs(user_id, created_at DESC)")
+        from audit_router import ensure_audit_table
+        ensure_audit_table(conn)
         if migrated:
             conn.commit()
         return migrated
