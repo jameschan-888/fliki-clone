@@ -28,6 +28,22 @@ function run(cmd, args, cwd, timeoutMs, extraEnv) {
     env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
   });
 }
+function spawnAsync(cmd, args, cwd, timeoutMs, extraEnv) {
+  const isWin = process.platform === "win32";
+  const needsShell = isWin && (cmd === "npm" || cmd === "npx" || cmd.endsWith(".cmd") || cmd.endsWith(".bat"));
+  const { spawn } = require("child_process");
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, {
+      cwd,
+      shell: needsShell,
+      stdio: "inherit",
+      timeout: timeoutMs || 600_000,
+      env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
+    });
+    child.on("error", (error) => resolve({ status: 1, error }));
+    child.on("close", (code) => resolve({ status: code || 0 }));
+  });
+}
 
 const allPhases = [
   {
@@ -36,6 +52,7 @@ const allPhases = [
     args: ["scripts/check_routes.py", "--fail-on-warn"],
     cwd: ROOT,
     allowFail: false,
+    group: 0,
   },
   {
     name: "后端单元测试 (全量)",
@@ -43,6 +60,7 @@ const allPhases = [
     args: ["-W", "ignore::ResourceWarning", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
     cwd: path.join(ROOT, "backend"),
     allowFail: false,
+    group: 1,
   },
   {
     name: "API 合约测试",
@@ -50,6 +68,7 @@ const allPhases = [
     args: ["-m", "unittest", "tests.test_api_contract"],
     cwd: path.join(ROOT, "backend"),
     allowFail: false,
+    group: 1,
   },
   {
     name: "Provider 联调测试 (联网)",
@@ -59,6 +78,7 @@ const allPhases = [
     kind: "network",
     timeoutMs: 300_000,
     allowFail: true,
+    group: 1,
   },
   {
     name: "Remotion TS 编译",
@@ -66,6 +86,7 @@ const allPhases = [
     args: ["backend/workers/remotion-project/node_modules/typescript/bin/tsc", "--noEmit", "-p", "backend/workers/remotion-project"],
     cwd: ROOT,
     allowFail: false,
+    group: 0,
   },
   {
     name: "前端生产构建",
@@ -73,12 +94,14 @@ const allPhases = [
     args: ["run", "build"],
     cwd: path.join(ROOT, "app"),
     allowFail: false,
+    group: 0,
   },  {
     name: "前端 vitest (RTL 组件测试)",
     cmd: "npm",
     args: ["test"],
     cwd: path.join(ROOT, "app"),
     allowFail: false,
+    group: 1,
   },
   {
     // P1-5 + ROI-2 强 gate: 同步起后端 + 秒级模板预览 smoke, 镜像 GitHub CI 顺序.
@@ -89,6 +112,7 @@ const allPhases = [
     cwd: ROOT,
     setup: "scripts/lib/ci_backend_setup.js",
     allowFail: false,
+    group: 2,
   },
   {
     // P1-3: 像素级视觉回归. 阈值 0.1% (用户最新要求). 复用前端 build 产物. 
@@ -98,6 +122,7 @@ const allPhases = [
     cwd: ROOT,
     setup: "scripts/lib/build_dist_if_needed.js",
     allowFail: false,
+    group: 2,
   }
 ];
 
@@ -137,10 +162,18 @@ function runSetup(setupPath, cwd, timeoutMs) {
 
 const startTime = Date.now();
 const results = [];
-for (const phase of phases) {
-  const t0 = Date.now();
-  console.log(`\n=== [${results.length + 1}/${phases.length}] ${phase.name} ===`);
 
+const phaseGroups = new Map();
+for (const phase of phases) {
+  const gid = phase.group != null ? phase.group : 999;
+  if (!phaseGroups.has(gid)) phaseGroups.set(gid, []);
+  phaseGroups.get(gid).push(phase);
+}
+const sortedGroupIds = Array.from(phaseGroups.keys()).sort((a, b) => a - b);
+
+async function runPhase(phase, globalIdx, totalPhases) {
+  const t0 = Date.now();
+  console.log(`\n=== [${globalIdx}/${totalPhases}] ${phase.name} ===`);
   if (phase.setup) {
     const setupResult = runSetup(phase.setup, phase.cwd || ROOT, 60_000);
     if (setupResult.status !== 0) {
@@ -149,11 +182,10 @@ for (const phase of phases) {
       console.error("[SETUP FAIL]", phase.setup);
       results.push({ name: phase.name, passed: false, elapsed, allowFail: effectiveAllowFail(phase) });
       console.log(`[${elapsed}s] FAIL - ${phase.name} (setup)`);
-      continue;
+      return;
     }
   }
-
-  const result = run(phase.cmd, phase.args, phase.cwd, phase.timeoutMs || 600_000, phaseEnvironment(phase));
+  const result = await spawnAsync(phase.cmd, phase.args, phase.cwd, phase.timeoutMs || 600_000, phaseEnvironment(phase));
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   const passed = result.status === 0;
   if (!passed) {
@@ -164,14 +196,22 @@ for (const phase of phases) {
   console.log(`[${elapsed}s] ${passed ? "OK" : "FAIL"} - ${phase.name}`);
 }
 
-console.log("\n=== 汇总 ===");
-let allOk = true;
-for (const r of results) {
-  const expected = r.passed || r.allowFail;
-  const tag = r.passed ? "OK" : (r.allowFail ? "OK (allowed fail)" : "FAIL");
-  console.log(`  ${tag.padEnd(20)} ${r.elapsed}s  ${r.name}`);
-  if (!expected) allOk = false;
-}
-const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-console.log(`\n模式: ${mode}  总耗时: ${totalElapsed}s`);
-process.exit(allOk ? 0 : 1);
+(async () => {
+  for (const gid of sortedGroupIds) {
+    const groupPhases = phaseGroups.get(gid);
+    console.log(`\n--- group ${gid} (${groupPhases.length} phase(s) parallel) ---`);
+    const promises = groupPhases.map((phase, i) => runPhase(phase, i + 1 + Array.from(phaseGroups.keys()).filter(k => k < gid).reduce((s, k) => s + phaseGroups.get(k).length, 0), phases.length));
+    await Promise.all(promises);
+  }
+  console.log("\n=== 汇总 ===");
+  let allOk = true;
+  for (const r of results) {
+    const expected = r.passed || r.allowFail;
+    const tag = r.passed ? "OK" : (r.allowFail ? "OK (allowed fail)" : "FAIL");
+    console.log(`  ${tag.padEnd(20)} ${r.elapsed}s  ${r.name}`);
+    if (!expected) allOk = false;
+  }
+  const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`\n模式: ${mode}  总耗时: ${totalElapsed}s`);
+  process.exit(allOk ? 0 : 1);
+})();
