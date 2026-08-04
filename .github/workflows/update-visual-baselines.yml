@@ -28,7 +28,7 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work/tests/e2e \
             mcr.microsoft.com/playwright/python:v1.49.0-jammy \
-            sh -c "pip install --quiet Pillow playwright && python visual_diff.py --update-baselines"
+            sh -c "pip install --quiet Pillow && playwright install --with-deps chromium && python visual_diff.py --update-baselines"
       - name: Commit + push refreshed baselines
         run: |
           git config user.email "fliki-bot@users.noreply.github.com"
