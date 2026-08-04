@@ -46,7 +46,7 @@ jobs:
       - name: Init DB schema + seed (idempotent for fresh checkout)
         run: |
           cd backend
-          python scripts/ci_init_db.py
+          python ../scripts/ci_init_db.py
       - name: Start backend in background (live HTTP for integration tests)
         run: |
           cd backend
