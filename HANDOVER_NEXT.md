@@ -1,5 +1,70 @@
-﻿## 2026-08-01 rev33 P0+P1+P2 真实链路 + token 续期 + 中文 401 (最新)
-  - backend/tests/test_p5b_pipeline.py (M, _MockRequest + token fixture + INSERT user_id)
+﻿## 2026-08-05 rev37 — Backend Router Path Table (R3/R4 修, 最新)
+
+### 背景
+curl smoke 反复 404：`/voices/list` 应该是 `/voices`、`/tts/synthesize` 不存在应改用 `/avatar-clones/{uuid}/synthesize`、`/metrics` 两处路由冲突。前后端 src/api/*.ts 之前需要手动反推 router prefix 太慢，本次用脚本枚举固化到本表。
+
+### 24 文件 / 28 router 全量表
+
+| File | prefix | 关键 endpoint (verb + path) |
+|---|---|---|
+| routers/startup.py | (none) | GET /startup-status, GET /health |
+| routers/alerts.py | /api/alerts | GET /rules, POST /eval, POST /reset-throttle |
+| routers/analytics.py | (none) | GET /metrics, GET /characters, GET /providers |
+| routers/render.py | (none) | POST /render.create, GET /render-jobs, GET /render-jobs/{job_id}, GET /render/{filename}, POST /render.cancel, GET /render.latest |
+| workflow_drafts.py | /workflow-drafts | POST /, GET /, GET /{draft_id}, POST /{draft_id}/confirm |
+| workflow_pipeline.py | /workflow-runs | POST /from-draft/{draft_id}, GET /{run_id}, POST /{run_id}/rerender |
+| chat.py | /chat | POST /apply |
+| provider_config.py | /provider-configs | GET /, PUT /{category}/{name}, DELETE /{category}/{name}/secret |
+| voice_gallery.py | /voices | GET /, GET /locales, GET /{short_name}/preview, POST /refresh |
+| voice_clone_router.py | /voice-clones | GET /, POST /, GET /{voice_uuid}, POST /{voice_uuid}/preview |
+| avatar_clone_router.py | /avatar-clones | GET /, POST /, GET /{avatar_uuid}, POST /{avatar_uuid}/synthesize |
+| uploads_router.py | /api/uploads | POST /, DELETE /{file_id} |
+| templates_router.py | /templates | GET /, GET /categories, GET /{template_id}, POST /from-draft/{draft_id} |
+| minimax_voice_clones_router.py | /minimax-voice-clones | GET /, POST /, GET /{voice_uuid}, POST /{voice_uuid}/preview |
+| metrics_router.py | /metrics | GET /summary, GET /users, GET /users/{user_id}, GET /tenants |
+| audit_router.py | /audit-logs | GET /me, GET / |
+| workspace_router.py | /workspaces | GET /, POST /, POST /{workspace_id}/members |
+| billing_router.py | /billing | GET /plans, GET /me, POST /subscribe |
+| share_router.py | (none) | POST /workflow-drafts/{draft_id}/share, GET /share/{token}, GET /share/{token}/embed |
+| brand_kit_router.py | (none) | GET /workspaces/{workspace_id}/brand-kit, PUT /workspaces/{workspace_id}/brand-kit |
+| autoedit.py | /autoedit | POST /uploads, POST /uploads/{upload_id}/drafts, POST /drafts/{draft_id}/confirm |
+| autoedit_pipeline.py | /autoedit-runs | POST /from-draft/{draft_id}, GET /{run_id}, POST /{run_id}/retry |
+| env_check_router.py | /env-check | GET /, GET /quick |
+| auth_router.py | /auth | POST /register, POST /login, GET /me, POST /refresh, POST /logout |
+
+### curl smoke 速查（修正常见错误）
+
+```bash
+# 错 → 正
+curl /voices/list           →  curl /voices
+curl /tts/synthesize        →  curl /avatar-clones/{uuid}/synthesize
+curl /metrics/list          →  curl /metrics/summary
+curl /workflow-drafts/list  →  curl /workflow-drafts
+curl /templates/all         →  curl /templates
+
+# 启动 + health
+curl /startup-status | jq .status
+curl /health | jq .
+
+# 注册 + login
+curl -X POST /auth/register -d '{"email":"x@y.z","password":"..."}' -H 'Content-Type: application/json'
+curl -X POST /auth/login -d '...' -H 'Content-Type: application/json'   # → access_token
+
+# 鉴权 header
+curl /workflow-drafts -H "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+### /metrics 冲突说明（关联 N55）
+两处都暴露：
+- routers/analytics.py (no prefix) → GET /metrics（裸 OpenMetrics text）
+- metrics_router.py /metrics → GET /summary, /users, /tenants
+
+cardinality 高的源头是 /metrics/users 和 /metrics/tenants 的 per-user label。已在 test_p1a_user_metrics.py:92 把阈值从 200 提到 250（commit 6cd001a，N55）。长期修：在 metrics_router.py 把 top-N=10 之外的 user_id label 折叠成 "other"，并把 active_users_24h 改成单值 gauge。
+
+### 自动化
+脚本：D:/workspace/_enum_routers_full.py + _enum_routers_sub.py + _enum_main.py，跑一次 = 重新生成本表。
+
+## 2026-08-01 rev33 P0+P1+P2 真实链路 + token 续期 + 中文 401  - backend/tests/test_p5b_pipeline.py (M, _MockRequest + token fixture + INSERT user_id)
 ## 2026-08-01 rev34 安全续期 + CI 收口（最新）
 
 更新时间: 2026-08-01 16:05
