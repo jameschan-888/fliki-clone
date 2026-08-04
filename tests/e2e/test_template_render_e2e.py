@@ -1,6 +1,7 @@
-"""模板真实渲染端到端测试.
+"""模板真实渲染端到端测试 (rev36 P1.2: 加 auth).
 
 流程:
+  0. register + login 拿 JWT token
   1. 调后端 POST /workflow-drafts 创建草稿 (>=5 段脚本)
   2. 给每个 scene PATCH template_id + template_fields, 套上 5 套模板
   3. POST /workflow-drafts/{id}/confirm
@@ -10,6 +11,7 @@
   7. 把 run_id/props 路径/MP4 路径/ffprobe 行写入 stdout, 失败时打印 message
 
 依赖: 仅 Python 3.12 + ffmpeg (ffprobe). 不调任何付费 API.
+env: FLIKI_DISABLE_RATE_LIMIT=1 跳过 register 端点限速 (CI 默认开)
 """
 import json
 import os
@@ -18,8 +20,9 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 
-BASE = os.environ.get("FLIKI_BASE", "http://127.0.0.1:5181")
+BASE = os.environ.get("FLIKI_BASE", "http://127.0.0.1:5181").rstrip("/")
 
 # >= 5 句脚本, 对应 5 套模板
 SCRIPT = (
@@ -85,9 +88,16 @@ REQUIRED_FIELDS = {
 }
 
 
-def http(method, path, data=None):
+# 单 token 全局共享; register/login 调用前必须 reset 限速
+TOKEN = None
+
+
+def http(method, path, data=None, token=None):
+    """通用 HTTP 调用. token 缺省用全局 TOKEN; 若 TOKEN=None 自动走匿名 (CI 应先 auth)."""
     body = json.dumps(data, ensure_ascii=False).encode("utf-8") if data is not None else None
     headers = {"Content-Type": "application/json"} if body is not None else {}
+    if token:
+        headers["Authorization"] = "Bearer " + token
     req = urllib.request.Request(BASE + path, data=body, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
@@ -95,6 +105,40 @@ def http(method, path, data=None):
             return resp.status, json.loads(raw)
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", errors="replace")
+
+
+def auth():
+    """register + login 拿 token. 每次重试确保 DB 干净 (CI fresh runner).
+    返回: token 字符串.
+    """
+    # 用 UUID 后缀避免重复注册撞 409, 同时如果 FLIKI_DISABLE_RATE_LIMIT=1 也无所谓
+    email = "e2e-" + uuid.uuid4().hex[:8] + "@fliki.local"
+    pw = "long-enough-pw-test"
+    # 先 reset 限速 (内部接口; 即使关限速也无副作用)
+    try:
+        urllib.request.urlopen(urllib.request.Request(BASE + "/auth/_internal/reset-rate-limits", method="POST"), timeout=5)
+    except Exception:
+        pass
+    status, body = http("POST", "/auth/register", {"email": email, "password": pw, "role": "user"})
+    if status not in (200, 201):
+        # 409 = 已存在 (CI 重启复用 DB), 改走 login
+        if status == 409:
+            status, body = http("POST", "/auth/login", {"email": email, "password": pw})
+        if status != 200:
+            raise RuntimeError(f"auth failed: register/login returned {status} {body!r}")
+    if isinstance(body, dict):
+        token = body.get("token") or body.get("access_token")
+    else:
+        token = None
+    if not token:
+        # 重新 login 兜底
+        status, body = http("POST", "/auth/login", {"email": email, "password": pw})
+        if status != 200:
+            raise RuntimeError(f"login fallback failed: {status} {body!r}")
+        token = body.get("token") or body.get("access_token")
+    if not token:
+        raise RuntimeError(f"no token in auth response: {body!r}")
+    return token
 
 
 def ffprobe(path):
@@ -123,7 +167,12 @@ def ffprobe(path):
 
 
 def main():
+    global TOKEN
     print(f"=== Template E2E @ {BASE} ===")
+
+    # 0) auth 拿 token
+    TOKEN = auth()
+    print(f"AUTH ok, token len={len(TOKEN)}")
 
     # 1) 创建草稿
     status, draft = http(
@@ -134,6 +183,7 @@ def main():
             "title": "P0-1 模板端到端",
             "language": "zh-CN",
         },
+        token=TOKEN,
     )
     assert status == 200, f"create draft failed: {draft}"
     draft_id = draft["id"]
@@ -150,6 +200,7 @@ def main():
             "PATCH",
             f"/workflow-drafts/{draft_id}/scenes/{scene_id}",
             plan,
+            token=TOKEN,
         )
         assert status == 200, f"PATCH scene {scene_id} -> {status}: {updated}"
         scene = updated["scenes"][i]
@@ -159,13 +210,13 @@ def main():
         print(f"  PATCH scene[{i}] template={scene['template_id']}")
 
     # 3) confirm
-    status, confirmed = http("POST", f"/workflow-drafts/{draft_id}/confirm")
+    status, confirmed = http("POST", f"/workflow-drafts/{draft_id}/confirm", token=TOKEN)
     assert status == 200, f"confirm failed: {confirmed}"
     assert confirmed["status"] == "confirmed", confirmed
     print("CONFIRMED")
 
     # 4) 创建真实 run (无 preview)
-    status, run = http("POST", f"/workflow-runs/from-draft/{draft_id}")
+    status, run = http("POST", f"/workflow-runs/from-draft/{draft_id}", token=TOKEN)
     assert status == 200, f"create run failed: {run}"
     run_id = run["id"]
     print(f"RUN {run_id} status={run['status']}")
@@ -174,70 +225,44 @@ def main():
     deadline = time.time() + 1500
     final = None
     while time.time() < deadline:
-        status, r = http("GET", f"/workflow-runs/{run_id}")
+        status, r = http("GET", f"/workflow-runs/{run_id}", token=TOKEN)
         assert status == 200, r
         progress = r.get("progress")
         nodes = " ".join(f"{n['node_type']}:{n['status']}" for n in r.get("nodes", []))
-        print(f"  status={r['status']} progress={progress} {nodes}")
-        if r["status"] in ("success", "failed"):
+        print(f"  poll [{int(time.time())}] status={r.get('status')} progress={progress} nodes={nodes}")
+        st = r.get("status")
+        if st in ("success", "failed"):
             final = r
             break
-        time.sleep(5)
-    assert final is not None, "run timeout (1500s)"
-    assert final["status"] == "success", f"run failed: {final.get('message')!r}"
-
-    # 6) 找到 MP4 路径 (render node 给出 jobId, MP4 在 backend/data/output/<jobId>/<jobId>.mp4)
-    mp4_path = None
-    render_job_id = None
-    for n in final["nodes"]:
-        if n["node_type"] == "render" and n.get("result"):
-            rj = n["result"] if isinstance(n["result"], dict) else json.loads(n["result"])
-            render_job_id = rj.get("jobId") or rj.get("output_path") or rj.get("mp4_path")
-            break
-    if render_job_id:
-        candidate = os.path.join(os.getcwd(), "backend", "data", "output", render_job_id, f"{render_job_id}.mp4")
-        if os.path.exists(candidate):
-            mp4_path = candidate
-        else:
-            # fallback: scan the output directory
-            output_root = os.path.join(os.getcwd(), "backend", "data", "output")
-            if os.path.isdir(output_root):
-                for entry in sorted(os.listdir(output_root), key=lambda x: os.path.getmtime(os.path.join(output_root, x)), reverse=True):
-                    cand = os.path.join(output_root, entry, f"{entry}.mp4")
-                    if os.path.exists(cand):
-                        mp4_path = cand
-                        break
-    assert mp4_path and os.path.exists(mp4_path), f"MP4 not found: {mp4_path}"
-    print(f"MP4 {mp4_path}")
-
-    # 7) ffprobe 校验
-    meta = ffprobe(mp4_path)
-    print(f"FFPROBE {meta}")
-    assert meta["width"] == 1280 and meta["height"] == 720, (
-        f"unexpected resolution {meta['width']}x{meta['height']}"
+        time.sleep(8)
+    assert final is not None and final.get("status") == "success", (
+        f"run did not reach success in 25 min: {final}"
     )
-    assert meta["duration"] >= 5.0, f"duration too short: {meta['duration']}"
-    assert meta["size_bytes"] >= 500_000, f"file too small: {meta['size_bytes']}"
 
-    summary = {
-        "draft_id": draft_id,
-        "run_id": run_id,
-        "mp4_path": mp4_path,
-        "ffprobe": meta,
-        "template_ids": [p["template_id"] for p in TEMPLATE_PLAN],
-    }
-    print("RESULT " + json.dumps(summary, ensure_ascii=False))
-    return summary
+    # 6) 校验产物
+    run_dir = run.get("output_dir") or final.get("output_dir") or run.get("output_path") or final.get("output_path")
+    mp4 = None
+    if run_dir:
+        candidate = os.path.join(run_dir, "final.mp4") if not str(run_dir).endswith(".mp4") else run_dir
+        if os.path.exists(candidate):
+            mp4 = candidate
+        else:
+            # 搜 outputs 下找 mp4
+            for root, _, files in os.walk(run_dir):
+                for fn in files:
+                    if fn.endswith(".mp4"):
+                        mp4 = os.path.join(root, fn)
+                        break
+                if mp4:
+                    break
+    assert mp4 is not None, f"no mp4 under {run_dir}"
+    probe = ffprobe(mp4)
+    print(f"MP4 {mp4} probe={probe}")
+    assert probe["width"] == 1280 and probe["height"] == 720, probe
+    assert probe["duration"] > 5, probe
+    assert probe["size_bytes"] > 500 * 1024, probe
+    print("PASS")
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except AssertionError as e:
-        print(f"FAIL {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"ERROR {type(e).__name__}: {e}")
-        sys.exit(2)
-    print("PASS")
-
+    main()
