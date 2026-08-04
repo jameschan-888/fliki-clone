@@ -7,9 +7,59 @@ on:
     branches: [master, main]
 
 jobs:
-  frontend:
+  routes:
+    name: Router check (check_routes.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: scripts/check_routes.py --fail-on-warn
+        run: python scripts/check_routes.py --fail-on-warn
+
+  backend:
+    name: Backend unit + API + Provider + Remotion tsc
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/workers/remotion-project/package-lock.json
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Backend unit tests (backend/tests)
+        run: python -W ignore::ResourceWarning -m unittest discover -s backend/tests -p "test_*.py" -t .
+      - name: API contract (backend.tests.test_api_contract)
+        run: python -m unittest backend.tests.test_api_contract
+      - name: Provider real matrix (network, may flake)
+        run: python -W ignore::ResourceWarning -m unittest backend.providers.test_real_provider_matrix
+        continue-on-error: true
+      - name: Remotion tsc
+        run: |
+          cd backend/workers/remotion-project
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npx tsc --noEmit -p .
+
+  frontend:
+    name: Frontend build + vitest + visual diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,6 +67,9 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install app deps
         run: npm ci --prefix app
       - name: TypeScript + Vite build
@@ -28,7 +81,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install playwright pillow
           playwright install chromium --with-deps
-      - name: Template preview smoke (must pass before full render)
+      - name: Template preview smoke
         run: python tests/e2e/test_template_preview_smoke.py
       - name: Visual diff (pixel regression, 0.1% threshold)
         run: cd tests/e2e && python visual_diff.py --threshold 0.001

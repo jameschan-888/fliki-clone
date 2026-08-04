@@ -1,4 +1,4 @@
-# P1-3: 一键 push 当前 master 到 GitHub + 触发 CI
+﻿# P1-3: 一键 push 当前 master 到 GitHub + 触发 CI
 # 用法 (任选其一):
 #   1) 环境变量: $env:GITHUB_REPO="user/repo"; $env:GITHUB_TOKEN="ghp_xxx"; powershell scripts/push-to-github.ps1
 #   2) 参数:       powershell scripts/push-to-github.ps1 -Repo "user/repo" -Token "ghp_xxx"
