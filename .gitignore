@@ -46,10 +46,10 @@ logs/
 app/frontend-dev.log
 app/autoedit.html.vanilla.bak
 
-# Runtime data (user uploads, generated assets, DB)
+# Runtime data (user uploads, generated assets, DB) - templates.json is seed, must be tracked
 app/data/
-backend/data/*           # exclude everything in backend/data by default
-!backend/data/templates.json   # exception: seed data for templates_router (5 builtins)
+backend/data/
+!backend/data/templates.json
 backend/data/avatar_clone_faces/
 backend/data/avatar_clone_audios/
 backend/data/avatar_outputs/
