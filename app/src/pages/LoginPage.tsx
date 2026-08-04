@@ -35,10 +35,10 @@ export function LoginPage() {
       <h1>欢迎回来</h1>
       <p className="sub">登录继续编辑你的视频草稿.</p>
       <form onSubmit={submit}>
-        <label>邮箱</label>
-        <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <label>密码</label>
-        <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <label htmlFor="login-email">邮箱</label>
+        <input id="login-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <label htmlFor="login-password">密码</label>
+        <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         {error && <div className="err">{error}</div>}
         <button className="submit" type="submit" disabled={busy}>{busy ? "登录中..." : "登录"}</button>
       </form>
