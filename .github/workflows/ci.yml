@@ -43,12 +43,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-      - name: Backend unit tests (backend/tests)
-        run: python -W ignore::ResourceWarning -m unittest discover -s backend/tests -p "test_*.py" -t .
-      - name: API contract (backend.tests.test_api_contract)
-        run: python -m unittest backend.tests.test_api_contract
+      - name: Backend unit tests (discover)
+        run: cd backend && python -W ignore::ResourceWarning -m unittest discover -s tests -p "test_*.py" -t .
+      - name: API contract
+        run: cd backend && python -m unittest tests.test_api_contract
       - name: Provider real matrix (network, may flake)
-        run: python -W ignore::ResourceWarning -m unittest backend.providers.test_real_provider_matrix
+        run: cd backend && python -W ignore::ResourceWarning -m unittest tests.providers.test_real_provider_matrix
         continue-on-error: true
       - name: Remotion tsc
         run: |
