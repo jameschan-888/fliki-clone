@@ -92,8 +92,10 @@ def diff_ratio(a: Path, b: Path) -> float:
     if not bbox:
         return 0.0
     # pixel-level ratio
-    total = img_a.size[0] * img_a.size[1]
-    px = sum(1 for p in diff.getdata() if any(c > 8 for c in p))
+    # N47: Pillow 14 deprecates getdata iter, replace with numpy mask (already imported)
+    arr = np.array(diff)
+    total = arr.shape[0] * arr.shape[1]
+    px = int((np.any(arr > 8, axis=2)).sum())
     return round(px / total, 4)
 
 def diff_metrics(a: Path, b: Path) -> dict:
