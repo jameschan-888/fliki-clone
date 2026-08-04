@@ -1,13 +1,13 @@
 {
-  "captured_at": "2026-08-04 08:37:03",
+  "captured_at": "2026-08-04 19:29:48",
   "pages": [
     {
       "id": "home",
       "fliki_url": "https://fliki.ai/",
-      "local_url": "http://127.0.0.1:41071/",
+      "local_url": "http://127.0.0.1:23634/",
       "fliki_ok": true,
       "local_ok": true,
-      "diff_ratio": 0.9389
+      "diff_ratio": 0.9423
     }
   ]
 }

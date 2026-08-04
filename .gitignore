@@ -105,3 +105,8 @@ tests/e2e/visual_diff_report.json
 tests/e2e/visual_capture/
 tests/e2e/visual_diff_report.json
 
+
+# Fliki research artifacts (binary screenshots, regenerable by tests/e2e/visual_diff_fliki.py)
+fliki_research/screenshots/*.png
+fliki_research/diff_vs_project.json
+
