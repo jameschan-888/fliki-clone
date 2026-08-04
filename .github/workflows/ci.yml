@@ -106,6 +106,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Init DB schema + seed (idempotent for fresh checkout)
+        run: |
+          cd backend
+          python ../scripts/ci_init_db.py
+      - name: Start backend in background (live HTTP for preview smoke + visual diff)
+        run: |
+          cd backend
+          FLIKI_DISABLE_RATE_LIMIT=1 nohup python -m uvicorn main:app --host 127.0.0.1 --port 5181 --log-level warning > /tmp/backend.log 2>&1 &
+          echo "started pid $!"
+      - name: Wait for backend /health (max 30s)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5181/health > /dev/null; then
+              echo "backend ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "backend not ready, last log:"
+          tail -50 /tmp/backend.log
+          exit 1
       - name: Install app deps
         run: npm ci --prefix app
       - name: TypeScript + Vite build
