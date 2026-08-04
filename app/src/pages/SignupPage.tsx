@@ -53,14 +53,14 @@ export function SignupPage() {
       <h1>免费注册</h1>
       <p className="sub">无需信用卡, 30 秒开始第一条视频.</p>
       <form onSubmit={submit}>
-        <label>邮箱</label>
-        <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        <label>密码 (至少 8 位)</label>
-        <input type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
-        <div className="strength"><div style={{ width: ((pw.score / 5) * 100) + "%", background: pw.color }}></div></div>
+        <label htmlFor="signup-email">邮箱</label>
+        <input id="signup-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <label htmlFor="signup-password">密码 (至少 8 位)</label>
+        <input id="signup-password" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+        <div className="strength" aria-label="密码强度"><div style={{ width: ((pw.score / 5) * 100) + "%", background: pw.color }}></div></div>
         <small style={{ color: pw.color, fontSize: 11, display: "block", marginTop: 4 }}>{pw.label}</small>
-        <label>确认密码</label>
-        <input type="password" autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <label htmlFor="signup-confirm">确认密码</label>
+        <input id="signup-confirm" type="password" autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         {error && <div className="err">{error}</div>}
         {ok && <div className="ok">{ok}</div>}
         <button className="submit" type="submit" disabled={busy}>{busy ? "注册中..." : "免费注册"}</button>
