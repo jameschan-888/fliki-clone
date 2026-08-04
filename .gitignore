@@ -48,7 +48,8 @@ app/autoedit.html.vanilla.bak
 
 # Runtime data (user uploads, generated assets, DB)
 app/data/
-backend/data/
+backend/data/*           # exclude everything in backend/data by default
+!backend/data/templates.json   # exception: seed data for templates_router (5 builtins)
 backend/data/avatar_clone_faces/
 backend/data/avatar_clone_audios/
 backend/data/avatar_outputs/

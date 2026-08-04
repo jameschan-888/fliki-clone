@@ -1,0 +1,110 @@
+[
+  {
+    "id": "intro_simple",
+    "name": "简洁开场",
+    "category": "intro",
+    "description": "顶部 logo 文字 + 居中主标题 + 副标题, 渐变背景, 适合所有开场场景.",
+    "fields": [
+      {"key": "title", "label": "主标题", "type": "text", "max_length": 50, "required": true, "default": "欢迎观看"},
+      {"key": "subtitle", "label": "副标题", "type": "text", "max_length": 100, "required": false, "default": ""},
+      {"key": "logo_text", "label": "Logo 文字", "type": "text", "max_length": 20, "required": false, "default": "BRAND"}
+    ],
+    "structure": {
+      "aspect_ratio": "16:9",
+      "duration_seconds": 5,
+      "background": {"type": "gradient", "colors": ["#293669", "#0c1020"]},
+      "layers": [
+        {"type": "logo_text", "text_field": "logo_text", "position": "top-center", "y": 80, "font_size": 28, "color": "#8ba7ff", "animation": "fade_in", "delay": 0.0},
+        {"type": "title", "text_field": "title", "position": "center", "y": 0, "font_size": 64, "color": "#eef2ff", "animation": "fade_up", "delay": 0.2},
+        {"type": "subtitle", "text_field": "subtitle", "position": "center", "y": 100, "font_size": 26, "color": "#aab3cf", "animation": "fade_up", "delay": 0.5}
+      ]
+    }
+  },
+  {
+    "id": "outro_cta",
+    "name": "行动呼吁结尾",
+    "category": "outro",
+    "description": "主 CTA 按钮 + 联系方式 + 二维码占位, 适合视频结尾引导关注/购买.",
+    "fields": [
+      {"key": "cta", "label": "CTA 文案", "type": "text", "max_length": 30, "required": true, "default": "立即开始"},
+      {"key": "contact", "label": "联系方式", "type": "text", "max_length": 80, "required": false, "default": ""},
+      {"key": "qr_placeholder", "label": "二维码占位文字", "type": "text", "max_length": 20, "required": false, "default": "扫码关注"}
+    ],
+    "structure": {
+      "aspect_ratio": "16:9",
+      "duration_seconds": 5,
+      "background": {"type": "solid", "color": "#0c1020"},
+      "layers": [
+        {"type": "cta_button", "text_field": "cta", "position": "center", "y": -50, "font_size": 48, "color": "#0c1020", "bg_color": "#48d58b", "padding": 24, "animation": "scale_in", "delay": 0.0},
+        {"type": "text", "text_field": "contact", "position": "center", "y": 80, "font_size": 24, "color": "#aab3cf", "animation": "fade_in", "delay": 0.6},
+        {"type": "qr_placeholder", "text_field": "qr_placeholder", "position": "bottom-right", "x": -120, "y": -120, "size": 120, "color": "#5d6886", "animation": "fade_in", "delay": 0.9}
+      ]
+    }
+  },
+  {
+    "id": "list_steps",
+    "name": "三步教程",
+    "category": "list",
+    "description": "横向三个步骤卡片, 编号 + 标题 + 描述, 适合教程/操作流程.",
+    "fields": [
+      {"key": "step1_title", "label": "步骤 1 标题", "type": "text", "max_length": 30, "required": true, "default": "第一步"},
+      {"key": "step1_desc", "label": "步骤 1 描述", "type": "text", "max_length": 60, "required": false, "default": ""},
+      {"key": "step2_title", "label": "步骤 2 标题", "type": "text", "max_length": 30, "required": true, "default": "第二步"},
+      {"key": "step2_desc", "label": "步骤 2 描述", "type": "text", "max_length": 60, "required": false, "default": ""},
+      {"key": "step3_title", "label": "步骤 3 标题", "type": "text", "max_length": 30, "required": true, "default": "第三步"},
+      {"key": "step3_desc", "label": "步骤 3 描述", "type": "text", "max_length": 60, "required": false, "default": ""}
+    ],
+    "structure": {
+      "aspect_ratio": "16:9",
+      "duration_seconds": 6,
+      "background": {"type": "gradient", "colors": ["#1a2240", "#0c1020"]},
+      "layers": [
+        {"type": "step_card", "index": 1, "title_field": "step1_title", "desc_field": "step1_desc", "position": "left", "x": -380, "animation": "slide_in_left", "delay": 0.0},
+        {"type": "step_card", "index": 2, "title_field": "step2_title", "desc_field": "step2_desc", "position": "center", "x": 0, "animation": "slide_up", "delay": 0.3},
+        {"type": "step_card", "index": 3, "title_field": "step3_title", "desc_field": "step3_desc", "position": "right", "x": 380, "animation": "slide_in_right", "delay": 0.6}
+      ]
+    }
+  },
+  {
+    "id": "quote_card",
+    "name": "引用卡",
+    "category": "quote",
+    "description": "大引号 + 名言 + 作者署名, 适合观点/语录场景.",
+    "fields": [
+      {"key": "quote", "label": "引用内容", "type": "text", "max_length": 200, "required": true, "default": "在此输入引用内容"},
+      {"key": "author", "label": "作者", "type": "text", "max_length": 50, "required": true, "default": "佚名"}
+    ],
+    "structure": {
+      "aspect_ratio": "16:9",
+      "duration_seconds": 5,
+      "background": {"type": "solid", "color": "#161c2d"},
+      "layers": [
+        {"type": "big_quote", "position": "top-center", "x": 0, "y": 100, "font_size": 180, "color": "#718cff", "text": "\u201C", "animation": "fade_in", "delay": 0.0},
+        {"type": "text", "text_field": "quote", "position": "center", "y": 0, "font_size": 36, "color": "#eef2ff", "animation": "fade_up", "delay": 0.2, "max_width": 900, "line_height": 1.5},
+        {"type": "divider", "position": "center", "y": 120, "width": 60, "height": 3, "color": "#48d58b", "delay": 0.8},
+        {"type": "author", "text_field": "author", "position": "center", "y": 160, "font_size": 24, "color": "#8ba7ff", "prefix": "\u2014 ", "animation": "fade_in", "delay": 1.0}
+      ]
+    }
+  },
+  {
+    "id": "data_big_number",
+    "name": "大数据卡",
+    "category": "data",
+    "description": "巨大数字 + 单位 + 说明文字, 适合展示 KPI/统计/成就.",
+    "fields": [
+      {"key": "number", "label": "数字", "type": "text", "max_length": 12, "required": true, "default": "10,000+"},
+      {"key": "unit", "label": "单位", "type": "text", "max_length": 20, "required": false, "default": ""},
+      {"key": "description", "label": "说明", "type": "text", "max_length": 100, "required": true, "default": "成就说明"}
+    ],
+    "structure": {
+      "aspect_ratio": "16:9",
+      "duration_seconds": 5,
+      "background": {"type": "gradient", "colors": ["#0c1020", "#293669"]},
+      "layers": [
+        {"type": "big_number", "text_field": "number", "position": "center", "y": -30, "font_size": 200, "color": "#48d58b", "animation": "scale_in", "delay": 0.0, "font_weight": 800},
+        {"type": "unit", "text_field": "unit", "position": "center", "y": 80, "font_size": 32, "color": "#aab3cf", "animation": "fade_up", "delay": 0.5},
+        {"type": "text", "text_field": "description", "position": "center", "y": 160, "font_size": 24, "color": "#8ba7ff", "animation": "fade_in", "delay": 0.8}
+      ]
+    }
+  }
+]
