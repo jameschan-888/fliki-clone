@@ -156,3 +156,27 @@ jobs:
         run: python tests/e2e/test_template_render_e2e.py
         timeout-minutes: 25
         continue-on-error: true  # render 是真渲染 5 段视频, 慢且资源敏感; 失败不阻塞 PR
+
+  cron-ps1-windows:
+    name: Cron ps1 drill (Windows runner, positive validation)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend deps
+        run: python -m pip install --upgrade pip; python -m pip install -r backend/requirements.txt
+      - name: Init DB schema + seed (idempotent)
+        run: python scripts/ci_init_db.py
+      - name: Run cron-ps1 drill test
+        # backend/tests/test_p1c_backup_drill.py::P1CDRDrillTests::test_drill_runs_in_cron_ps1
+        # 用 @unittest.skipUnless(sys.platform=="win32") 装饰; Linux runner 永远 skip, windows-latest 做正向验证.
+        # windows PS 5.1, powershell -NoProfile -ExecutionPolicy Bypass -File 调 db_backup_cron.ps1 -Drill.
+        run: cd backend; python -m unittest tests.test_p1c_backup_drill.P1CDRDrillTests.test_drill_runs_in_cron_ps1 -v 2>&1
