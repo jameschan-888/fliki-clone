@@ -49,11 +49,14 @@ def check_ffprobe():
 def check_disk(path=None):
     if path is None:
         path = os.getenv("FLIKI_DISK_PATH", "D:/workspace")
+    # Linux runner 没 D:/workspace, fallback 到 /
     try:
+        if not os.path.exists(path):
+            path = "/" if os.name != "nt" else path
         usage = shutil.disk_usage(path)
         return {"path": path, "total_gb": round(usage.total/(1024**3),2), "free_gb": round(usage.free/(1024**3),2), "used_pct": round(usage.used/usage.total*100,1)}
     except Exception as e:
-        return {"path": path, "error": str(e)[:200]}
+        return {"path": path, "total_gb": 0, "free_gb": 0, "used_pct": 0, "error": str(e)[:200]}
 
 def check_memory():
     if platform.system() == "Windows":

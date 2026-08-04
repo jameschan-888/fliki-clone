@@ -23,7 +23,8 @@ class SilenceMusicProviderTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def test_silence_uses_ffmpeg_when_available(self):
+    @patch("providers.music.shutil.which", return_value="/usr/bin/ffmpeg")
+    def test_silence_uses_ffmpeg_when_available(self, _which):
         with patch("providers.music.subprocess.run") as fake_run:
             fake_run.return_value = MagicMock(returncode=0, stderr=b"", stdout=b"")
             # ffmpeg 真实调用会写 destination; mock 不会, 所以补一个 side_effect
@@ -194,7 +195,9 @@ class WorkflowPipelineMusicFallbackTest(unittest.TestCase):
     """确认 workflow_pipeline 真的调 fetch_music_with_fallback 而不是写死 FreesoundProvider."""
 
     def test_pipeline_uses_fallback_chain(self):
-        with open("D:\\workspace\\Fliki视频制作还原\\backend\\workflow_pipeline.py", "r", encoding="utf-8") as f:
+        # platform-agnostic: use repo-relative path via __file__ parent.parent
+        pipeline_path = Path(__file__).resolve().parent.parent / "workflow_pipeline.py"
+        with open(pipeline_path, "r", encoding="utf-8") as f:
             source = f.read()
         self.assertIn("from providers.music import FreesoundProvider, fetch_music_with_fallback", source)
         self.assertIn("fetch_music_with_fallback(", source)

@@ -217,7 +217,9 @@ class WorkflowPipelineTTSFallbackTest(unittest.TestCase):
     """确认 workflow_pipeline 真的调 synthesize_tts_with_fallback 而不是写死 EdgeTTSProvider."""
 
     def test_pipeline_uses_fallback_chain(self):
-        with open("D:\\workspace\\Fliki视频制作还原\\backend\\workflow_pipeline.py", "r", encoding="utf-8") as f:
+        # platform-agnostic: use repo-relative path via __file__ parent.parent
+        pipeline_path = Path(__file__).resolve().parent.parent / "workflow_pipeline.py"
+        with open(pipeline_path, "r", encoding="utf-8") as f:
             source = f.read()
         self.assertIn("from providers.tts import DEFAULT_VOICE, EdgeTTSProvider, synthesize_tts_with_fallback", source)
         self.assertIn("synthesize_tts_with_fallback(", source)
