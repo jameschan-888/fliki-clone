@@ -47,10 +47,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-      - name: Install backend deps (needed for init_db + uvicorn)
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
       - name: Init DB schema + seed (idempotent for fresh checkout)
         run: |
           cd backend
@@ -145,15 +141,15 @@ jobs:
         run: npm run build --prefix app
       - name: Vitest
         run: npm test --prefix app -- --run
-      - name: Install Python deps for visual diff
-        run: |
-          python -m pip install --upgrade pip
-          pip install playwright pillow
-          playwright install chromium --with-deps
       - name: Template preview smoke
         run: python tests/e2e/test_template_preview_smoke.py
-      - name: Visual diff (pixel regression, 30% threshold — CI machine diff tolerance)
-        run: cd tests/e2e && python visual_diff.py --threshold 0.30
+      - name: Visual diff (Playwright docker image, 1% threshold)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/tests/e2e \
+            mcr.microsoft.com/playwright/python:v1.47.0-jammy \
+            sh -c "pip install --quiet Pillow && python visual_diff.py --threshold 0.01"
       - name: Template full render E2E (opt-in, ffmpeg + auth required)
         run: python tests/e2e/test_template_render_e2e.py
         continue-on-error: true  # needs ffmpeg + auth token + 5+ min render; opt-in for dev, not CI gate

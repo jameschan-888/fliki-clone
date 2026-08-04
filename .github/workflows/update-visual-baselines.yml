@@ -1,0 +1,43 @@
+name: Update visual baselines (Playwright docker)
+
+on:
+  workflow_dispatch:  # manual trigger from GitHub UI or API
+
+jobs:
+  update-baselines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write  # auto commit + push
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need full history for push
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install app deps + build dist
+        run: |
+          npm ci --prefix app
+          npm run build --prefix app
+      - name: Capture baselines in Playwright docker (unified env)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work/tests/e2e \
+            mcr.microsoft.com/playwright/python:v1.49.0-jammy \
+            sh -c "pip install --quiet Pillow && python visual_diff.py --update-baselines"
+      - name: Commit + push refreshed baselines
+        run: |
+          git config user.email "fliki-bot@users.noreply.github.com"
+          git config user.name "fliki-bot"
+          if git status --porcelain tests/e2e/visual_baselines/ | grep -q .; then
+            git add tests/e2e/visual_baselines/
+            git commit -m "chore(visual): refresh baselines from Playwright docker"
+            git push
+            echo "baselines updated + pushed"
+          else
+            echo "no baseline changes"
+          fi
