@@ -177,6 +177,9 @@ jobs:
         run: python scripts/ci_init_db.py
       - name: Run cron-ps1 drill test
         # backend/tests/test_p1c_backup_drill.py::P1CDRDrillTests::test_drill_runs_in_cron_ps1
-        # 用 @unittest.skipUnless(sys.platform=="win32") 装饰; Linux runner 永远 skip, windows-latest 做正向验证.
-        # windows PS 5.1, powershell -NoProfile -ExecutionPolicy Bypass -File 调 db_backup_cron.ps1 -Drill.
-        run: cd backend; python -m unittest tests.test_p1c_backup_drill.P1CDRDrillTests.test_drill_runs_in_cron_ps1 -v 2>&1
+        # 用 @unittest.skipUnless(sys.platform=="win32") 装饰; Linux runner 永远 skip.
+        # windows-latest 做正向验证.
+        # shell: cmd 不是 PowerShell -- PS 5.1 把 unittest 的 stderr 报成 NativeCommandError,
+        # 把 AssertionError/traceback 吞掉. cmd 的 2>&1 是真重定向, 完整保留 stderr.
+        shell: cmd
+        run: cd backend && python -m unittest tests.test_p1c_backup_drill.P1CDRDrillTests.test_drill_runs_in_cron_ps1 -v 2>&1
