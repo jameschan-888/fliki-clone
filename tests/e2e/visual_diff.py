@@ -25,6 +25,14 @@ from pathlib import Path
 from PIL import Image, ImageChops
 from playwright.sync_api import sync_playwright
 
+# N47: numpy lazy guard — getdata() 2027 弃用, 走 axis=2 mask
+try:
+    import numpy as _np
+    _HAS_NUMPY = True
+except ImportError:
+    _np = None
+    _HAS_NUMPY = False
+
 ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / "app" / "dist"
 BASELINE = Path(__file__).resolve().parent / "visual_baselines"
@@ -123,16 +131,25 @@ def diff_pixels(a, b):
         return {"diff_pixels": -1, "ratio": -1.0, "missing": True}
     ia = Image.open(a).convert("RGB")
     ib = Image.open(b).convert("RGB")
-    if ia.size != ib.size:
+    same_size = ia.size == ib.size
+    if not same_size:
         ib = ib.resize(ia.size)
     diff = ImageChops.difference(ia, ib)
     bbox = diff.getbbox()
     if not bbox:
         return {"diff_pixels": 0, "ratio": 0.0, "size": ia.size}
-    px = list(diff.getdata())
-    nonzero = sum(1 for r, g, blu in px if r > 5 or g > 5 or blu > 5)
-    total = len(px)
-    return {"diff_pixels": nonzero, "ratio": round(nonzero / max(total, 1), 6), "size": list(ia.size)}
+    # N47: numpy axis=2 mask, 避免 Image.getdata() iter + 2027 弃用警告
+    if _HAS_NUMPY:
+        arr = _np.array(diff)
+        total = arr.shape[0] * arr.shape[1]
+        # 原阈值: r/g/b 任一通道 > 5 视为差异像素
+        nonzero = int((_np.any(arr > 5, axis=2)).sum())
+    else:
+        # numpy 缺包 fallback — 仍然触发 DeprecationWarning, 但路径只在 dev/CI 无 numpy 时走到
+        px = list(diff.getdata())
+        nonzero = sum(1 for r, g, blu in px if r > 5 or g > 5 or blu > 5)
+        total = len(px)
+    return {"diff_pixels": nonzero, "ratio": round(nonzero / max(total, 1), 6), "size": list(ia.size), "numpy": _HAS_NUMPY}
 
 
 def main():
