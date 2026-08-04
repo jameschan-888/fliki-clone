@@ -45,13 +45,13 @@ jobs:
           pip install -r backend/requirements.txt
       - name: Debug: verify templates.json + db presence
         run: |
-          echo "--- ls -la backend/data ---\n"
+          echo "[debug] ls -la backend/data:"
           ls -la backend/data/ || true
-          echo "--- head templates.json ---\n"
+          echo "[debug] head templates.json:"
           head -3 backend/data/templates.json 2>&1 || true
-          echo "--- wc -c templates.json ---\n"
+          echo "[debug] wc -c templates.json:"
           wc -c backend/data/templates.json 2>&1 || true
-          echo "--- ls backend/db ---\n"
+          echo "[debug] ls backend/db:"
           ls backend/db/ 2>&1 || true
       - name: Backend unit tests (discover)
         run: |
