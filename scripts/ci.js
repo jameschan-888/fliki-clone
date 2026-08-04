@@ -40,7 +40,7 @@ const allPhases = [
   {
     name: "后端单元测试 (全量)",
     cmd: "python",
-    args: ["-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
+    args: ["-W", "ignore::ResourceWarning", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
     cwd: path.join(ROOT, "backend"),
     allowFail: false,
   },
@@ -54,7 +54,7 @@ const allPhases = [
   {
     name: "Provider 联调测试 (联网)",
     cmd: "python",
-    args: ["-m", "unittest", "tests.providers.test_real_provider_matrix"],
+    args: ["-W", "ignore::ResourceWarning", "-m", "unittest", "tests.providers.test_real_provider_matrix"],
     cwd: path.join(ROOT, "backend"),
     kind: "network",
     timeoutMs: 300_000,
