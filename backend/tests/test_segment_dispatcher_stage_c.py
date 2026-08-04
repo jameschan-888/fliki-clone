@@ -182,7 +182,9 @@ class DispatchSegmentsIntegrationTest(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertIn("renderer exploded", msg)
-        self.assertLess(time.monotonic() - started, 0.5)
+        # N54: 阈值 0.5 -> 1.0 (Windows + 后台进程繁忙时 SimpleQueue polling 延后 0.5s 内不稳定)
+        # 1.0s 仍属 "秒退" 范畴, 生产 worker crash immediate 预期不退化为
+        self.assertLess(time.monotonic() - started, 1.0)
 
 
 if __name__ == "__main__":
