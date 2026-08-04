@@ -19,7 +19,9 @@ from pathlib import Path
 from typing import Dict, List
 
 from PIL import Image, ImageChops
+import numpy as np
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from skimage.metrics import structural_similarity
 
 ROOT = Path(__file__).resolve().parents[2]  # tests/e2e -> tests -> project root
 DIST = ROOT / "app" / "dist"
@@ -94,6 +96,32 @@ def diff_ratio(a: Path, b: Path) -> float:
     px = sum(1 for p in diff.getdata() if any(c > 8 for c in p))
     return round(px / total, 4)
 
+def diff_metrics(a: Path, b: Path) -> dict:
+    # N41/N42 pitfall: thr=8 字体噪声天花板. 返 pixel_thr8/32 + ssim.
+    if not a.exists() or not b.exists():
+        return { "ok": False }
+    img_a = Image.open(a).convert("RGB")
+    img_b = Image.open(b).convert("RGB")
+    same_size = img_a.size == img_b.size
+    if not same_size:
+        img_b = img_b.resize(img_a.size)
+    diff = ImageChops.difference(img_a, img_b)
+    bbox = diff.getbbox()
+    if not bbox:
+        return { "ok": True, "same_size": same_size,
+                "pixel_thr8": 0.0, "pixel_thr32": 0.0, "ssim": 1.0 }
+    arr = np.array(diff)
+    px8  = float((np.any(arr > 8,  axis=2)).mean())
+    px32 = float((np.any(arr > 32, axis=2)).mean())
+    arr_a = np.array(img_a)
+    arr_b = np.array(img_b)
+    ssim_v = float(structural_similarity(arr_a, arr_b, channel_axis=2))
+    return { "ok": True, "same_size": same_size,
+            "pixel_thr8": round(px8, 4),
+            "pixel_thr32": round(px32, 4),
+            "ssim": round(ssim_v, 4) }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-local", action="store_true", help="只抓 fliki.ai 不抓本地 dist")
@@ -141,6 +169,7 @@ def main() -> int:
                     rec["local_ok"] = shot(local_page, f"http://127.0.0.1:{port}{local_path}", local_out, f"local:{pid}")
                     if rec["local_ok"]:
                         rec["diff_ratio"] = diff_ratio(fliki_out, local_out)
+                        rec["diff"] = diff_metrics(fliki_out, local_out)
                 report["pages"].append(rec)
 
             browser.close()
