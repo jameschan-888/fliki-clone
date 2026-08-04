@@ -99,7 +99,7 @@ jobs:
   frontend:
     name: Frontend build + vitest + visual diff
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -150,6 +150,9 @@ jobs:
             -w /work/tests/e2e \
             mcr.microsoft.com/playwright/python:v1.49.0-jammy \
             sh -c "pip install --quiet Pillow playwright && python -m playwright install --with-deps chromium && python visual_diff.py --threshold 0.01"
-      - name: Template full render E2E (opt-in, ffmpeg + auth required)
+      - name: Install ffmpeg (for Template full render E2E)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Template full render E2E (auth + 5 scenes render)
         run: python tests/e2e/test_template_render_e2e.py
-        continue-on-error: true  # needs ffmpeg + auth token + 5+ min render; opt-in for dev, not CI gate
+        timeout-minutes: 25
+        continue-on-error: true  # render 是真渲染 5 段视频, 慢且资源敏感; 失败不阻塞 PR
