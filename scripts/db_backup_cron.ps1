@@ -46,7 +46,7 @@ try {
     try {
         if ($Drill) {
             Write-Log "running DR drill..."
-            $drillOutput = py scripts/db_backup_drill.py 2>&1
+            $drillOutput = python scripts/db_backup_drill.py 2>&1
             Write-Log "drill output: $drillOutput"
             $drillJson = $drillOutput | ConvertFrom-Json -ErrorAction SilentlyContinue
             if ($drillJson -and $drillJson.drill_status -eq "passed") {
@@ -60,10 +60,10 @@ try {
 
         # 1) backup
         if ($DryRun) {
-            Write-Log "[DRYRUN] would run: py scripts/db_backup.py backup"
+            Write-Log "[DRYRUN] would run: python scripts/db_backup.py backup"
         } else {
             Write-Log "running backup..."
-            $backupOutput = py scripts/db_backup.py backup 2>&1
+            $backupOutput = python scripts/db_backup.py backup 2>&1
             Write-Log "backup output: $backupOutput"
         }
 
