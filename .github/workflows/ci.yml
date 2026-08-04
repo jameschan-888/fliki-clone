@@ -26,7 +26,7 @@ jobs:
   backend:
     name: Backend unit + API + Provider + Remotion tsc
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -43,6 +43,27 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
+      - name: Init DB schema + seed (idempotent for fresh checkout)
+        run: |
+          cd backend
+          python scripts/ci_init_db.py
+      - name: Start backend in background (live HTTP for integration tests)
+        run: |
+          cd backend
+          nohup python -m uvicorn main:app --host 127.0.0.1 --port 5181 --log-level warning > /tmp/backend.log 2>&1 &
+          echo "started pid $!"
+      - name: Wait for backend /health (max 30s)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5181/health > /dev/null; then
+              echo "backend ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "backend not ready, last log:"
+          tail -50 /tmp/backend.log
+          exit 1
       - name: Debug - verify templates.json + db presence
         run: |
           echo "[debug] ls -la backend/data:"
@@ -53,6 +74,8 @@ jobs:
           wc -c backend/data/templates.json 2>&1 || true
           echo "[debug] ls backend/db:"
           ls backend/db/ 2>&1 || true
+          echo "[debug] DB tables:"
+          python -c "import sqlite3; c=sqlite3.connect('backend/data/app.db'); print([r[0] for r in c.execute('SELECT name FROM sqlite_master WHERE type=\'table\'')])"
       - name: Backend unit tests (discover)
         run: |
           cd backend
