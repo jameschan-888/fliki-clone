@@ -1,4 +1,4 @@
-# rev24 阶段 D P1-C: Windows 计划任务包装 (cron 替代).
+﻿# rev24 阶段 D P1-C: Windows 计划任务包装 (cron 替代).
 #
 # 调用 db_backup.py backup, 保留 7 天最新 + 30 天 1 个, 删老的.
 # 输出日志到 logs/db_backup_cron.log.
