@@ -97,6 +97,7 @@ def diff_ratio(a: Path, b: Path) -> float:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-local", action="store_true", help="只抓 fliki.ai 不抓本地 dist")
+    ap.add_argument("--sync-baseline-threshold", type=float, default=0.0, help="如果 fliki vs project diff_ratio < 此阈值, 自动把 project 截图写入 visual_baselines/project_<id>.png")
     ap.add_argument("--pages", nargs="*", help="只跑指定页 id (subset of " + ",".join(p[0] for p in PAGES) + ")")
     args = ap.parse_args()
 
@@ -148,8 +149,23 @@ def main() -> int:
             server.terminate()
             try: server.wait(timeout=3)
             except Exception: pass
+        if args.sync_baseline_threshold > 0:
+            sync_count = 0
+            BASELINE_DIR = ROOT / "tests" / "e2e" / "visual_baselines"
+            BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+            for rec in report["pages"]:
+                if rec.get("local_ok") and 0 <= rec.get("diff_ratio", 1) <= args.sync_baseline_threshold:
+                    src = SCREENSHOTS / f"project_{rec['id']}.png"
+                    if src.exists():
+                        dst = BASELINE_DIR / f"project_{rec['id']}.png"
+                        import shutil
+                        shutil.copy2(src, dst)
+                        print(f"  [sync] {rec['id']} diff={rec['diff_ratio']:.4f} -> {dst.name}")
+                        sync_count += 1
+            if sync_count:
+                print(f"sync: {sync_count} page(s) -> {BASELINE_DIR}")
 
-    REPORT.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        REPORT.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     n = sum(1 for r in report["pages"] if r.get("fliki_ok"))
     print(f"\nfliki.ai 抓取 {n}/{len(report['pages'])} 页成功")
     print(f"report: {REPORT}")
