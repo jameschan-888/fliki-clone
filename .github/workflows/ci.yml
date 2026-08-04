@@ -50,7 +50,7 @@ jobs:
       - name: Start backend in background (live HTTP for integration tests)
         run: |
           cd backend
-          nohup python -m uvicorn main:app --host 127.0.0.1 --port 5181 --log-level warning > /tmp/backend.log 2>&1 &
+          FLIKI_DISABLE_RATE_LIMIT=1 nohup python -m uvicorn main:app --host 127.0.0.1 --port 5181 --log-level warning > /tmp/backend.log 2>&1 &
           echo "started pid $!"
       - name: Wait for backend /health (max 30s)
         run: |

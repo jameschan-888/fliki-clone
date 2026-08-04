@@ -89,6 +89,7 @@ class P1CDRDrillTests(unittest.TestCase):
         for f in drill_files:
             f.unlink()
 
+    @unittest.skipUnless(sys.platform == "win32", "Windows-only (needs powershell)")
     def test_drill_runs_in_cron_ps1(self):
         """scripts/db_backup_cron.ps1 -Drill 跑得动 (Windows 路径)."""
         ps1 = REPO_ROOT / "scripts" / "db_backup_cron.ps1"

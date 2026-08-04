@@ -24,7 +24,7 @@ class D1DRSyncTests(unittest.TestCase):
     def test_dr_path_exists_after_backup(self):
         """run db_backup.py backup -> disaster_recovery/app.db 必须存在并被刷新."""
         r = subprocess.run(
-            ["py", str(BACKUP_SCRIPT), "backup"],
+            [sys.executable, str(BACKUP_SCRIPT), "backup"],
             capture_output=True, text=True, timeout=30,
             encoding="utf-8", errors="replace",
         )
@@ -38,7 +38,7 @@ class D1DRSyncTests(unittest.TestCase):
     def test_dr_path_same_size_as_source(self):
         """DR 副本大小应 ≈ 主 DB 大小 (允许 0 差异, 同源 copy)."""
         r = subprocess.run(
-            ["py", str(BACKUP_SCRIPT), "backup"],
+            [sys.executable, str(BACKUP_SCRIPT), "backup"],
             capture_output=True, text=True, timeout=30,
             encoding="utf-8", errors="replace",
         )
@@ -52,7 +52,7 @@ class D1DRSyncTests(unittest.TestCase):
     def test_dr_output_contains_dr_synced(self):
         """backup 输出 JSON 必须含 dr_synced_to 字段."""
         r = subprocess.run(
-            ["py", str(BACKUP_SCRIPT), "backup"],
+            [sys.executable, str(BACKUP_SCRIPT), "backup"],
             capture_output=True, text=True, timeout=30,
             encoding="utf-8", errors="replace",
         )

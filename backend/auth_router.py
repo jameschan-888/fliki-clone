@@ -90,6 +90,8 @@ if os.environ.get("FLIKI_ENV", "").lower() in ("test", "dev"):
         reset_rate_limits()
         return {"ok": True}
 def _enforce_rate_limit(limiter: SlidingWindowLimiter, key: str) -> None:
+    if os.environ.get("FLIKI_DISABLE_RATE_LIMIT") == "1":
+        return  # 测试/CI 关闭限速, 避免 setUpClass register 触发 429
     blocked, _ = limiter.hit(key)
     if blocked:
         raise HTTPException(

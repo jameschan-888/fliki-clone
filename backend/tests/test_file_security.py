@@ -92,9 +92,10 @@ class SafeJoinTest(unittest.TestCase):
             safe_join(self.tmp, "..", "..", "etc", "passwd")
 
     def test_absolute_path_escape_blocked(self):
-        # 用户传绝对路径试图跳出 base
+        # 平台无关: Windows C:\Windows, Linux /etc
+        abs_path = "C:\\Windows\\System32" if os.name == "nt" else "/etc"
         with self.assertRaises(ValueError):
-            safe_join(self.tmp, "C:\\Windows\\System32")
+            safe_join(self.tmp, abs_path)
 
     def test_nested_directory(self):
         nested = safe_join(self.tmp, "a", "b", "c", "deep.mp4")

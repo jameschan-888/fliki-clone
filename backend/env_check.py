@@ -325,10 +325,10 @@ def run_full_diagnostic():
         _f_pt = _ex.submit(check_pytorch)
         _f_stock = _ex.submit(check_stock_providers)
         _f_pkgs = _ex.submit(check_python_packages)
-        gpu = _f_gpu.result(timeout=30)
-        pytorch = _f_pt.result(timeout=30)
-        stock_external = _f_stock.result(timeout=30)
-        python_packages = _f_pkgs.result(timeout=30)
+        gpu = _f_gpu.result(timeout=60)
+        pytorch = _f_pt.result(timeout=60)
+        stock_external = _f_stock.result(timeout=60)
+        python_packages = _f_pkgs.result(timeout=60)
     provider_configs = []
     try:
         import sqlite3
