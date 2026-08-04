@@ -67,48 +67,31 @@ const PLANS: Plan[] = [
       { text: "团队协作 + 商用授权" },
     ],
   },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: { monthly: "Custom", annual: "Custom" },
-    desc: "自定义 credit, 品牌定制模板, 专属客户经理.",
-    cta: "联系销售",
-    href: "/signup.html?plan=enterprise",
-    bullets: [
-      { text: "自定义 credit 与批量折扣" },
-      { text: "API 访问 + 最新模型" },
-      { text: "定制 avatar + 专业 voice clone" },
-      { text: "品牌定制模板 + 团队协作" },
-      { text: "专属客户经理" },
-      { text: "发票结算 + SLA" },
-      { text: "安全合规 + 赔偿条款" },
-    ],
-  },
 ];
 
-const COMPARE: Array<{ feature: string; free: string | boolean; standard: string | boolean; premium: string | boolean; enterprise?: string | boolean }> = [
-  { feature: "Credits", free: "36 / 月", standard: "2,160 / 年", premium: "7,200 / 年", enterprise: "Custom" },
-  { feature: "Export length", free: "1 min", standard: "15 min", premium: "40 min", enterprise: "Custom" },
-  { feature: "Resolution", free: "720p", standard: "1080p", premium: "1080p", enterprise: "4K (Custom)" },
-  { feature: "Scene limits", free: "50", standard: "100", premium: "150", enterprise: "Custom" },
-  { feature: "Standard voices", free: "300", standard: "1,000", premium: "2,000+", enterprise: "2,000+" },
-  { feature: "Ultra-Realistic voices", free: false, standard: "500", premium: "1,000+", enterprise: "1,000+" },
-  { feature: "Workflows", free: "Limited", standard: "Full", premium: "Full", enterprise: "Full" },
-  { feature: "Publications / 月", free: false, standard: "50", premium: "100", enterprise: "Custom" },
-  { feature: "Series", free: false, standard: "1", premium: "3", enterprise: "Custom" },
-  { feature: "AI Image", free: true, standard: true, premium: true, enterprise: true },
-  { feature: "AI Video clips", free: false, standard: true, premium: true, enterprise: true },
-  { feature: "AI Avatar", free: false, standard: "Limited", premium: true, enterprise: "Personalized" },
-  { feature: "Voice cloning", free: false, standard: "1", premium: "3", enterprise: "Professional" },
-  { feature: "Brand kits", free: false, standard: "1", premium: "3", enterprise: "Custom" },
-  { feature: "Bulk create", free: false, standard: true, premium: true, enterprise: true },
-  { feature: "AI Copilot", free: false, standard: true, premium: true, enterprise: true },
-  { feature: "Make / Zapier", free: false, standard: true, premium: true, enterprise: true },
-  { feature: "No watermark", free: false, standard: true, premium: true, enterprise: true },
-  { feature: "Commercial rights", free: false, standard: true, premium: true, enterprise: true },
-  { feature: "API Access", free: false, standard: false, premium: true, enterprise: true },
-  { feature: "Team collaboration", free: false, standard: false, premium: true, enterprise: true },
-  { feature: "Support", free: "Email", standard: "Email + 实时聊天", premium: "Email + 优先聊天", enterprise: "专属客户经理" },
+const COMPARE: Array<{ feature: string; free: string | boolean; standard: string | boolean; premium: string | boolean }> = [
+  { feature: "Credits", free: "36 / 月", standard: "2,160 / 年", premium: "7,200 / 年" },
+  { feature: "Export length", free: "1 min", standard: "15 min", premium: "40 min" },
+  { feature: "Resolution", free: "720p", standard: "1080p", premium: "1080p" },
+  { feature: "Scene limits", free: "50", standard: "100", premium: "150" },
+  { feature: "Standard voices", free: "300", standard: "1,000", premium: "2,000+" },
+  { feature: "Ultra-Realistic voices", free: false, standard: "500", premium: "1,000+" },
+  { feature: "Workflows", free: "Limited", standard: "Full", premium: "Full" },
+  { feature: "Publications / 月", free: false, standard: "50", premium: "100" },
+  { feature: "Series", free: false, standard: "1", premium: "3" },
+  { feature: "AI Image", free: true, standard: true, premium: true },
+  { feature: "AI Video clips", free: false, standard: true, premium: true },
+  { feature: "AI Avatar", free: false, standard: "Limited", premium: true },
+  { feature: "Voice cloning", free: false, standard: "1", premium: "3" },
+  { feature: "Brand kits", free: false, standard: "1", premium: "3" },
+  { feature: "Bulk create", free: false, standard: true, premium: true },
+  { feature: "AI Copilot", free: false, standard: true, premium: true },
+  { feature: "Make / Zapier", free: false, standard: true, premium: true },
+  { feature: "No watermark", free: false, standard: true, premium: true },
+  { feature: "Commercial rights", free: false, standard: true, premium: true },
+  { feature: "API Access", free: false, standard: false, premium: true },
+  { feature: "Team collaboration", free: false, standard: false, premium: true },
+  { feature: "Support", free: "Email", standard: "Email + 实时聊天", premium: "Email + 优先聊天" },
 ];
 
 const WORKFLOWS = [
@@ -128,11 +111,11 @@ const WORKFLOWS = [
 
 const FAQS = [
   { q: "Credit 怎么扣?", a: "按生成的音频时长和导出视频时长扣, 月底自动重置未使用部分 (年度 plan 滚动到下一年)." },
-  { q: "能用我自己的声音吗?", a: "Standard 起支持 voice cloning (1 个), Premium 支持 3 个, Enterprise 支持专业克隆 + 多语言." },
-  { q: "可以商用吗?", a: "Standard 起的所有 plan 都包含完整商用授权 + YouTube 许可音乐; Enterprise 含赔偿条款." },
+  { q: "能用我自己的声音吗?", a: "Standard 起支持 voice cloning (1 个), Premium 支持 3 个 + 多语言情绪调节." },
+  { q: "可以商用吗?", a: "Standard 起的所有 plan 都包含完整商用授权 + YouTube 许可音乐; Premium 含批量授权 + 装保." },
   { q: "支持哪些支付方式?", a: "USD 定价, 主要信用卡/借记卡、GPay、Apple Pay、本地钱包, 全部支持年付/月付切换." },
   { q: "可以随时取消吗?", a: "在 Account -> Manage billing 一键取消, 取消后剩余周期仍可用至到期日." },
-  { q: "团队可以多人协作吗?", a: "Premium 支持基础协作, Enterprise 支持角色权限、SSO、审计日志、专属客户经理." },
+  { q: "团队可以多人协作吗?", a: "Premium 支持基础协作 + 角色权限 + SSO; 高阶审计 / 专属客户经理联系 sales@localvideostudio.example." },
 ];
 
 const CHECK_HTML = "<span class=\"check\">✓</span>";
@@ -192,7 +175,6 @@ export function PricingPage() {
               <th>Free</th>
               <th>Standard</th>
               <th>Premium</th>
-              <th>Enterprise</th>
             </tr>
           </thead>
           <tbody>
@@ -202,7 +184,6 @@ export function PricingPage() {
                 <td dangerouslySetInnerHTML={{ __html: fmtCell(row.free) }} />
                 <td dangerouslySetInnerHTML={{ __html: fmtCell(row.standard) }} />
                 <td dangerouslySetInnerHTML={{ __html: fmtCell(row.premium) }} />
-                <td>{row.enterprise === undefined ? "" : fmtCell(row.enterprise)}</td>
               </tr>
             ))}
           </tbody>
