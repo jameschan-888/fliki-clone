@@ -12,7 +12,7 @@ QUOTE = chr(34)
 SINGLE = chr(39)
 STRING_QUOTES = QUOTE + SINGLE
 RE_PREFIX = re.compile(
-    r"APIRouter\s*\([^)]*?prefix\s*=\s*[" + STRING_QUOTES + r"]([^" + STRING_QUOTES + r"]+)[" + STRING_QUOTES + r"]",
+    r"APIRouter\s*\([^)]*?prefix\s*=\s*[" + STRING_QUOTES + r"]([^" + STRING_QUOTES + r"]*)[" + STRING_QUOTES + r"]",
     re.DOTALL,
 )
 RE_GLOBAL = re.compile(r"^(\w+)\s*=\s*APIRouter\s*\(", re.MULTILINE)
@@ -120,6 +120,8 @@ def scan_routes(root: Path):
             continue
         modules_by_prefix.setdefault(prefix, []).append(str(row["module"]))
     for prefix, modules in sorted(modules_by_prefix.items()):
+        if not prefix:
+            continue
         if len(modules) > 1:
             warnings.append({
                 "module": ",".join(modules),

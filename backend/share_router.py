@@ -30,7 +30,7 @@ def _now():
 
 
 def create_router(get_db=get_db):
-    router = APIRouter(tags=["sharing"])
+    router = APIRouter(prefix="", tags=["sharing"])
     from auth_router import get_user_id_from_request
     from workflow_drafts import draft_payload
 

@@ -28,5 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install playwright pillow
           playwright install chromium --with-deps
+      - name: Template preview smoke (must pass before full render)
+        run: python tests/e2e/test_template_preview_smoke.py
       - name: Visual diff (pixel regression, 0.1% threshold)
         run: cd tests/e2e && python visual_diff.py --threshold 0.001
+      - name: Template full render E2E
+        run: python tests/e2e/test_template_render_e2e.py

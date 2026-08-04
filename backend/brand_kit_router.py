@@ -21,7 +21,7 @@ def ensure_brand_kit_table(con):
 
 
 def create_router(get_db):
-    router = APIRouter(tags=["brand-kit"])
+    router = APIRouter(prefix="", tags=["brand-kit"])
     from auth_router import get_user_id_from_request
 
     def require_member(request, workspace_id, write=False):
