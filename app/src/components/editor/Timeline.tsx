@@ -35,6 +35,7 @@ function thumbFor(id: string): string | null {
 }
 
 import { editorStore, editorActions, useEditorState } from "./editorStore";
+import { LayerOpacityBar } from "./LayerOpacityBar";
 
 export type TimelineScene = {
   id: string;
@@ -173,7 +174,7 @@ export function Timeline(props: TimelineProps) {
     source: "Layers panel",
     clips: layers.map((l: any) => ({
       id: l.id,
-      label: l.name + (l.visible ? "" : " (隐藏)"),
+      label: l.name + " · " + l.opacity + "%" + (l.visible ? "" : " (隐藏)") + (l.locked ? " [lock]" : ""),
       duration_seconds: totalDuration,
       kind: l.kind,
       opacity: l.opacity,
@@ -219,6 +220,7 @@ export function Timeline(props: TimelineProps) {
     const w = Math.max(40, (c.duration_seconds || 1) * 60 * zoom);
     const opacity = c.opacity != null ? c.opacity / 100 : 1;
     const thumbnailUrl = c.id ? thumbFor(c.id) : null;
+    const isLayerClip = kind === "layer";
     const layerKey = (c.kind && (editorStore.kindColor as any)[c.kind]) ? c.kind : null;
     const bgLayer = layerKey ? (editorStore.kindColor as any)[layerKey] : "#5b6cff";
     const bgEl = c.character_id ? "#f5a524" : (c.kind === "element" ? "#19b5c5" : bgLayer);
@@ -232,6 +234,14 @@ export function Timeline(props: TimelineProps) {
         title={c.label + " · " + (c.duration_seconds || 0) + "s" + (c.opacity != null ? " · " + c.opacity + "%" : "")}
       >
         {kind === "scene" && <span className="idx">{(c.scene_index || 0) + 1}</span>}
+        {isLayerClip && (
+          <LayerOpacityBar
+            layerId={c.id}
+            opacity={c.opacity ?? 100}
+            fillColor={((editorStore.kindColor as any)[c.kind as string] as string) || "#5b6cff"}
+            onChange={(opacity) => editorActions.setLayerOpacity(c.id, opacity)}
+          />
+        )}
         {thumbnailUrl && (
           <img
             src={thumbnailUrl}
