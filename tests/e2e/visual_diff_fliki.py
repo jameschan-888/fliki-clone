@@ -19,9 +19,18 @@ from pathlib import Path
 from typing import Dict, List
 
 from PIL import Image, ImageChops
-import numpy as np
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
-from skimage.metrics import structural_similarity
+# Lazy imports: numpy/skimage 缺包不破 (informational, never gate, 但 user setup 不炸)
+try:
+    import numpy as np
+    _HAS_NUMPY = True
+except ImportError:
+    _HAS_NUMPY = False
+try:
+    from skimage.metrics import structural_similarity
+    _HAS_SSIM = True
+except ImportError:
+    _HAS_SSIM = False
 
 ROOT = Path(__file__).resolve().parents[2]  # tests/e2e -> tests -> project root
 DIST = ROOT / "app" / "dist"
@@ -92,10 +101,14 @@ def diff_ratio(a: Path, b: Path) -> float:
     if not bbox:
         return 0.0
     # pixel-level ratio
-    # N47: Pillow 14 deprecates getdata iter, replace with numpy mask (already imported)
-    arr = np.array(diff)
-    total = arr.shape[0] * arr.shape[1]
-    px = int((np.any(arr > 8, axis=2)).sum())
+    # N47 numpy mask path; lazy fallback if numpy 缺包
+    if _HAS_NUMPY:
+        arr = np.array(diff)
+        total = arr.shape[0] * arr.shape[1]
+        px = int((np.any(arr > 8, axis=2)).sum())
+    else:
+        total = img_a.size[0] * img_a.size[1]
+        px = sum(1 for p in diff.getdata() if any(c > 8 for c in p))
     return round(px / total, 4)
 
 def diff_metrics(a: Path, b: Path) -> dict:
@@ -112,16 +125,27 @@ def diff_metrics(a: Path, b: Path) -> dict:
     if not bbox:
         return { "ok": True, "same_size": same_size,
                 "pixel_thr8": 0.0, "pixel_thr32": 0.0, "ssim": 1.0 }
-    arr = np.array(diff)
-    px8  = float((np.any(arr > 8,  axis=2)).mean())
-    px32 = float((np.any(arr > 32, axis=2)).mean())
-    arr_a = np.array(img_a)
-    arr_b = np.array(img_b)
-    ssim_v = float(structural_similarity(arr_a, arr_b, channel_axis=2))
+    if _HAS_NUMPY:
+        arr = np.array(diff)
+        px8  = float((np.any(arr > 8,  axis=2)).mean())
+        px32 = float((np.any(arr > 32, axis=2)).mean())
+    else:
+        total = img_a.size[0] * img_a.size[1]
+        px8  = sum(1 for p in diff.getdata() if any(c > 8  for c in p)) / total
+        px32 = sum(1 for p in diff.getdata() if any(c > 32 for c in p)) / total
+    ssim_v = None
+    if _HAS_SSIM and _HAS_NUMPY:
+        try:
+            arr_a = np.array(img_a)
+            arr_b = np.array(img_b)
+            if arr_a.shape == arr_b.shape:
+                ssim_v = float(structural_similarity(arr_a, arr_b, channel_axis=2))
+        except Exception:
+            ssim_v = None
     return { "ok": True, "same_size": same_size,
             "pixel_thr8": round(px8, 4),
             "pixel_thr32": round(px32, 4),
-            "ssim": round(ssim_v, 4) }
+            "ssim": round(ssim_v, 4) if ssim_v is not None else None }
 
 
 def main() -> int:

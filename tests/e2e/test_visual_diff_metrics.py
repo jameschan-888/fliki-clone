@@ -67,3 +67,22 @@ def test_size_mismatch_is_resized(vd, tmp_path):
     assert m["ok"] is True
     assert m["same_size"] is False
     assert m["ssim"] is not None
+
+
+def test_fallback_when_numpy_or_ssim_missing(vd, tmp_path, monkeypatch):
+    """Lazy import: host 没装 numpy/skim, diff_metrics 不崩, ssim=None, pixel 仍可用."""
+    monkeypatch.setattr(vd, "_HAS_NUMPY", False)
+    monkeypatch.setattr(vd, "_HAS_SSIM", False)
+    a = _png(tmp_path / "a.png", color=(255, 0, 0))
+    b = _png(tmp_path / "b.png", color=(0, 0, 255))
+    m = vd.diff_metrics(a, b)
+    assert m["ok"] is True
+    assert m["ssim"] is None, f"lazy SSIM 应 None, got {m}"
+    assert m["pixel_thr8"] > 0.5, f"fallback pixel_thr8 应仍工作, got {m}"
+    assert m["pixel_thr32"] > 0.5, f"fallback pixel_thr32 应仍工作, got {m}"
+    # 旧 path 用 deprecated getdata, 但只 fallback 走, warn 是允许
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        r = vd.diff_ratio(a, b)
+    assert r > 0.5
