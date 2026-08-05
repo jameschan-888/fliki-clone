@@ -61,6 +61,9 @@ class DraftCreateBody(BaseModel):
     source_script: str = Field(min_length=1, max_length=20000)
     title: str | None = Field(default=None, max_length=200)
     language: str = Field(default="zh-CN", min_length=2, max_length=32)
+    # R28c-A: use_ai=true 时用 DeepSeek 智能分镜 (失败 fallback 到 split_script)
+    use_ai: bool = Field(default=False)
+    ai_model: str = Field(default="deepseek-chat", max_length=120)
 
 
 class ScenePatchBody(BaseModel):
@@ -121,6 +124,72 @@ class SceneCreateBody(BaseModel):
 class ReorderBody(BaseModel):
     scene_ids: list[str] = Field(min_length=1, max_length=100)
 
+
+def ai_split_script(source_script: str, minimum_scenes: int = 3, maximum_scenes: int = 10,
+                    model: str = "deepseek-chat"):
+    """R28c-A: DeepSeek smart scene splitter. Falls back to split_script on any error."""
+    try:
+        from providers.text.deepseek_text import DeepSeekTextProvider
+        provider = DeepSeekTextProvider(model=model)
+    except Exception:
+        return split_script(source_script, minimum_scenes, maximum_scenes)
+    target_count = min(maximum_scenes, max(minimum_scenes, math.ceil(len(source_script) / 150)))
+    system = (
+        "你是中文视频分镜师. 输入长文本, 输出 JSON 数组 (不要 markdown 包装, 不要前后缀), "
+        "数组里每项含 title (场景标题 12 字内), narration (本场景旁白原文片段), "
+        "visual_intent (本场景画面关键词, 中文逗号分隔, 6 个以内). "
+        "场景数严格 = " + str(target_count) + ". 每段旁白不超过 100 字."
+    )
+    user_prompt = "原文:" + chr(10) + source_script.strip()
+    try:
+        result = provider.generate(user_prompt, system=system, max_tokens=2048, temperature=0.7)
+    except Exception:
+        return split_script(source_script, minimum_scenes, maximum_scenes)
+    import json
+    raw = (result.get("content") or "").strip()
+    start = raw.find("[")
+    end = raw.rfind("]") + 1
+    if start < 0 or end <= start:
+        return split_script(source_script, minimum_scenes, maximum_scenes)
+    try:
+        scenes_data = json.loads(raw[start:end])
+    except Exception:
+        return split_script(source_script, minimum_scenes, maximum_scenes)
+    if not isinstance(scenes_data, list) or not scenes_data:
+        return split_script(source_script, minimum_scenes, maximum_scenes)
+    scenes = []
+    for item in scenes_data[:maximum_scenes]:
+        if not isinstance(item, dict):
+            continue
+        narration = (item.get("narration") or "").strip()
+        if not narration:
+            continue
+        title = (item.get("title") or "").strip()[:200]
+        if not title:
+            title = "场景 " + str(len(scenes) + 1)
+        visual_intent = (item.get("visual_intent") or "").strip()[:2000]
+        if not visual_intent:
+            visual_intent = narration[:30]
+        scenes.append({
+            "id": uuid.uuid4().hex,
+            "position": len(scenes),
+            "title": title,
+            "narration": narration,
+            "visual_intent": visual_intent,
+            "subtitle": narration,
+            "subtitle_display": narration,
+            "subtitle_spoken": narration,
+            "media_width": 1280,
+            "media_height": 720,
+            "video_aspect": "16:9",
+            "video_transition_mode": "fade",
+            "duration_seconds": max(2.0, round(len(narration) / 4.2, 1)),
+        })
+        if len(scenes) >= maximum_scenes:
+            break
+    if not scenes:
+        return split_script(source_script, minimum_scenes, maximum_scenes)
+    return scenes
 
 def voice_matches_language(voice: str, language: str):
     match = re.match(r"^([a-z]{2,3})-([A-Za-z]{2,4})(?:-|$)", voice)
@@ -231,7 +300,7 @@ def create_router(get_db):
             raise HTTPException(status_code=401, detail="Authentication required")
         with get_db() as connection:
             draft_id, now = uuid.uuid4().hex, utc_now()
-            scenes = split_script(body.source_script)
+            scenes = (ai_split_script(body.source_script, model=body.ai_model) if body.use_ai else split_script(body.source_script))
             connection.execute("INSERT INTO workflow_drafts (id, title, source_script, language, status, version, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, 'draft', 1, ?, ?, ?)", (draft_id, body.title or "未命名视频", body.source_script.strip(), body.language, now, now, user_id))
             for scene in scenes:
                 connection.execute("INSERT INTO scene_drafts (id, workflow_draft_id, position, title, narration, visual_intent, subtitle, duration_seconds, voice, avatar, video_aspect, video_transition_mode, media_width, media_height, subtitle_display, subtitle_spoken, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (scene["id"], draft_id, scene["position"], scene["title"], scene["narration"], scene["visual_intent"], scene["subtitle"], scene["duration_seconds"], scene.get("voice") or DEFAULT_VOICE, scene.get("avatar"), scene.get("video_aspect") or "16:9", scene.get("video_transition_mode") or "fade", scene.get("media_width") or 1280, scene.get("media_height") or 720, scene.get("subtitle_display") or scene.get("subtitle") or scene["subtitle"], scene.get("subtitle_spoken") or scene.get("narration") or scene["narration"], now, now))
