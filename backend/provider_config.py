@@ -158,17 +158,18 @@ def provider_payload(row):
 def seed_runtime_providers(connection):
     providers = [
         ("provider_stock_pexels", "stock", "pexels", 1, 1, 0, {"api_key_env":"PEXELS_API_KEY","base_url":"https://api.pexels.com"}),
-        ("provider_stock_minimax", "stock", "minimax_image", 0, 1, 30, {"model":"image-01","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
-        ("provider_stock_minimax_video", "stock", "minimax_video", 0, 1, 25, {"model":"MiniMax-Hailuo-2.3","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
+        ("provider_stock_minimax", "stock", "minimax_image", 1, 0, 30, {"model":"image-01","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
+        ("provider_stock_minimax_video", "stock", "minimax_video", 1, 0, 25, {"model":"MiniMax-Hailuo-2.3","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
         ("provider_stock_pixabay", "stock", "pixabay", 1, 0, 10, {"api_key_env":"PIXABAY_API_KEY","base_url":"https://pixabay.com/api"}),
         ("provider_tts_edge", "tts", "edge_tts", 1, 1, 0, {"model":"zh-CN-XiaoxiaoNeural"}),
-        ("provider_tts_minimax", "tts", "minimax", 0, 1, 40, {"model":"speech-02-turbo","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
+        ("provider_tts_minimax", "tts", "minimax", 1, 0, 40, {"model":"speech-02-turbo","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
         ("provider_tts_gpt_sovits", "tts", "gpt_sovits", 0, 0, 50, {"base_url":"http://127.0.0.1:9880","model":"GPT-SoVITS-v2","api_key_env":"FLIKI_GPT_SOVITS_URL"}),
         ("provider_avatar_wav2lip", "avatar", "wav2lip_onnx", 0, 1, 0, {"model_path":"data/models/wav2lip_onnx","ffmpeg_binary":"ffmpeg","auto_download":False,"fps":25.0,"max_dimension":320}),
-        ("provider_music_minimax", "music", "minimax_music", 0, 1, 30, {"model":"music-3.0","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
+        ("provider_music_minimax", "music", "minimax_music", 1, 0, 30, {"model":"music-3.0","api_key_env":"MINIMAX_API_KEY","base_url":"https://api.minimaxi.com"}),
         ("provider_music_freesound", "music", "freesound", 1, 1, 0, {"api_key_env":"FREESOUND_API_KEY","base_url":"https://freesound.org/apiv2"}),
         ("provider_music_silence", "music", "silence", 1, 0, 100, {}),
         ("provider_text_mock", "text", "mock", 1, 1, 100, {"is_mock": True}),
+        ("provider_text_deepseek", "text", "deepseek", 1, 0, 10, {"model":"deepseek-chat","api_key_env":"DEEPSEEK_API_KEY","base_url":"https://api.deepseek.com"}),
         ("provider_stock_mock", "stock", "mock", 1, 0, 100, {"is_mock": True}),
         ("provider_stock_veo31", "stock", "veo31", 0, 0, 5, {"model":"veo-3.1","api_key_env":"GOOGLE_VEO_API_KEY","base_url":"https://generativelanguage.googleapis.com","is_pro_video":True}),
         ("provider_stock_sora", "stock", "sora", 0, 0, 6, {"model":"sora-2","api_key_env":"OPENAI_SORA_API_KEY","base_url":"https://api.openai.com","is_pro_video":True}),
@@ -182,6 +183,20 @@ def seed_runtime_providers(connection):
     ]
     for row in providers:
         connection.execute("INSERT OR IGNORE INTO provider_configs (id, category, name, enabled, is_default, priority, config_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (*row[:-1], json.dumps(row[-1]), now_epoch()))
+    # R28/R29: 本轮新接的 provider 默认启用, 避免 INSERT OR IGNORE 让旧 db 残留 enabled=0.
+    # 仅在 enabled=0 时覆盖, 用户主动 disable 不动 (AND enabled=0 条件).
+    _FORCE_ENABLED_IDS = (
+        "provider_stock_minimax",
+        "provider_stock_minimax_video",
+        "provider_tts_minimax",
+        "provider_music_minimax",
+        "provider_text_deepseek",
+    )
+    placeholders = ",".join("?" for _ in _FORCE_ENABLED_IDS)
+    connection.execute(
+        "UPDATE provider_configs SET enabled=1 WHERE id IN (" + placeholders + ") AND enabled=0",
+        _FORCE_ENABLED_IDS,
+    )
     connection.commit()
 
 

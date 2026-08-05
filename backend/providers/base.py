@@ -21,3 +21,9 @@ class MusicProvider(ABC):
     name: str
     @abstractmethod
     def fetch(self, query, destination): ...
+
+
+class TextProvider(ABC):
+    name: str
+    @abstractmethod
+    def generate(self, prompt, *, system=None, max_tokens=2048, temperature=1.0): ...
