@@ -1,14 +1,15 @@
 """rev24 阶段 D D1-1: /metrics tenant 维度 (md5(user_id) % 4 哈希分桶)."""
 import hashlib
 import unittest
-import urllib.request
+
+from fastapi.testclient import TestClient
+from main import app
 
 BACKEND = "http://127.0.0.1:5181"
 
 
-def _fetch_metrics():
-    with urllib.request.urlopen(BACKEND + "/metrics", timeout=10) as r:
-        return r.read().decode("utf-8")
+def _fetch_metrics(client):
+    return client.get("/metrics").text
 
 
 def _bucket(user_id):
@@ -38,7 +39,8 @@ def _sum_lines_with(needle, hay):
 class D1TenantMetricsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.metrics = _fetch_metrics()
+        cls.client = TestClient(app)
+        cls.metrics = _fetch_metrics(cls.client)
 
     def test_render_jobs_per_tenant_metric_exists(self):
         self.assertIn("fliki_render_jobs_per_tenant_total", self.metrics)

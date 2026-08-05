@@ -10,6 +10,9 @@
 import os
 import sys
 
+import pytest
+from fastapi.testclient import TestClient
+
 os.environ.setdefault("FLIKI_ENV", "dev")
 os.environ.setdefault("FLIKI_JWT_SECRET", "ci-test-secret-32chars-padding-xx")
 
@@ -43,10 +46,12 @@ def _ensure_db_ready():
 _ensure_db_ready()
 
 
-try:
-    import pytest  # noqa: F401
+@pytest.fixture
+def client():
+    from main import app
+    with TestClient(app) as test_client:
+        yield test_client
 
-    def pytest_configure(config):  # noqa: ARG001
-        _ensure_db_ready()
-except ImportError:
-    pass
+
+def pytest_configure(config):  # noqa: ARG001
+    _ensure_db_ready()
