@@ -21,7 +21,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-MAX_CONCURRENT = max(1, int(os.environ.get("RENDER_QUEUE_MAX_CONCURRENT", "3")))
+MAX_CONCURRENT = max(1, int(os.environ.get("RENDER_QUEUE_MAX_CONCURRENT", "4")))
 ACQUIRE_TIMEOUT = max(60, int(os.environ.get("RENDER_QUEUE_ACQUIRE_TIMEOUT", "1800")))
 
 _QUEUE_LOCK = threading.Lock()
@@ -89,6 +89,17 @@ def release_slot(job_id, message=""):
 def get_active_count():
     with _QUEUE_LOCK:
         return len(_ACTIVE_SLOTS)
+
+
+def get_max_concurrent():
+    """Return current MAX_CONCURRENT (configurable via env RENDER_QUEUE_MAX_CONCURRENT)."""
+    return MAX_CONCURRENT
+
+
+def get_active_slots():
+    """Return copy of active job_id -> acquired_at mapping for test/observability."""
+    with _QUEUE_LOCK:
+        return dict(_ACTIVE_SLOTS)
 
 
 def get_queue_stats():
