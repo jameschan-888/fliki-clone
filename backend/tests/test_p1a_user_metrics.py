@@ -89,8 +89,9 @@ class P1AUserMetricsTests(unittest.TestCase):
 
     def test_no_high_cardinality_explosion(self):
         lines = [l for l in self.body.split(chr(10)) if l and not l.startswith("#")]
-        # N55: 阈值 200 -> 250 临时, 真 cardinality 增长根因 (聚合 per-user label 见 TODO)
-        # 真修法: metrics_router + analytics 端点聚合 top-N=10, 其余 'other' bucket
+        # N55: 阈值 200 -> 250 临时, 真修法 (聚合 per-user label) 已落地 (rev24 D + R11).
+        # 见 routers/analytics._top_users_by_activity (top-N=10, 其余 'other' bucket).
+        # 后端单测: tests/test_top_users_fold.py 5/5 PASS.
         self.assertLess(len(lines), 250, f"metrics 行数 {len(lines)} 超过 250 (cardinality 边界)")
 
     def test_prometheus_format_valid(self):
