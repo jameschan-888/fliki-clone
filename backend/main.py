@@ -83,6 +83,9 @@ register_error_handlers(app)
 # 启动逻辑等价: users 表 → init_db → seed providers → ensure voices → 后台诊断线程.
 @asynccontextmanager
 async def lifespan(app):
+    # P0#2: fail-fast on missing required env keys (dev/prod)
+    from env_validation import validate_required_keys
+    validate_required_keys()
     try:
         from auth_router import ensure_users_table as _eut
         _eut()

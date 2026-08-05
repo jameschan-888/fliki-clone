@@ -13,7 +13,7 @@ import sys
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("FLIKI_ENV", "dev")
+os.environ.setdefault("FLIKI_ENV", "test")  # P0#2: skip env key check in tests
 os.environ.setdefault("FLIKI_JWT_SECRET", "ci-test-secret-32chars-padding-xx")
 
 _TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
