@@ -3,6 +3,8 @@
 - Natural language -> batch scene patches
 - MVP: keyword parsing for 6 commands (LLM upgrade in P1)
 """
+import json
+import os
 import re
 from datetime import datetime, timezone
 
@@ -21,7 +23,96 @@ def _ensure_owner(connection, draft_id, request):
     return user_id
 
 
+SUPPORTED_OPS = (
+    "shorten_subtitles",
+    "set_aspect",
+    "shorten_duration",
+    "set_voice",
+    "adjust_visual",
+)
+SUPPORTED_ASPECTS = ("16:9", "9:16", "1:1")
+
+def _llm_parse_instruction(instruction):
+    """R28c-B: DeepSeek natural language intent parser.
+
+    Returns (op, params) on confidence, else (None, None).
+    Env CHAT_LLM_ENABLED=true required to enable (default off -> fallback to regex).
+    """
+    if not instruction or not str(instruction).strip():
+        return (None, None)
+    flag = (os.getenv("CHAT_LLM_ENABLED") or "").strip().lower()
+    if flag not in ("1", "true", "yes", "on"):
+        return (None, None)
+    try:
+        from providers.text.deepseek_text import DeepSeekTextProvider
+        provider = DeepSeekTextProvider(model=os.getenv("DEEPSEEK_DEFAULT_MODEL", "deepseek-chat"))
+    except Exception:
+        return (None, None)
+    system = (
+        "You are a Chinese video-edit instruction parser. Given user natural-language instruction, output STRICT JSON: {op, params, confidence}. ops: shorten_subtitles(limit int), set_aspect(aspect 16:9/9:16/1:1), shorten_duration(seconds float), set_voice(voice str), adjust_visual(keyword str). Unknown op=null+confidence<0.5. JSON only, no markdown, no explanation."
+    )
+    try:
+        result = provider.generate(instruction, system=system, max_tokens=200, temperature=0.1)
+    except Exception:
+        return (None, None)
+    raw = (result.get("content") or "").strip()
+    start = raw.find("{")
+    end = raw.rfind("}") + 1
+    if start < 0 or end <= start:
+        return (None, None)
+    try:
+        data = json.loads(raw[start:end])
+    except Exception:
+        return (None, None)
+    if not isinstance(data, dict):
+        return (None, None)
+    op = data.get("op")
+    try:
+        confidence = float(data.get("confidence") or 0)
+    except Exception:
+        confidence = 0.0
+    if not op or op not in SUPPORTED_OPS or confidence < 0.5:
+        return (None, None)
+    params = data.get("params")
+    if not isinstance(params, dict):
+        return (None, None)
+    if op == "shorten_subtitles":
+        try:
+            limit = int(params.get("limit"))
+        except Exception:
+            return (None, None)
+        if limit <= 0 or limit > 500:
+            return (None, None)
+        return (op, {"limit": limit})
+    if op == "set_aspect":
+        aspect = params.get("aspect")
+        if aspect not in SUPPORTED_ASPECTS:
+            return (None, None)
+        return (op, {"aspect": aspect})
+    if op == "shorten_duration":
+        try:
+            seconds = float(params.get("seconds"))
+        except Exception:
+            return (None, None)
+        if seconds <= 0 or seconds > 60:
+            return (None, None)
+        return (op, {"seconds": round(seconds, 2)})
+    if op == "set_voice":
+        voice = (params.get("voice") or "").strip()
+        if not voice or len(voice) > 64:
+            return (None, None)
+        return (op, {"voice": voice})
+    if op == "adjust_visual":
+        keyword = (params.get("keyword") or "").strip()
+        if not keyword or len(keyword) > 64:
+            return (None, None)
+        return (op, {"keyword": keyword})
+    return (None, None)
 def _parse_instruction(instruction):
+    # R28c-B: LLM-first intent parsing with regex fallback.
+    op, params = _llm_parse_instruction(instruction)
+    if op is not None:
+        return (op, params)
     text = (instruction or "").strip()
     if not text:
         return (None, None)
