@@ -11,6 +11,7 @@ import json
 import os
 import secrets
 import sqlite3
+import pytest
 import unittest
 import uuid
 
@@ -62,6 +63,7 @@ class P0LifespanTests(unittest.TestCase):
     def test_backend_alive(self):
         self.assertTrue(_backend_alive(), "backend /health should respond 200")
 
+@pytest.mark.no_xdist
 class P0UploadsUserIdTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -95,6 +97,7 @@ class P0UploadsUserIdTests(unittest.TestCase):
         response = _delete("nonexistent")
         self.assertEqual(response.status_code, 401)
 
+@pytest.mark.no_xdist
 class P0Pbkdf2UpgradeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

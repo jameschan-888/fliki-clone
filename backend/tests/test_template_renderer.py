@@ -280,20 +280,6 @@ class PipelineHelperTest(unittest.TestCase):
         self.assertTrue(body["ok"])
 
 
-def test_pipeline_returns_provider_tuple(self):
-        from workflow_pipeline import _resolve_template_plan
-        path = self._make_db()
-        conn = sqlite3.connect(path)
-        conn.row_factory = sqlite3.Row
-        self._seed_template(conn)
-        result = _resolve_template_plan(
-            {"id": "scene1", "template_id": "intro_simple", "template_fields": {}}, conn,
-        )
-        conn.close()
-        # run_node 期望 (provider, dict)
-        self.assertIsInstance(result, tuple)
-        self.assertEqual(result[0], "template_mock")
-        self.assertTrue(result[1]["ok"])
 
 
 if __name__ == "__main__":

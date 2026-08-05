@@ -1,6 +1,7 @@
 """rev24 阶段 D D2-1: 统一错误响应格式."""
 import json
 import time
+import pytest
 import unittest
 from fastapi.testclient import TestClient
 from main import app
@@ -31,6 +32,7 @@ def _register_and_login():
     return d2.get("token") or ""
 
 
+@pytest.mark.no_xdist
 class D2ErrorFormatTests(unittest.TestCase):
     def test_401_missing_token_has_error_code(self):
         status, body = _req("GET", "/auth/me")

@@ -101,6 +101,12 @@ class TestPixabayProvider(unittest.TestCase):
             _skip_or_fail("PIXABAY_API_KEY not configured; skipping real Pixabay test")
         if not _has_ffprobe():
             _skip_or_fail("ffprobe not available")
+        # 网络可达性预检: Pixabay API 本机不可达时 skip, 避免 httpx.ReadTimeout
+        try:
+            import httpx
+            httpx.get("https://pixabay.com/api/", timeout=3.0)
+        except Exception as exc:
+            _skip_or_fail("Pixabay API network unreachable: " + type(exc).__name__ + "; skipping to avoid timeout")
         cls.tmp = Path(tempfile.mkdtemp(prefix="fliki-pixabay-"))
 
     @classmethod

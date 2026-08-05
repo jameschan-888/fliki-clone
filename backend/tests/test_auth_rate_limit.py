@@ -1,5 +1,6 @@
 """rev35 P0-3: /auth/login + /auth/register 限速 contract."""
 import os
+import pytest
 import unittest
 
 os.environ.setdefault("FLIKI_JWT_SECRET", "test-rate-secret-32chars-padding-xx")
@@ -24,6 +25,7 @@ class _BaseRLTest(unittest.TestCase):
         self.assertEqual(body.get("error_code"), "RATE_LIMITED", body)
 
 
+@pytest.mark.no_xdist
 class LoginRateLimitTest(_BaseRLTest):
     def test_login_rate_limit_after_5_attempts(self):
         for i in range(5):
@@ -38,6 +40,7 @@ class LoginRateLimitTest(_BaseRLTest):
         ))
 
 
+@pytest.mark.no_xdist
 class RegisterRateLimitTest(_BaseRLTest):
     def test_register_rate_limit_after_5_attempts(self):
         for i in range(5):

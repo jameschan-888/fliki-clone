@@ -1,5 +1,6 @@
 """rev24 阶段 D D1-1: /metrics tenant 维度 (md5(user_id) % 4 哈希分桶)."""
 import hashlib
+import pytest
 import unittest
 
 from fastapi.testclient import TestClient
@@ -36,6 +37,7 @@ def _sum_lines_with(needle, hay):
     return total
 
 
+@pytest.mark.no_xdist
 class D1TenantMetricsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
