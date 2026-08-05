@@ -164,16 +164,17 @@ export function FilesPage() {
       <h1>我的文件</h1>
       <p className="lead">管理所有草稿、视频、音频和模板. 支持搜索、批量操作和回收站.</p>
 
-      <div className="tabs">
+      <div className="tabs" role="tablist" aria-label="文件分类">
         {TABS.map(function (t) { return (
-          <button key={t.id} className={"tab" + (tab === t.id ? " active" : "")} onClick={function () { setTab(t.id); setSelected(new Set()); }}>
+          <button role="tab" aria-selected={tab === t.id} key={t.id} className={"tab" + (tab === t.id ? " active" : "")} onClick={function () { setTab(t.id); setSelected(new Set()); }}>
             {t.label} ({(counts[t.id] || 0)})
           </button>
         ); })}
       </div>
 
       <div className="toolbar">
-        <input type="search" placeholder="搜索文件名..." value={q} onChange={function (e) { setQ(e.target.value); }} />
+<label htmlFor="files-search" className="visuallyHidden">搜索文件名</label>
+                <input type="search" id="files-search" placeholder="搜索文件名..." value={q} onChange={function (e) { setQ(e.target.value); }} />
         <button className="primary" onClick={function () { window.location.href = "/drafts.html"; }}>+ 新建视频</button>
         <button onClick={function () { window.location.href = "/autoedit.html"; }}>上传素材</button>
         <button onClick={function () { window.location.href = "/voices.html"; }}>克隆声音</button>
@@ -184,9 +185,9 @@ export function FilesPage() {
             <button onClick={function () { setSelected(new Set()); }}>取消选择</button>
           </div>
         )}
-        <div className="view-toggle" style={{ marginLeft: "auto" }}>
-          <button className={view === "grid" ? "active" : ""} onClick={function () { setView("grid"); }}>网格</button>
-          <button className={view === "list" ? "active" : ""} onClick={function () { setView("list"); }}>列表</button>
+        <div className="view-toggle" role="group" aria-label="视图切换" style={{ marginLeft: "auto" }}>
+          <button aria-pressed={view === "grid"} className={view === "grid" ? "active" : ""} onClick={function () { setView("grid"); }}>网格</button>
+          <button aria-pressed={view === "list"} className={view === "list" ? "active" : ""} onClick={function () { setView("list"); }}>列表</button>
         </div>
       </div>
 
@@ -206,7 +207,7 @@ export function FilesPage() {
             return (
               <div key={f.id} className="file-card" style={{ position: "relative" }}>
                 <span className="file-tag">{f.kind}</span>
-                <button className={"check" + (selected.has(f.id) ? " on" : "")} style={{ position: "absolute", top: 14, left: 14, zIndex: 2 }} onClick={function (e) { e.preventDefault(); e.stopPropagation(); toggle(f.id); }}>
+                <button aria-label={selected.has(f.id) ? "取消选择" : "选择"} aria-pressed={selected.has(f.id)} className={"check" + (selected.has(f.id) ? " on" : "")} style={{ position: "absolute", top: 14, left: 14, zIndex: 2 }} onClick={function (e) { e.preventDefault(); e.stopPropagation(); toggle(f.id); }}>
                   {selected.has(f.id) ? "✓" : ""}
                 </button>
                 <a href={f.href} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
@@ -225,7 +226,7 @@ export function FilesPage() {
           {filtered.map(function (f) {
             return (
               <div key={f.id} className="file-row">
-                <button className={"check" + (selected.has(f.id) ? " on" : "")} onClick={function () { toggle(f.id); }}>
+                <button aria-label={selected.has(f.id) ? "取消选择" : "选择"} aria-pressed={selected.has(f.id)} className={"check" + (selected.has(f.id) ? " on" : "")} onClick={function () { toggle(f.id); }}>
                   {selected.has(f.id) ? "✓" : ""}
                 </button>
                 <div>
