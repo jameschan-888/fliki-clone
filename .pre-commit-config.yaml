@@ -18,9 +18,9 @@ repos:
   # 若新加 router 文件没在 main.py include_router, commit 直接 fail.
   - repo: local
     hooks:
-      - id: enum-routers-check
-        name: FastAPI router coverage (enum_routers.py --check-routes)
-        entry: python scripts/enum_routers.py --check-routes
+      - id: enum-routers-sync-handover
+        name: FastAPI router coverage + HANDOVER_NEXT sync
+        entry: python scripts/precommit_enum_routers.py
         language: system
         pass_filenames: false
         files: '^backend/(main\.py|routers/.*\.py)$'
