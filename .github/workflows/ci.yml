@@ -23,6 +23,9 @@ jobs:
       - name: scripts/check_routes.py --fail-on-warn
         run: python scripts/check_routes.py --fail-on-warn
 
+      - name: scripts/enum_routers.py --check-routes (rev39 R12 gate)
+        run: python scripts/enum_routers.py --check-routes
+
   backend:
     name: Backend unit + API + Provider + Remotion tsc
     runs-on: ubuntu-latest
