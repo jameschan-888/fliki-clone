@@ -13,3 +13,14 @@ repos:
       - id: check-merge-conflict
       - id: check-yaml
       - id: detect-private-key
+  # R18 (rev40): 自定义 hook - 校验 FastAPI router 覆盖.
+  # 任何 backend/main.py 或 backend/routers/*.py 变化时跑 enum_routers.py --check-routes.
+  # 若新加 router 文件没在 main.py include_router, commit 直接 fail.
+  - repo: local
+    hooks:
+      - id: enum-routers-check
+        name: FastAPI router coverage (enum_routers.py --check-routes)
+        entry: python scripts/enum_routers.py --check-routes
+        language: system
+        pass_filenames: false
+        files: '^backend/(main\.py|routers/.*\.py)$'
