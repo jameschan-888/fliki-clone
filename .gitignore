@@ -114,3 +114,5 @@ fliki_research/diff_vs_project.json
 # fliki band-analysis side-slices (regenerable, 5MB untracked N44)
 fliki_research/_slice_tmp/
 
+app/test-results/
+app/playwright-report/
