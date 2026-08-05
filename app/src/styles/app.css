@@ -545,3 +545,6 @@
 .layerQuickRow{display:flex;gap:6px;margin-top:8px}
 .layerQuickRow button{flex:1;padding:6px;border:1px solid #3a4a7c;border-radius:8px;background:transparent;color:#aab3cf;font-size:11px;cursor:pointer}
 .layerQuickRow button:hover{background:#5b6cff;color:#fff;border-color:#5b6cff}
+
+/* R13 (rev39) a11y: visually hidden but readable by AT (label for screen readers) */
+.visuallyHidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}

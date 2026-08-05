@@ -107,9 +107,11 @@ export function HomePage() {
             {error && <p className="error">{error}</p>}
             {message && <p className="hint ok">{message}</p>}
             <form onSubmit={submitAvatar} className="createForm" style={{ marginBottom: 16 }}>
-              <input placeholder="Avatar 名称" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <label htmlFor="avatar-name" className="visuallyHidden">Avatar 名称</label>
+              <input id="avatar-name" placeholder="Avatar 名称" value={newName} onChange={(e) => setNewName(e.target.value)} />
               <button type="submit" className="primary" disabled={creating}>{creating ? "上传中…" : "保存"}</button>
-              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setNewFile(e.target.files?.[0] || null)} />
+              <label htmlFor="avatar-ref-face" className="visuallyHidden">人脸图片</label>
+              <input id="avatar-ref-face" ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setNewFile(e.target.files?.[0] || null)} />
             </form>
             {avatars === null ? <p>加载中…</p> : avatars.length === 0 ? <p>还没有 Avatar 克隆</p> : (
               <ul className="avatarList">
