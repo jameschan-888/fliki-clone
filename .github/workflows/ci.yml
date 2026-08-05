@@ -19,7 +19,7 @@ jobs:
       - name: Install backend deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: scripts/check_routes.py --fail-on-warn
         run: python scripts/check_routes.py --fail-on-warn
 
@@ -45,11 +45,11 @@ jobs:
       - name: Install backend deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: Install backend deps (needed for init_db + uvicorn)
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: Init DB schema + seed (idempotent for fresh checkout)
         run: |
           cd backend
@@ -87,7 +87,7 @@ jobs:
         run: |
           cd backend
           python -W ignore::ResourceWarning -c "from templates_router import TEMPLATES_FILE, load_builtin_templates; print('TEMPLATES_FILE=', TEMPLATES_FILE); print('exists=', TEMPLATES_FILE.exists()); print('size=', TEMPLATES_FILE.stat().st_size if TEMPLATES_FILE.exists() else 0); print('builtin_count=', len(load_builtin_templates()))"
-          python -W ignore::ResourceWarning -m unittest discover -s tests -p "test_*.py" -t .
+          python -W ignore::ResourceWarning -m pytest -n auto --dist=loadfile
       - name: API contract
         run: cd backend && python -m unittest tests.test_api_contract
       - name: Provider real matrix (network, may flake)
@@ -116,7 +116,7 @@ jobs:
       - name: Install backend deps (needed for init_db + uvicorn)
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: Init DB schema + seed (idempotent for fresh checkout)
         run: |
           cd backend
@@ -175,7 +175,7 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install backend deps
-        run: python -m pip install --upgrade pip; python -m pip install -r backend/requirements.txt
+        run: python -m pip install --upgrade pip; python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: Init DB schema + seed (idempotent)
         run: python scripts/ci_init_db.py
       - name: Run cron-ps1 drill test
