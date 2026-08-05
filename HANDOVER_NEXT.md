@@ -1,4 +1,35 @@
-﻿## 2026-08-05 rev38+ - Router Path Table (auto-generated)
+﻿## 2026-08-06 rev38+ - Router Path Table (auto-generated)
+
+25 routers / 106 endpoints
+
+运行 ``python scripts/enum_routers.py --md`` 重生成.
+| File | prefix | 关键 endpoint (verb + path) |
+|---|---|---|
+| audit_router.py | /audit-logs | GET /me |
+| auth_router.py | /auth | POST /_internal/reset-rate-limits, POST /register, POST /login, GET /me, POST /refresh, POST /logout |
+| autoedit.py | /autoedit | POST /uploads, POST /uploads/{upload_id}/drafts, GET /drafts/{draft_id}, PATCH /drafts/{draft_id}/segments/{segment_id}, POST /drafts/{draft_id}/reorder, DELETE /drafts/{draft_id}/segments/{segment_id} |
+| avatar_clone_router.py | /avatar-clones | GET /{avatar_uuid}, DELETE /{avatar_uuid}, POST /{avatar_uuid}/synthesize, GET /{avatar_uuid}/output, PUT /{avatar_uuid}/ref-face, PUT /{avatar_uuid}/ref-audio |
+| billing_router.py | /billing | GET /plans, GET /me, POST /subscribe |
+| brand_kit_router.py | (none) | GET /workspaces/{workspace_id}/brand-kit, PUT /workspaces/{workspace_id}/brand-kit |
+| chat.py | /chat | POST /apply |
+| env_check_router.py | /env-check | GET /quick |
+| metrics_router.py | /metrics | GET /summary, GET /users, GET /users/{user_id}, GET /tenants |
+| minimax_voice_clones_router.py | /minimax-voice-clones | GET /{voice_uuid}, DELETE /{voice_uuid}, POST /{voice_uuid}/preview, GET /provider/health |
+| provider_config.py | /provider-configs | PUT /{category}/{name}, DELETE /{category}/{name}/secret |
+| share_router.py | (none) | POST /workflow-drafts/{draft_id}/share, DELETE /workflow-drafts/{draft_id}/share, GET /share/{token}, GET /share/{token}/embed |
+| templates_router.py | /templates | GET /categories, GET /{template_id}, POST /{template_id}/preview, POST /{template_id}/validate, POST /from-draft/{draft_id}, DELETE /{template_id} |
+| uploads_router.py | /api/uploads | DELETE /{file_id} |
+| voice_clone_router.py | /voice-clones | GET /{voice_uuid}, DELETE /{voice_uuid}, POST /{voice_uuid}/preview, GET /provider/health |
+| voice_gallery.py | /voices | GET /locales, GET /{short_name}/preview, POST /refresh |
+| workflow_drafts.py | /workflow-drafts | GET /{draft_id}, PATCH /{draft_id}/scenes/{scene_id}, POST /{draft_id}/scenes, DELETE /{draft_id}/scenes/{scene_id}, POST /{draft_id}/reorder, DELETE /{draft_id} |
+| workflow_pipeline.py | /workflow-runs | POST /from-draft/{draft_id}, GET /{run_id}, POST /{run_id}/retry, POST /{run_id}/rerender |
+| workspace_router.py | /workspaces | POST /{workspace_id}/members, GET /{workspace_id}/members |
+| routers/alerts.py | /api/alerts | GET /rules, POST /eval, POST /reset-throttle |
+| routers/analytics.py | (none) | GET /metrics, GET /characters, GET /providers, GET / |
+| routers/render.py | (none) | GET /render.latest, GET /render-jobs, GET /render-jobs/{job_id}, POST /render.create, GET /render/{filename}, POST /render.cancel |
+| routers/startup.py | (none) | GET /startup-status, GET /health, GET / |
+
+## 2026-08-05 rev38+ - Router Path Table (auto-generated)
 
 24 routers / 106 endpoints
 
