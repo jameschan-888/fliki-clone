@@ -54,7 +54,7 @@ function UploadPanel(props: {
   return (
     <div className="autoeditPanel">
       <div className="autoeditRow">
-        <input ref={inputRef} type="file" accept="video/*" onChange={onChange} disabled={props.uploading} />
+        <label htmlFor="ae-upload" className="visuallyHidden">上传视频文件</label><input id="ae-upload" ref={inputRef} type="file" accept="video/*" onChange={onChange} disabled={props.uploading} />
         {props.uploading && <span className="autoeditMuted">上传中…</span>}
       </div>
       {props.uploading && (
@@ -68,7 +68,7 @@ function UploadPanel(props: {
       <InlineError error={props.error} fallback="上传失败" />
       {props.upload && !props.uploading && (
         <div className="autoeditRow" style={{ marginTop: 10 }}>
-          <button className="autoeditBtn" onClick={props.onCreateDraft} disabled={props.creatingDraft}>
+          <button className="autoeditBtn" onClick={props.onCreateDraft} disabled={props.creatingDraft} aria-busy={props.creatingDraft}>
             {props.creatingDraft ? "生成草稿中…" : "生成可编辑草稿"}
           </button>
         </div>
@@ -94,7 +94,7 @@ function SegmentRow(props: {
         <span className="autoeditMuted">music={props.segment.music_volume}</span>
       </div>
       <div className="autoeditCol">
-        <label className="autoeditLabel">字幕</label>
+        <label htmlFor={"ae-seg-subtitle-" + props.segment.id} className="autoeditLabel">字幕</label>
         <textarea
           value={subtitle}
           onChange={(e) => setSubtitle(e.target.value)}
@@ -103,7 +103,7 @@ function SegmentRow(props: {
         />
       </div>
       <div className="autoeditRow" style={{ marginTop: 6 }}>
-        <select value={kind} onChange={(e) => setKind(e.target.value as SegmentKind)} disabled={props.disabled}>
+        <label htmlFor={"ae-seg-kind-" + props.segment.id} className="visuallyHidden">segment 类型</label><select id={"ae-seg-kind-" + props.segment.id} value={kind} onChange={(e) => setKind(e.target.value as SegmentKind)} disabled={props.disabled}>
           <option value="keep">keep 保留</option>
           <option value="trim">trim 精简</option>
           <option value="drop">drop 删除</option>
@@ -111,7 +111,7 @@ function SegmentRow(props: {
         <button
           className="autoeditBtn autoeditBtn-secondary"
           disabled={props.disabled || !dirty}
-          onClick={() => props.onSave(props.segment.id, { subtitle, kind })}
+          onClick={() => props.onSave(props.segment.id, { subtitle, kind })} aria-label={"保存 segment #" + props.segment.position}
         >
           保存
         </button>
@@ -143,7 +143,7 @@ function DraftPanel(props: {
       ))}
       {props.draft.status === "draft" && (
         <div className="autoeditRow" style={{ marginTop: 12 }}>
-          <button className="autoeditBtn" onClick={props.onConfirm} disabled={props.confirming}>
+          <button aria-busy={props.confirming} className="autoeditBtn" onClick={props.onConfirm} disabled={props.confirming}>
             {props.confirming ? "确认中…" : "确认草稿 → 生成"}
           </button>
         </div>
@@ -193,7 +193,7 @@ function RunPanel(props: { run: AutoEditRun; onRetry: () => void }) {
         </div>
       )}
       {props.run.status === "failed" && (
-        <button className="autoeditBtn" style={{ marginTop: 8 }} onClick={props.onRetry}>
+        <button aria-label="重试 autoedit 任务" className="autoeditBtn" style={{ marginTop: 8 }} onClick={props.onRetry}>
           重试
         </button>
       )}

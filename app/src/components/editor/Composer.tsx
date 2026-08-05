@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 // D2-3: 模板完成度计算
 type TemplateFieldOption = string | { value: string; label?: string };
@@ -274,7 +274,7 @@ export function Composer({ scenes, onReorder, onPickTemplate, onClearTemplate, o
             <button
               type="button"
               key={template.id}
-              className={"templateCard " + (targetScene?.template_id === template.id ? "selected" : "")}
+              className={"templateCard " + (targetScene?.template_id === template.id ? "selected" : "")} aria-label={"应用模板 " + template.name + (targetScene?.template_id === template.id ? " (已选)" : "")}
               title={template.description}
               disabled={disabled || !targetScene}
               onClick={() => targetScene && onApplyTemplate(targetScene, template)}
@@ -411,11 +411,11 @@ export function Composer({ scenes, onReorder, onPickTemplate, onClearTemplate, o
               <div className="sceneMetaTemplateRow">
                 <span className="sceneMetaTemplateLabel">模板: {scene.template_id || "未选"}</span>
                 <div className="sceneMetaTemplateActions">
-                  <button type="button" disabled={disabled} onClick={() => onPickTemplate(scene)}>
+                  <button aria-label={"为场景 " + scene.title + " 选择模板"} type="button" disabled={disabled} onClick={() => onPickTemplate(scene)}>
                     选择模板
                   </button>
                   {scene.template_id && (
-                    <button type="button" disabled={disabled} onClick={() => onClearTemplate(scene)}>
+                    <button aria-label={"清除场景 " + scene.title + " 模板"} type="button" disabled={disabled} onClick={() => onClearTemplate(scene)}>
                       清除
                     </button>
                   )}
