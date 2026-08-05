@@ -123,6 +123,15 @@ const allPhases = [
     setup: "scripts/lib/build_dist_if_needed.js",
     allowFail: false,
     group: 2,
+  },
+  {
+    // P0#3 灾备 smoke 自动化. 沙箱里真删真恢复 + hash 校验. 不动生产 DB.
+    name: "DB 灾备 smoke (沙箱真删真恢复 + sha256 校验, < 2s)",
+    cmd: "python",
+    args: ["scripts/db_backup_smoke.py"],
+    cwd: ROOT,
+    allowFail: false,
+    group: 1,
   }
 ];
 

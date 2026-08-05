@@ -11,7 +11,7 @@
 | RTO (Recovery Time Objective) | < 5 min | **< 1s** (drill 实测) |
 | RPO (Recovery Point Objective) | < 24h | = cron 间隔 (建议 24h) |
 | Backup 完整性 | 100% 表可读 | 29 表 / 96 users / 196 jobs / 85 runs |
-| 演练频率 | 每周 1 次 | cron -Drill 周一 03:00 |
+| 演练频率 | 每周 1 次 (drill) + 每月 1 次 (smoke) | cron -Drill 周一 03:00 |
 
 ## 2. 备份策略
 
@@ -89,6 +89,35 @@ JSON `drill_status` = `"passed"` + 5 步 `ok` 都 true. 实测:
   "steps": [...]
 }
 ```
+
+### 3.5 深度 smoke (P0#3)
+
+drill 只验 '备份能打开', 不动生产 DB. smoke 在沙箱里真删真恢复, 验证恢复链路真能跑通.
+
+**scripts/db_backup_smoke.py** 7 步:
+
+1. **copy_to_sandbox** - 复制生产 DB 到 backend/data/smoke/sandbox.sqlite3, 记录 sha256
+2. **backup** - 备份沙箱 DB
+3. **delete_sandbox** - 真删沙箱 DB
+4. **restore_from_backup** - 从 backup 复制回沙箱
+5. **hash_check** - sha256 与原值对比
+6. **row_count_check** - 4 关键表 (users / render_jobs / workflow_runs / workflow_drafts) 行数一致
+7. **cleanup** - 删沙箱 + 临时 backup
+
+**用法**:
+\\powershell
+python scripts/db_backup_smoke.py
+# 退出 0 = passed, 2 = failed
+\
+**沙箱路径**: \ackend/data/smoke/\ (不污染生产 + 不污染 backups/)
+
+**CI 集成**: scripts/ci.js 阶段 10, 与 backend tests 同 group 1 并行跑.
+
+**最近一次 smoke (2026-08-06)**:
+- 沙箱 sha256: 3f6a5a48375b4f6e8c6c12ebdf2e1ffcd171635ff7a0536e7a793dc524a37267
+- 4 表行数: users=2066 / render_jobs=799 / workflow_runs=85 / workflow_drafts=184
+- RTO: 0.55s
+- 全 7 步 OK
 
 ### 3.4 演练失败排查
 
@@ -203,5 +232,6 @@ python scripts/db_backup.py restore --from backend/data/backups/db-<最近一次
 - 备份脚本: `scripts/db_backup.py` (rev15, 子命令 backup/restore/list/verify)
 - 演练脚本: `scripts/db_backup_drill.py` (rev24 阶段 D P1-C, 8.8KB)
 - Windows 包装: `scripts/db_backup_cron.ps1` (rev24 阶段 D P1-C, 4.2KB)
-- 演练测试: `backend/tests/test_p1c_backup_drill.py` (rev24 阶段 D P1-C, 8 case)
+- 演练测试: `backend/tests/test_p1c_backup_drill.py` (rev24 阶段 D P1-C, 8 case)   
+- Smoke 自动化: `scripts/db_backup_smoke.py` (P0#3, 7 步沙箱真删真恢复 + hash)
 - 关联: `docs/MONITORING.md` (P1-B 告警), `HANDOVER_NEXT.md` (P1 周)
