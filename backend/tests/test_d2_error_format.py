@@ -2,36 +2,25 @@
 import json
 import time
 import unittest
-import urllib.request
-import urllib.error
+from fastapi.testclient import TestClient
+from main import app
 
-BACKEND = "http://127.0.0.1:5181"
+client = TestClient(app)
 
 
 def _reset_rate_limits():
     try:
-        req = urllib.request.Request(BACKEND + "/auth/_internal/reset-rate-limits", method="POST")
-        urllib.request.urlopen(req, timeout=5)
+        client.post("/auth/_internal/reset-rate-limits")
     except Exception:
         pass
 
 
 def _req(method, path, data=None, headers=None):
-
-    url = BACKEND + path
-    body = json.dumps(data).encode() if data is not None else None
-    h = {"Content-Type": "application/json"}
-    if headers:
-        h.update(headers)
-    req = urllib.request.Request(url, data=body, method=method, headers=h)
+    response = client.request(method, path, json=data, headers=headers or {})
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.status, json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        try:
-            return e.code, json.loads(e.read().decode("utf-8"))
-        except Exception:
-            return e.code, {}
+        return response.status_code, response.json()
+    except Exception:
+        return response.status_code, {}
 
 
 def _register_and_login():

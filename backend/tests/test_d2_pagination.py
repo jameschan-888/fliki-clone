@@ -1,20 +1,15 @@
 """rev24 阶段 D D2-2: render_jobs / workflow_runs 分页 API 验证."""
 import json
-import unittest
-import urllib.error
-import urllib.request
 
-BACKEND = "http://127.0.0.1:5181"
+from fastapi.testclient import TestClient
+from main import app
+import unittest
+
 
 
 def _fetch(path):
-    url = BACKEND + path
-    try:
-        with urllib.request.urlopen(url, timeout=10) as r:
-            body = r.read().decode("utf-8")
-            return r.status, body
-    except urllib.error.HTTPError as e:
-        return e.code, e.read().decode("utf-8", errors="ignore")
+    response = TestClient(app).get(path)
+    return response.status_code, response.text
 
 
 class RenderJobsPaginationTests(unittest.TestCase):
